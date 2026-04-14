@@ -171,7 +171,7 @@ export default function UsuariosList() {
         <AlertTriangle className="h-10 w-10 text-destructive mb-3" />
         <h3 className="text-lg font-semibold mb-1">Error al cargar los usuarios</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          {(error as any)?.message ?? 'Ocurrió un error inesperado.'}
+          {(error as Error)?.message ?? 'Ocurrió un error inesperado.'}
         </p>
         <Button onClick={() => refetch()}>Reintentar</Button>
       </div>

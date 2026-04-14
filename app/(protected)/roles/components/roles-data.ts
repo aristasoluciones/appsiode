@@ -168,7 +168,7 @@ export function useTogglePermiso() {
     },
 
     // Revertir si el servidor falla
-    onError: (_error, { idRol }, context: any) => {
+    onError: (_error, { idRol }, context: { previous: unknown } | undefined) => {
       if (context?.previous) {
         queryClient.setQueryData([QK_PERMISOS, idRol], context.previous);
       }

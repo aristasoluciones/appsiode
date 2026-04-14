@@ -112,8 +112,8 @@ export function useCreateUsuario() {
       queryClient.invalidateQueries({ queryKey: [QK_USUARIOS_FORM] });
       toast.success('Usuario creado correctamente.');
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message ?? 'Error al crear el usuario.');
+    onError: (error: unknown) => {
+      toast.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al crear el usuario.');
     },
   });
 }
@@ -139,8 +139,8 @@ export function useUpdateUsuario() {
       queryClient.invalidateQueries({ queryKey: [QK_USUARIOS_FORM] });
       toast.success('Usuario actualizado correctamente.');
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message ?? 'Error al actualizar el usuario.');
+    onError: (error: unknown) => {
+      toast.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al actualizar el usuario.');
     },
   });
 }
@@ -159,8 +159,8 @@ export function useDeleteUsuario() {
       queryClient.invalidateQueries({ queryKey: [QK_USUARIOS_FORM] });
       toast.success('Usuario eliminado correctamente.');
     },
-    onError: (error: any) => {
-      toast.error(error?.response?.data?.message ?? 'Error al eliminar el usuario.');
+    onError: (error: unknown) => {
+      toast.error((error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al eliminar el usuario.');
     },
   });
 }

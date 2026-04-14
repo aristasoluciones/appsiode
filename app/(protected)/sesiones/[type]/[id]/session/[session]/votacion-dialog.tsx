@@ -18,6 +18,14 @@ import type { ISesionDetalleAPI } from '@/types/sesiones';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
+interface IVotoApi {
+  id_sesion: number;
+  id_punto: number;
+  id_subpunto: number;
+  id_asistencia: number;
+  voto: TVoto;
+}
+
 type IPunto = ISesionDetalleAPI['pod'][number];
 type IConsejero = ISesionDetalleAPI['asistencia'][number];
 
@@ -73,12 +81,12 @@ export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion
     if (votosExistentes?.data) {
       const votosMap: Record<number, TVoto> = {};
       votosExistentes.data
-        .filter((voto: any) =>
+        .filter((voto: IVotoApi) =>
           voto.id_sesion === parseInt(idSesion) &&
           voto.id_punto === punto.id_punto &&
           voto.id_subpunto === punto.id_subpunto
         )
-        .forEach((voto: any) => {
+        .forEach((voto: IVotoApi) => {
           votosMap[voto.id_asistencia] = voto.voto;
         });
       setVotos(votosMap);
