@@ -102,7 +102,7 @@ export function NuevaSesionForm({
     tipo_consejo: tipoDefault,
     id_consejo: 0,
     tipo: '',
-    no_sesion: numSiguiente,
+    no_sesion: String(numSiguiente),
     anio: anioActual,
     fecha_hora: '',
   };
