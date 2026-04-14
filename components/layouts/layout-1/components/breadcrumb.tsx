@@ -15,6 +15,7 @@ export function Breadcrumb() {
     return null;
   }
 
+  
   return (
     <div className="flex items-center gap-1.25 text-xs lg:text-sm font-medium mb-2.5 lg:mb-0">
       {items.map((item, index) => {
