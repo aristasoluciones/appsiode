@@ -92,7 +92,7 @@ export default function RolForm({ initialData, open, onOpenChange, onSuccess }: 
               <DialogFooter className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <Button
                   type="button"
-                  variant="light"
+                  variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isSubmitting || isPending}
                 >
