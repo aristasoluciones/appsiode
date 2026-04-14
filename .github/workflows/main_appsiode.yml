@@ -31,6 +31,12 @@ jobs:
           npm install
           npm run build --if-present
           npm run test --if-present
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_RPP_API_BASE: ${{ secrets.NEXT_PUBLIC_RPP_API_BASE }}
+          NEXT_PUBLIC_SICE_API_BASE: ${{ secrets.NEXT_PUBLIC_SICE_API_BASE }}
+          BASE_URL: ${{ secrets.BASE_URL }}
+          API_AUTH_URL: ${{ secrets.API_AUTH_URL }}
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
