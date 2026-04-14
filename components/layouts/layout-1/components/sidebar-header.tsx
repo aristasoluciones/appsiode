@@ -29,7 +29,7 @@ export function SidebarHeader() {
         </div>
         <div className="hidden dark:block">
           <img
-            src={toAbsoluteUrl('/media/app/default-logo-dark.svg')}
+            src={toAbsoluteUrl('/media/app/default-logo-iepc-dark.svg')}
             className="default-logo w-[200px] h-[60px] max-w-none"
             alt="Default Dark Logo"
           />
