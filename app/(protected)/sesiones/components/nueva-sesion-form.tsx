@@ -94,7 +94,9 @@ export function NuevaSesionForm({
 
   const tipoDefault: 'D' | 'M' = tipoConsejoDefault === 'distrital' ? 'D' : 'M';
   const anioActual = catalogos?.anio_actual ?? new Date().getFullYear();
-  const numSiguiente = catalogos?.num_sesiones != null ? catalogos.num_sesiones + 1 : 1;
+  const numSiguiente = catalogos?.num_sesiones?.length
+    ? Math.max(...catalogos.num_sesiones.map((n) => n.num)) + 1
+    : 1;
 
   const defaultValues: ICrearSesionInput = {
     tipo_consejo: tipoDefault,
