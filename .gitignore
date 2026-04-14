@@ -1,0 +1,34 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-ssr
+.next
+out
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production
+.env.production.local
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
