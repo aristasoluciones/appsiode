@@ -13,7 +13,14 @@ export async function POST(request: NextRequest) {
       status: apiResponse.status,
     });
 
-    forwardCookies(response, apiResponse.headers['set-cookie']);
+   // Forward Set-Cookie headers from the external API to the browser
+    const setCookies = apiResponse.headers['set-cookie'];
+    if (setCookies) {
+      for (const cookie of setCookies) {
+        response.headers.append('Set-Cookie', cookie);
+      }
+    }
+
 
     return response;
   } catch (error){

@@ -30,8 +30,14 @@ export async function POST(request: NextRequest) {
       status: apiResponse.status,
     });
 
-    forwardCookies(response, apiResponse.headers['set-cookie']);
-
+    // Reenviar Set-Cookie al browser (nuevo AccessToken y RefreshToken)
+    const setCookies = apiResponse.headers['set-cookie'];
+    if (setCookies) {
+      for (const cookie of setCookies) {
+        response.headers.append('Set-Cookie', cookie);
+      }
+    }
+    
     return response;
   } catch {
     return NextResponse.json(
