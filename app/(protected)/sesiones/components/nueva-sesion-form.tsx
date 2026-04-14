@@ -99,12 +99,11 @@ export function NuevaSesionForm({
     : 1;
 
   const defaultValues: ICrearSesionInput = {
-    tipo_consejo: tipoDefault,
-    id_consejo: 0,
     tipo: '',
     no_sesion: String(numSiguiente),
     anio: anioActual,
     fecha_hora: '',
+    consejos: [{ tipo_consejo: tipoDefault, id_consejo: 0 }],
   };
 
   async function handleSubmit(
