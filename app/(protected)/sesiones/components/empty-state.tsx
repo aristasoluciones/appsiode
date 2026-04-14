@@ -4,11 +4,9 @@ import { CalendarOff, AlertTriangle, SearchX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // ─── Variante 1: sin datos del servidor ───────────────────────────────────────
-
 interface SinDatosProps {
   onReset: () => void;
 }
-
 export function EmptyStateSinDatos({ onReset }: SinDatosProps) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-4">
