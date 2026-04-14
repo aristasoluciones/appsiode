@@ -39,13 +39,15 @@ function mapSesion(item: ISesionConsejoAPI): ISesionConsejo {
  * Sesiones + meta de un consejo específico.
  * @param type     — param de URL: 'd' | 'm'  →  char 'D' | 'M' para el API
  * @param idConsejo — clave numérica del consejo
+ * @param enabled   — si es false, la query no se ejecuta (default: true)
  *
  * Retorna `notFound: true` (sin lanzar error) cuando el API responde 404.
  */
-export function useSesionesConsejo(type: string, idConsejo: string) {
+export function useSesionesConsejo(type: string, idConsejo: string, enabled = true) {
   const tipoChar = type.toUpperCase();
   return useQuery({
     queryKey: ['sesiones', 'consejo', tipoChar, idConsejo],
+    enabled,
     queryFn: async (): Promise<ISesionesConsejoResult> => {
       try {
         const { data } = await apiClient.get<ISesionesConsejoPayload>(

@@ -2,26 +2,33 @@
 
 import { Building2, MapPin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useProceso, CONSEJO_TIPO_MAP, type TTipoConsejo } from '@/hooks/use-proceso';
+import type { TTipoConsejo } from '@/hooks/use-proceso';
 
 const ICON_MAP: Record<TTipoConsejo, React.ComponentType<{ className?: string }>> = {
   distrital: Building2,
   municipal: MapPin,
 };
 
+export interface TipoConsejoOpcion {
+  value: TTipoConsejo;
+  label: string;
+}
+
 interface TipoConsejoPillsProps {
   value: TTipoConsejo;
   onChange: (tipo: TTipoConsejo) => void;
+  opciones: TipoConsejoOpcion[];
+  isLoading?: boolean;
   disabled?: boolean;
 }
 
 export function TipoConsejoPills({
   value,
   onChange,
+  opciones,
+  isLoading = false,
   disabled = false,
 }: TipoConsejoPillsProps) {
-  const { data: proceso, isLoading } = useProceso();
-
   if (isLoading) {
     return (
       <div className="flex gap-2">
@@ -31,17 +38,11 @@ export function TipoConsejoPills({
     );
   }
 
-  const opciones = (proceso?.elecciones ?? []).map((e) => ({
-    value: CONSEJO_TIPO_MAP[e.consejo_tipo],
-    label: e.consejo_tipo_text,
-    icon: ICON_MAP[CONSEJO_TIPO_MAP[e.consejo_tipo]],
-  }));
-
   return (
     <div role="radiogroup" aria-label="Tipo de Consejo" className="flex flex-wrap gap-2">
       {opciones.map((op) => {
         const isActive = value === op.value;
-        const Icon = op.icon;
+        const Icon = ICON_MAP[op.value];
         return (
           <button
             key={op.value}

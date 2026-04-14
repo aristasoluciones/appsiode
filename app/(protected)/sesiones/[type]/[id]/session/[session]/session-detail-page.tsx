@@ -49,11 +49,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSesionesConsejo } from '../../components/sesiones-consejo-data';
-import { useSesionDetalle, useRepresentantesExternos, useGuardarAsistencia, useIniciarSesion, useTerminarSesion, useAgregarAsuntoGeneral, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
+import { useSesionDetalle, useRepresentantesExternos, useGuardarAsistencia, useIniciarSesion, 
+        useTerminarSesion, useAgregarAsuntoGeneral, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
 import { IncidenciasCard } from './incidencias-card';
 import { ExpedientesCard } from './expedientes-card';
 import { VotacionDialog } from './votacion-dialog';
-import type { ISesionDetalleAPI } from '@/types/sesiones';
+import type { ISesionDetalleAPI, IRepresentanteNorm, IConsejeroExterno } from '@/types/sesiones';
+
+import { useAuth } from '@/providers/auth-provider';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -97,18 +100,7 @@ const statusLabel   = (s: string): string => s.replaceAll('_', ' ');
 
 const ACTIVE_STATUSES = new Set(['PROCESO', 'DEMORA', 'PROGRAMADA']);
 
-interface IConsejeroExterno {
-  consejo_tipo: string;
-  consejo_clave: number;
-  consejo: string;
-  id: number;
-  grupo_cargo: string;
-  id_cargo: number;
-  nombre: string;
-  apellidos: string;
-  genero: string;
-  cargo: string;
-}
+
 
 /** TODO: reemplazar con llamada a API externa cuando esté disponible */
 const MOCK_CONSEJEROS_ELECTORALES: IConsejeroExterno[] = [
@@ -139,26 +131,6 @@ const MOCK_CONSEJEROS_ELECTORALES: IConsejeroExterno[] = [
 ];
 
 // ─── Representantes PP: tipos y normalización ─────────────────────────────────
-
-interface IRepresentanteNorm {
-  id_representante: number;
-  id_partido: number;
-  partyName: string;
-  partyImagePath: string | null;
-  nombre: string;
-  apellidos: string;
-  cargo: string;
-  genero: string;
-  asistencia: boolean;
-  nombramiento_no: string | null;
-  nombramiento_fecha: string | null;
-  nombramiento_url: string | null;
-  nombramiento_status: string | null;
-  telefono: string | null;
-  celular: string | null;
-  correo: string | null;
-  domicilio: string | null;
-}
 
 function normalizeRepresentante(r: IRepresentanteExternoAPI): IRepresentanteNorm {
   const appt = r.appointments?.[0];
@@ -195,6 +167,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   const [asistenciaExtOverrides, setAsistenciaExtOverrides] = useState<Record<number, boolean>>({});
   const [votacionPunto, setVotacionPunto] = useState<ISesionDetalleAPI['pod'][number] | null>(null);
   const [nuevoAsunto, setNuevoAsunto] = useState('');
+  const { hasPermission } = useAuth();
 
   const session       = data?.session ?? null;
   const notFound      = data?.notFound ?? false;
@@ -206,6 +179,15 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
 
   const { data: repData = EMPTY_REPS, isLoading: loadingExt, isError: errorExt } = useRepresentantesExternos(type as 'd' | 'm', String(consejoClave));
   const representantesNorm = useMemo(() => repData.map(normalizeRepresentante), [repData]);
+
+  // Permisos de acceso para acciones específicas
+  const canIniciarSesion = hasPermission('sesionesdelconsejo.sesiones.iniciar'); 
+  const canTerminarSesion = hasPermission('sesionesdelconsejo.sesiones.terminar'); 
+  const canAgregarActualizarAsistencia = hasPermission('sesionesdelconsejo.sesiones.actualizarasistencia');
+  const canEditarOrdenDia = hasPermission('sesionesdelconsejo.pod.editar');
+  const canEliminarOrdenDia = hasPermission('sesionesdelconsejo.sesiones.eliminarpod');
+  const canAgregarAsuntoGeneral = hasPermission('sesionesdelconsejo.asuntos.insert');
+
 
   const handleIniciarSesion = () => {
     iniciarSesion({
@@ -447,7 +429,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                   </div>
                 </dl>
             </CardContent>
-            {(session.status === 'PROGRAMADA' || session.status === 'DEMORA') && (
+            {((session.status === 'PROGRAMADA' || session.status === 'DEMORA') && canIniciarSesion) && (
               <div className="px-5 pb-5 flex justify-start">
                 <Button
                   size="sm"
@@ -462,7 +444,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                 </Button>
               </div>
             )}
-            {session.status === 'PROCESO' && (
+            {(session.status === 'PROCESO' && canTerminarSesion) && (
               <div className="px-5 pb-5 flex justify-start">
                 <Button
                   size="sm"
@@ -537,6 +519,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                   status={session.status}
                   asistencia={session.asistencia}
                   sessionId={sessionId}
+                  canAgregarActualizarAsistencia={canAgregarActualizarAsistencia}
                 />
 
                 {/* Representaciones de Partidos Políticos */}
@@ -694,10 +677,12 @@ function ConsejerosAsistenciaCard({
   status,
   asistencia,
   sessionId,
+  canAgregarActualizarAsistencia,
 }: {
   status: string;
   asistencia: ISesionDetalleAPI['asistencia'];
   sessionId: string;
+  canAgregarActualizarAsistencia: boolean;
 }) {
   const canSave  = status !== 'PROGRAMADA' && status !== 'DEMORA';
 
@@ -772,7 +757,7 @@ function ConsejerosAsistenciaCard({
                 <CardTitle>Consejeros Electorales</CardTitle>
               </label>
             </div>
-            {canSave && (
+            {(canSave && canAgregarActualizarAsistencia) && (
               <Button
                 size="sm"
                 disabled={guardando}
@@ -837,7 +822,7 @@ function ConsejerosAsistenciaCard({
       <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle>Consejeros Electorales</CardTitle>
           <div className="flex items-center gap-2">
-            {desbloqueado && canSave && (
+            {(desbloqueado && canSave && canAgregarActualizarAsistencia) && (
               <Button
                 size="sm"
                 disabled={guardando}
@@ -863,7 +848,7 @@ function ConsejerosAsistenciaCard({
                 Cancelar edición
               </Button>
             )}
-            {!desbloqueado && (
+            {(!desbloqueado && canAgregarActualizarAsistencia) && (
               <Button
                 variant="outline"
                 size="sm"

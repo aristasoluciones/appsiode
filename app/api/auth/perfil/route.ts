@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import serverApi from '@/lib/api/server-axios';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import type { AuthUser } from '@/types/auth';
+import type { IProceso } from '@/types/proceso';
 
 function parseModulos(raw: unknown): string[] {
   if (!raw) return [];
@@ -56,8 +57,25 @@ export async function GET(request: NextRequest) {
     }
 
     const user = mapToAuthUser(apiResponse.data.data);
+
+    // Fetch proceso en paralelo server-to-server — sin cookies browser, sin CORS
+    let proceso: IProceso | null = null;
+    if (user.idProceso) {
+      try {
+        const procesoRes = await serverApi.get(
+          API_ENDPOINTS.CATALOGOS.PROCESO(user.idProceso),
+          { headers: { Authorization: `Bearer ${accessToken}` } },
+        );
+        if (procesoRes.status === 200 && procesoRes.data?.data) {
+          proceso = procesoRes.data.data as IProceso;
+        }
+      } catch {
+        // proceso queda null — no bloquea el login
+      }
+    }
+
     return NextResponse.json(
-      { status: 200, message: 'OK', data: user },
+      { status: 200, message: 'OK', data: { ...user, proceso } },
       { status: 200 },
     );
   } catch {

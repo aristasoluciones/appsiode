@@ -10,7 +10,7 @@ import {
   useSesionesOptions,
 } from './indicadores-data';
 import { useProceso, CONSEJO_TIPO_MAP, type TTipoConsejo } from '@/hooks/use-proceso';
-import { TipoConsejoPills } from './tipo-consejo-pills';
+import { TipoConsejoPills, type TipoConsejoOpcion } from './tipo-consejo-pills';
 import { EstadoChips } from './estado-chips';
 import { SesionSelector } from './sesion-selector';
 import { SearchInput } from './search-input';
@@ -22,6 +22,8 @@ import {
   EmptyStateSinDatos,
   EmptyStateBusquedaVacia,
 } from './empty-state';
+
+import { useAuth } from '@/providers/auth-provider';
 
 // ─── Helper: debounce ─────────────────────────────────────────────────────────
 
@@ -46,8 +48,11 @@ const TODOS_ESTADOS: TEstadoIndicador[] = [
 // ─── Contenedor principal ─────────────────────────────────────────────────────
 
 export function IndicadoresContainer() {
-  const { data: proceso } = useProceso();
+  const { data: proceso, isLoading: isLoadingProceso } = useProceso();
   const router = useRouter();
+  const { hasPermission } = useAuth();
+
+  const canAgregarSesion = hasPermission('sesiones.sesiones.insert');
 
   // null = "usar el primer tipo del proceso" (default dinámico desde API).
   // Solo se vuelve no-null cuando el usuario elige explícitamente una pill.
@@ -57,6 +62,16 @@ export function IndicadoresContainer() {
     new Set(TODOS_ESTADOS),
   );
   const [busqueda, setBusqueda] = useState('');
+
+  // Opciones derivadas del proceso para los pills
+  const procesoOpciones = useMemo<TipoConsejoOpcion[]>(
+    () =>
+      (proceso?.elecciones ?? []).map((e) => ({
+        value: CONSEJO_TIPO_MAP[e.consejo_tipo],
+        label: e.consejo_tipo_text,
+      })),
+    [proceso],
+  );
 
   // El tipo efectivo: elección explícita del usuario → primero de la API → fallback
   const tipoConsejoEfectivo: TTipoConsejo =
@@ -195,10 +210,12 @@ export function IndicadoresContainer() {
         />
         <div className="ml-auto flex items-center gap-2">
           <ExportButtons data={dataFinal} disabled={isLoading} />
-          <Button size="sm" disabled={isLoading} onClick={() => router.push('/sesiones/new')}>
-            <Plus className="size-4" />
-            Nueva Sesión
-          </Button>
+          {canAgregarSesion && (
+            <Button size="sm" disabled={isLoading} onClick={() => router.push('/sesiones/new')}>
+              <Plus className="size-4" />
+              Nueva Sesión
+            </Button>
+          )}
         </div>
       </div>
 
@@ -220,6 +237,8 @@ export function IndicadoresContainer() {
         <TipoConsejoPills
           value={tipoConsejoEfectivo}
           onChange={setTipoConsejo}
+          opciones={procesoOpciones}
+          isLoading={isLoadingProceso}
           disabled={isLoading}
         />
         <EstadoChips

@@ -66,13 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
 
         if (res.status === 200 && res.data.status === 200 && res.data.data) {
-          // Usar los datos del login directamente — evita un segundo round-trip
-          // a /api/auth/perfil que causaría un re-render del menú.
-          setState({
-            user: res.data.data,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          // Delegar en refreshUser: llama al BFF /perfil que ya retorna user+proceso
+          await refreshUser();
           return { success: true };
         }
 
@@ -87,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
     },
-    [],
+    [refreshUser],
   );
 
   const logout = useCallback(async () => {

@@ -268,3 +268,36 @@ export interface ISesionDetalle {
   incidencias: unknown;
   expedientes: IExpediente[] | null;
 }
+
+export interface IConsejeroExterno {
+  consejo_tipo: string;
+  consejo_clave: number;
+  consejo: string;
+  id: number;
+  grupo_cargo: string;
+  id_cargo: number;
+  nombre: string;
+  apellidos: string;
+  genero: string;
+  cargo: string;
+}
+
+export interface IRepresentanteNorm {
+  id_representante: number;
+  id_partido: number;
+  partyName: string;
+  partyImagePath: string | null;
+  nombre: string;
+  apellidos: string;
+  cargo: string;
+  genero: string;
+  asistencia: boolean;
+  nombramiento_no: string | null;
+  nombramiento_fecha: string | null;
+  nombramiento_url: string | null;
+  nombramiento_status: string | null;
+  telefono: string | null;
+  celular: string | null;
+  correo: string | null;
+  domicilio: string | null;
+}
