@@ -9,13 +9,27 @@
  * - `SameSite=None` sin `Secure` → inválido en navegadores modernos.
  */
 export function rewriteCookieForBFF(rawCookie: string): string {
-  // Solo eliminar el atributo Domain para que el browser asigne el dominio
-  // del BFF (Next.js) en lugar del dominio de la API externa.
-  // Dejamos SameSite=None y Secure intactos: son necesarios para que el browser
-  // reenvíe las cookies en peticiones cross-site a la API .NET.
+  // Eliminar Domain para que el browser asigne el dominio del BFF (Next.js).
+  // Forzar SameSite=None y Secure para que el browser reenvíe las cookies en
+  // peticiones cross-site a la API .NET en producción (dominios distintos).
+  // En localhost ambos son "localhost" (mismo site), por lo que funciona sin None,
+  // pero en Azure los dominios son distintos y SameSite=Lax bloquea el envío.
   // Chrome permite cookies Secure en localhost desde v89 (excepción especial).
   const parts = rawCookie.split(';').map((p) => p.trim());
-  const filtered = parts.filter((part) => !part.toLowerCase().startsWith('domain='));
+
+  const filtered = parts.filter((part) => {
+    const lower = part.toLowerCase();
+    return (
+      !lower.startsWith('domain=') &&
+      !lower.startsWith('samesite=') &&
+      lower !== 'secure'
+    );
+  });
+
+  // Garantizar SameSite=None; Secure independientemente de lo que mande el API
+  filtered.push('SameSite=None');
+  filtered.push('Secure');
+
   return filtered.join('; ');
 }
 
