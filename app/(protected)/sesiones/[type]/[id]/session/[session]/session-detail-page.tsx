@@ -186,11 +186,12 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
 
   // Permisos de acceso para acciones específicas
   const canIniciarSesion = hasPermission('sesionesdelconsejo.sesiones.iniciar'); 
+  const canEditarSesion = hasPermission('sesionesdelconsejo.sesiones.update');
   const canTerminarSesion = hasPermission('sesionesdelconsejo.sesiones.terminar'); 
   const canAgregarActualizarAsistencia = hasPermission('sesionesdelconsejo.sesiones.actualizarasistencia');
-  const canEditarOrdenDia = hasPermission('sesionesdelconsejo.pod.editar');
+  const canEditarOrdenDia = hasPermission('sesionesdelconsejo.sesiones.update');
   const canEliminarOrdenDia = hasPermission('sesionesdelconsejo.sesiones.eliminarpod');
-  const canAgregarAsuntoGeneral = hasPermission('sesionesdelconsejo.asuntos.insert');
+  const canAgregarAsuntoGeneral = hasPermission('sesionesdelconsejo.sesiones.agregarpodasuntosgerales');
 
 
   const handleIniciarSesion = () => {
@@ -344,7 +345,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
               <Download className="h-4 w-4" />
               Reporte
             </Button>
-            {(session.status === 'DEMORA' || session.status === 'PROGRAMADA') && (
+            {((session.status === 'DEMORA' || session.status === 'PROGRAMADA') && canEditarSesion) && (
               <Button
                 size="sm"
                 variant={modoEdicion ? 'primary' : 'outline'}
@@ -637,7 +638,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                       })}
                     </ol>
                   )}
-                  {session.status === 'PROCESO' && (
+                  {(session.status === 'PROCESO' && canAgregarAsuntoGeneral) && (
                     <div className="px-5 py-4 border-t border-border space-y-2">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Agregar asunto general</p>
                       <Textarea
