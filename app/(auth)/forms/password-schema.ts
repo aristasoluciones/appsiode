@@ -4,18 +4,18 @@ export const getPasswordSchema = (minLength = 8) => {
   return z
     .string()
     .min(minLength, {
-      message: `Password must be at least ${minLength} characters long.`,
+      message: `El password debe tener al menos ${minLength} caracteres.`,
     })
     .regex(/[A-Z]/, {
-      message: 'Password must contain at least one uppercase letter.',
+      message: 'El password debe contener al menos una letra mayúscula.',
     })
     .regex(/[a-z]/, {
-      message: 'Password must contain at least one lowercase letter.',
+      message: 'El password debe contener al menos una letra minúscula.',
     })
     .regex(/\d/, {
-      message: 'Password must contain at least one number.',
+      message: 'El password debe contener al menos un número.',
     })
     .regex(/[!@#$%^&*(),.?":{}|<>]/, {
-      message: 'Password must contain at least one special character.',
+      message: 'El password debe contener al menos un carácter especial.',
     });
 };

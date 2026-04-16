@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, ArrowLeft, Check } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import axios from 'axios';
 import apiClient from '@/lib/api/axios-client';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -19,59 +20,49 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { LoaderCircleIcon } from 'lucide-react';
-import { RecaptchaPopover } from '@/components/common/recaptcha-popover';
+// reCAPTCHA removed per request
 
 export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showRecaptcha, setShowRecaptcha] = useState(false);
+  // reCAPTCHA removed; no showRecaptcha state
 
   const formSchema = z.object({
-    email: z.string().email({ message: 'Please enter a valid email address.' }),
+    usuario: z.string().email({ message: 'Por favor, ingresa una dirección de correo electrónico válida.' }),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
+      usuario: '',
     },
   });
 
+  // Single submit handler (no reCAPTCHA)
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const result = await form.trigger();
     if (!result) return;
 
-    setShowRecaptcha(true);
-  };
-
-  const handleVerifiedSubmit = async (token: string) => {
     try {
-      const values = form.getValues();
-
       setIsProcessing(true);
       setError(null);
       setSuccess(null);
-      setShowRecaptcha(false);
 
-      const response = await apiClient.post('/Auth/reset-password', values, {
-        headers: { 'x-recaptcha-token': token },
-      });
+      const values = form.getValues();
+      await apiClient.post('/Auth/recuperar-contrasenia', values);
 
-      if (response.status !== 200 || response.data.status !== 200) {
-        setError(response.data.message || 'Error al enviar el enlace');
-        return;
-      }
-
-      setSuccess(response.data.message || 'Enlace enviado exitosamente');
+      setSuccess('Enlace enviado exitosamente');
       form.reset();
+      // Limpiar el mensaje de éxito después de unos segundos para re-habilitar el formulario
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'An unexpected error occurred. Please try again.',
-      );
+      if (axios.isAxiosError(err) && err.response?.data) {
+        setError(err.response.data.message || 'Error al enviar el enlace');
+      } else {
+        setError('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -83,10 +74,10 @@ export default function Page() {
         <form onSubmit={handleSubmit} className="block w-full space-y-5">
           <div className="text-center space-y-1 pb-3">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Reset Password
+              Recuperar contraseña
             </h1>
             <p className="text-sm text-muted-foreground">
-              Enter your email to receive a password reset link.
+              Ingresa el correo electrónico de tu cuenta para recibir un enlace de recuperación
             </p>
           </div>
 
@@ -110,14 +101,14 @@ export default function Page() {
 
           <FormField
             control={form.control}
-            name="email"
+            name="usuario"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>Correo electrónico</FormLabel>
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="Enter your email address"
+                    placeholder="Ingresa tu correo electrónico"
                     disabled={!!success || isProcessing}
                     {...field}
                   />
@@ -127,30 +118,19 @@ export default function Page() {
             )}
           />
 
-          <RecaptchaPopover
-            open={showRecaptcha}
-            onOpenChange={(open) => {
-              if (!open) {
-                setShowRecaptcha(false);
-              }
-            }}
-            onVerify={handleVerifiedSubmit}
-            trigger={
-              <Button
-                type="submit"
-                disabled={!!success || isProcessing}
-                className="w-full"
-              >
-                {isProcessing ? <LoaderCircleIcon className="animate-spin" /> : null}
-                Submit
-              </Button>
-            }
-          />
+          <Button
+            type="submit"
+            disabled={!!success || isProcessing}
+            className="w-full"
+          >
+            {isProcessing ? <LoaderCircleIcon className="animate-spin" /> : null}
+            Enviar
+          </Button>
 
           <div className="space-y-3">
             <Button type="button" variant="outline" className="w-full" asChild>
               <Link href="/signin">
-                <ArrowLeft className="size-3.5" /> Back
+                <ArrowLeft className="size-3.5" /> Regresar
               </Link>
             </Button>
           </div>

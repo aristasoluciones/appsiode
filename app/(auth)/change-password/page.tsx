@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import axios from 'axios';
 import apiClient from '@/lib/api/axios-client';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -35,8 +36,7 @@ export default function Page() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [passwordConfirmationVisible, setPasswordConfirmationVisible] =
-    useState(false);
+  const [passwordConfirmationVisible, setPasswordConfirmationVisible] = useState(false);
 
   const form = useForm<ChangePasswordSchemaType>({
     resolver: zodResolver(getChangePasswordSchema()),
@@ -46,20 +46,28 @@ export default function Page() {
     },
   });
 
+  // Watch password to show live validation indicators
+  const newPasswordValue = form.watch('newPassword');
+  const minLength = 8;
+  const hasMinLength = (newPasswordValue || '').length >= minLength;
+  const hasUpper = /[A-Z]/.test(newPasswordValue || '');
+  const hasLower = /[a-z]/.test(newPasswordValue || '');
+  const hasNumber = /\d/.test(newPasswordValue || '');
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(newPasswordValue || '');
+
   useEffect(() => {
     const verifyToken = async () => {
       try {
         setVerifyingToken(true);
 
-        const response = await apiClient.post('/Auth/reset-password-verify', { token });
-
-        if (response.status === 200 && response.data.status === 200) {
-          setIsValidToken(true);
+        await apiClient.post('/Auth/reset-password-verify', { token });
+        setIsValidToken(true);
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.data) {
+        setError(err.response.data.message || 'Error al enviar el enlace');
         } else {
-          setError(response.data.message || 'Invalid or expired token.');
+          setError('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
         }
-      } catch {
-        setError('Unable to verify the reset token.');
       } finally {
         setVerifyingToken(false);
       }
@@ -68,7 +76,7 @@ export default function Page() {
     if (token) {
       verifyToken();
     } else {
-      setError('No reset token provided.');
+      setError('No se proporcionó un token válido. Por favor, verifica el enlace que recibiste por correo electrónico.');
     }
   }, [token]);
 
@@ -78,19 +86,22 @@ export default function Page() {
     setSuccessMessage(null);
 
     try {
-      const response = await apiClient.post('/Auth/change-password', {
+      await apiClient.post('/Auth/reset-password', {
         token,
-        newPassword: values.newPassword,
+        password: values.newPassword,
+        confirm_password: values.confirmPassword,
       });
 
-      if (response.status === 200 && response.data.status === 200) {
-        setSuccessMessage('Password reset successful! Redirecting to login...');
-        setTimeout(() => router.push('/signin'), 3000);
+        
+      setSuccessMessage('La contraseña ha sido cambiada exitosamente. Redirigiendo al login...');
+      setTimeout(() => router.push('/signin'), 3000);
+     
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.data) {
+        setError(err.response.data.message || 'Error al enviar el enlace');
       } else {
-        setError(response.data.message || 'Password reset failed.');
+        setError('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
       }
-    } catch {
-      setError('An error occurred while resetting the password.');
     } finally {
       setIsProcessing(false);
     }
@@ -104,10 +115,10 @@ export default function Page() {
       >
         <div className="text-center space-y-1 pb-3">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Reset Password
+            Restablecer contraseña
           </h1>
           <p className="text-sm text-muted-foreground">
-            Enter your new password below.
+            Ingresa tu nueva contraseña a continuación.
           </p>
         </div>
 
@@ -121,7 +132,7 @@ export default function Page() {
             </Alert>
             <Button asChild>
               <Link href="/signin" className="text-primary">
-                Go back to Login
+                Volver al login
               </Link>
             </Button>
           </div>
@@ -141,7 +152,7 @@ export default function Page() {
             <AlertIcon>
               <LoaderCircleIcon className="size-4 animate-spin" />
             </AlertIcon>
-            <AlertTitle>Verifing...</AlertTitle>
+            <AlertTitle>Verificando...</AlertTitle>
           </Alert>
         )}
 
@@ -152,12 +163,12 @@ export default function Page() {
               name="newPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Password</FormLabel>
+                  <FormLabel>Nueva contraseña</FormLabel>
                   <div className="relative">
                     <FormControl>
                       <Input
                         type={passwordVisible ? 'text' : 'password'}
-                        placeholder="Enter new password"
+                        placeholder="Ingresa tu nueva contraseña"
                         {...field}
                       />
                     </FormControl>
@@ -168,7 +179,7 @@ export default function Page() {
                       onClick={() => setPasswordVisible(!passwordVisible)}
                       className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
                       aria-label={
-                        passwordVisible ? 'Hide password' : 'Show password'
+                        passwordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'
                       }
                     >
                       {passwordVisible ? (
@@ -179,6 +190,30 @@ export default function Page() {
                     </Button>
                   </div>
                   <FormMessage />
+                  <div className="mt-2 text-sm">
+                    <ul className="space-y-1">
+                      <li className="flex items-center text-sm text-muted-foreground">
+                        <Check className={`me-2 ${hasMinLength ? 'text-green-500' : 'opacity-30'}`} />
+                        Mínimo {minLength} caracteres
+                      </li>
+                      <li className="flex items-center text-sm text-muted-foreground">
+                        <Check className={`me-2 ${hasUpper ? 'text-green-500' : 'opacity-30'}`} />
+                        Al menos una letra mayúscula
+                      </li>
+                      <li className="flex items-center text-sm text-muted-foreground">
+                        <Check className={`me-2 ${hasLower ? 'text-green-500' : 'opacity-30'}`} />
+                        Al menos una letra minúscula
+                      </li>
+                      <li className="flex items-center text-sm text-muted-foreground">
+                        <Check className={`me-2 ${hasNumber ? 'text-green-500' : 'opacity-30'}`} />
+                        Al menos un número
+                      </li>
+                      <li className="flex items-center text-sm text-muted-foreground">
+                        <Check className={`me-2 ${hasSpecial ? 'text-green-500' : 'opacity-30'}`} />
+                        Al menos un carácter especial
+                      </li>
+                    </ul>
+                  </div>
                 </FormItem>
               )}
             />
@@ -188,12 +223,12 @@ export default function Page() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm New Password</FormLabel>
+                  <FormLabel>Confirmar nueva contraseña</FormLabel>
                   <div className="relative">
                     <FormControl>
                       <Input
                         type={passwordConfirmationVisible ? 'text' : 'password'}
-                        placeholder="Confirm new password"
+                        placeholder="Confirma tu nueva contraseña"
                         {...field}
                       />
                     </FormControl>
@@ -209,8 +244,8 @@ export default function Page() {
                       className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
                       aria-label={
                         passwordConfirmationVisible
-                          ? 'Hide password confirmation'
-                          : 'Show password confirmation'
+                          ? 'Ocultar confirmación de contraseña'
+                          : 'Mostrar confirmación de contraseña'
                       }
                     >
                       {passwordConfirmationVisible ? (
@@ -227,7 +262,7 @@ export default function Page() {
 
             <Button type="submit" disabled={isProcessing} className="w-full">
               {isProcessing && <LoaderCircleIcon className="size-4 animate-spin" />}
-              Reset Password
+              Restablecer contraseña
             </Button>
           </>
         )}
