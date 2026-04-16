@@ -151,6 +151,88 @@ export function useAgregarAsuntoGeneral(idSesion: string) {
   });
 }
 
+// ─── Edición de datos generales ───────────────────────────────────────────────
+
+export interface IActualizarSesionPayload {
+  fecha_hora?: string;
+  tipo?: string;
+  no_sesion?: string;
+  url?: string | null;
+}
+
+export function useActualizarSesion(idSesion: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: IActualizarSesionPayload) =>
+      apiClient.patch(API_ENDPOINTS.SESIONES.UPDATE(idSesion), payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+    },
+    retry: false,
+  });
+}
+
+// ─── Edición de Puntos del Orden del Día ──────────────────────────────────────
+
+export interface IActualizarPODPayload {
+  id_punto: number;
+  id_subpunto: number;
+  tipo: string;
+  descripcion: string;
+}
+
+export function useActualizarPOD(idSesion: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: IActualizarPODPayload) =>
+      apiClient.patch(API_ENDPOINTS.SESIONES.UPDATE_POD(idSesion), payload),
+    onSuccess: () => {
+      toastSuccess('Punto actualizado correctamente.');
+      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+    },
+    onError: () => toastError('No se pudo actualizar el punto. Intenta nuevamente.'),
+    retry: false,
+  });
+}
+
+export interface IEliminarPODPayload {
+  id_punto: number;
+  id_subpunto: number;
+}
+
+export function useEliminarPOD(idSesion: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: IEliminarPODPayload) =>
+      apiClient.delete(API_ENDPOINTS.SESIONES.DELETE_POD(idSesion), { data: payload }),
+    onSuccess: () => {
+      toastSuccess('Punto eliminado correctamente.');
+      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+    },
+    retry: false,
+  });
+}
+
+export interface ICrearPODPayload {
+  id_punto: number;
+  id_subpunto: number;
+  tipo: string;
+  descripcion: string;
+}
+
+export function useAgregarPOD(idSesion: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ICrearPODPayload) =>
+      apiClient.post(API_ENDPOINTS.SESIONES.UPDATE_POD(idSesion), payload),
+    onSuccess: () => {
+      toastSuccess('Punto agregado correctamente.');
+      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+    },
+    retry: false,
+  });
+}
+
 export interface ISesionDetalleResult {
   session: ISesionDetalle | null;
   notFound: boolean;

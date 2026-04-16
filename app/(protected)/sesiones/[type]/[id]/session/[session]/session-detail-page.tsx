@@ -14,12 +14,14 @@ import {
   Mail,
   MapPin,
   Minus,
+  Pencil,
   Phone,
   SearchX,
   ThumbsDown,
   ThumbsUp,
   Vote,
   Smartphone,
+  X,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,6 +56,7 @@ import { useSesionDetalle, useRepresentantesExternos, useGuardarAsistencia, useI
 import { IncidenciasCard } from './incidencias-card';
 import { ExpedientesCard } from './expedientes-card';
 import { VotacionDialog } from './votacion-dialog';
+import { SesionEdicion } from './sesion-edicion';
 import type { ISesionDetalleAPI, IRepresentanteNorm, IConsejeroExterno } from '@/types/sesiones';
 
 import { useAuth } from '@/providers/auth-provider';
@@ -168,6 +171,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   const [votacionPunto, setVotacionPunto] = useState<ISesionDetalleAPI['pod'][number] | null>(null);
   const [nuevoAsunto, setNuevoAsunto] = useState('');
   const { hasPermission } = useAuth();
+  const [modoEdicion, setModoEdicion] = useState(false);
 
   const session       = data?.session ?? null;
   const notFound      = data?.notFound ?? false;
@@ -340,6 +344,19 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
               <Download className="h-4 w-4" />
               Reporte
             </Button>
+            {(session.status === 'DEMORA' || session.status === 'PROGRAMADA') && (
+              <Button
+                size="sm"
+                variant={modoEdicion ? 'primary' : 'outline'}
+                onClick={() => setModoEdicion((prev) => !prev)}
+              >
+                {modoEdicion ? (
+                  <><X className="h-4 w-4" /> Cerrar edición</>
+                ) : (
+                  <><Pencil className="h-4 w-4" /> Editar</>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </Container>
@@ -348,8 +365,18 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
       <Container>
         <div className="flex flex-col gap-5">
 
+          {/* ── Modo edición ──────────────────────────────────────────────── */}
+          {modoEdicion && (
+            <SesionEdicion
+              session={session}
+              idSesion={sessionId}
+              canEditarOrdenDia={canEditarOrdenDia}
+              canEliminarOrdenDia={canEliminarOrdenDia}
+            />
+          )}
+
           {/* ── Resumen de sesión ─────────────────────────────────────────── */}
-          <Card className="overflow-hidden">
+          {!modoEdicion && <Card className="overflow-hidden">
             {iniciando && (
               <div className="h-1 w-full bg-primary/20 overflow-hidden">
                 <div className="h-full bg-primary animate-[progress_1.4s_ease-in-out_infinite]" />
@@ -499,10 +526,10 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          </Card>
+          </Card>}
 
           {/* ── Tabs ──────────────────────────────────────────────────────── */}
-          <Tabs defaultValue="asistencia">
+          {!modoEdicion && <Tabs defaultValue="asistencia">
             <TabsList variant="line">
               <TabsTrigger value="asistencia">Asistencia</TabsTrigger>
               <TabsTrigger value="pod">Puntos del orden del día</TabsTrigger>
@@ -664,7 +691,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
               />
             </TabsContent>
 
-          </Tabs>
+          </Tabs>}
         </div>
       </Container>
     </>

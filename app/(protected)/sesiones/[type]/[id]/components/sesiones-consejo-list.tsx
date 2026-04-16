@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   getCoreRowModel,
@@ -10,7 +10,8 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { AlertTriangle, Eye, Search, SearchX } from 'lucide-react';
+import { AlertTriangle, Eye, Search, SearchX, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,19 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { EstadoChips } from '@/app/(protected)/sesiones/components/estado-chips';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import apiClient from '@/lib/api/axios-client';
+import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { toastSuccess, toastAxiosError } from '@/lib/toast';
 import type { TEstadoIndicador } from '@/types/sesiones';
 import type { ISesionConsejo } from './sesiones-consejo-data';
 
@@ -93,6 +107,12 @@ export function SesionesConsejoList({
   const [estadosActivos, setEstadosActivos] = useState<Set<TEstadoIndicador>>(
     new Set(ALL_ESTADOS),
   );
+  const [localSessions, setLocalSessions] = useState<ISesionConsejo[]>(sessions);
+  const [deletingSession, setDeletingSession] = useState<ISesionConsejo | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => setLocalSessions(sessions), [sessions]);
 
   function toggleEstado(estado: TEstadoIndicador) {
     setEstadosActivos((prev) => {
@@ -109,15 +129,15 @@ export function SesionesConsejoList({
 
   const conteos = useMemo<Record<TEstadoIndicador, number>>(() => {
     const c: Record<TEstadoIndicador, number> = { programada: 0, con_demora: 0, en_proceso: 0, concluida: 0 };
-    sessions.forEach((s) => {
+    localSessions.forEach((s) => {
       const e = STATUS_TO_ESTADO[s.status];
       if (e) c[e]++;
     });
     return c;
-  }, [sessions]);
+  }, [localSessions]);
 
   const filteredData = useMemo(() => {
-    let result = sessions.filter((s) => {
+    let result = localSessions.filter((s) => {
       const e = STATUS_TO_ESTADO[s.status];
       return e ? estadosActivos.has(e) : true;
     });
@@ -131,7 +151,7 @@ export function SesionesConsejoList({
       );
     }
     return result;
-  }, [sessions, estadosActivos, search]);
+  }, [localSessions, estadosActivos, search]);
 
   const columns = useMemo<ColumnDef<ISesionConsejo>[]>(
     () => [
@@ -237,7 +257,7 @@ export function SesionesConsejoList({
         header: '',
         size: 64,
         cell: ({ row }) => (
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-1">
             <Button variant="outline" size="icon" asChild>
               <Link
                 href={`/sesiones/${type}/${idConsejo}/session/${row.original.id}`}
@@ -246,6 +266,18 @@ export function SesionesConsejoList({
                 <Eye className="h-4 w-4" />
               </Link>
             </Button>
+
+            {(row.original.status === 'PROGRAMADA' || row.original.status === 'DEMORA') && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setDeletingSession(row.original)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         ),
         enableSorting: false,
@@ -292,7 +324,8 @@ export function SesionesConsejoList({
   }
 
   return (
-    <DataGrid
+    <>
+      <DataGrid
       table={table}
       recordCount={filteredData.length}
       isLoading={isLoading}
@@ -328,5 +361,48 @@ export function SesionesConsejoList({
         </CardFooter>
       </Card>
     </DataGrid>
+      <AlertDialog
+        open={deletingSession !== null}
+        onOpenChange={(v) => {
+          if (!v) setDeletingSession(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar sesión?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Estás por eliminar la sesión{' '}
+              <strong>"{deletingSession?.noSesion} — {deletingSession?.tipo}"</strong>.
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={async () => {
+                if (!deletingSession) return;
+                try {
+                  setIsDeleting(true);
+                  await apiClient.delete(API_ENDPOINTS.SESIONES.SESION_DETALLE(deletingSession.id));
+                  // Optimistic update: remove from local list immediately
+                  setLocalSessions((prev) => prev.filter((s) => s.id !== deletingSession.id));
+                  toastSuccess('Sesión eliminada correctamente.');
+                  setDeletingSession(null);
+                  // Ensure server-side data refreshed as well
+                  router.refresh();
+                } catch (err) {
+                  toastAxiosError(err);
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

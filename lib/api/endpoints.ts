@@ -64,5 +64,8 @@ export const API_ENDPOINTS = {
     VOTAR: (idSesion: string | number) => `/Sesiones/${idSesion}/orden-dia/votar`,
     OBTENER_VOTOS: (idSesion: string | number) => `/Sesiones/${idSesion}/votaciones`,
     AGREGAR_ASUNTO_GENERAL: (idSesion: string | number) => `/Sesiones/${idSesion}/orden-dia/asuntos-generales`,
+    UPDATE: (idSesion: string | number) => `/Sesiones/${idSesion}/datos-generales`,
+    UPDATE_POD: (idSesion: string | number) => `/Sesiones/${idSesion}/orden-dia`,
+    DELETE_POD: (idSesion: string | number) => `/Sesiones/${idSesion}/orden-dia`,
   },
 } as const;
