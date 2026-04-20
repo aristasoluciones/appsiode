@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isAuthenticated: true,
             isLoading: false,
           });
+          console.log('Login exitoso desde AuthProvider:');
           return { success: true };
         }
 

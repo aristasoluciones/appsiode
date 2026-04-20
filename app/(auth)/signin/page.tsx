@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,10 +24,18 @@ import { getSigninSchema, SigninSchemaType } from '../forms/signin-schema';
 
 export default function Page() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading } = useAuth();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Navegar DESPUÉS de que React haya committeado isAuthenticated=true.
+  // Esto evita el race condition donde router.push('/') ocurre antes del flush.
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   const form = useForm<SigninSchemaType>({
     resolver: zodResolver(getSigninSchema()),
@@ -46,8 +54,8 @@ export default function Page() {
       const result = await login(values.username, values.password);
 
       if (result.success) {
-        router.push('/');
-        // Keep isProcessing=true while navigating — reset only on error
+        // isAuthenticated se volverá true → el useEffect maneja la navegación.
+        // Mantener isProcessing=true hasta que la navegación ocurra.
         return;
       } else {
         setError(result.message || 'Error de autenticación');
