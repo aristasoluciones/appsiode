@@ -33,6 +33,7 @@ export default function Page() {
   // Esto evita el race condition donde router.push('/') ocurre antes del flush.
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
+      console.log('Navegando a / desde SigninPage useEffect');
       router.push('/');
     }
   }, [isAuthenticated, isLoading, router]);

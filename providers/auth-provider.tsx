@@ -46,10 +46,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isLoading: false,
         });
       } else {
-        setState({ user: null, isAuthenticated: false, isLoading: false });
+        // Usar actualización funcional: si login() ya autenticó al usuario,
+        // no sobreescribir con false (evita race condition en producción).
+        setState((prev) =>
+          prev.isAuthenticated
+            ? { ...prev, isLoading: false }
+            : { user: null, isAuthenticated: false, isLoading: false },
+        );
       }
     } catch {
-      setState({ user: null, isAuthenticated: false, isLoading: false });
+      setState((prev) =>
+        prev.isAuthenticated
+          ? { ...prev, isLoading: false }
+          : { user: null, isAuthenticated: false, isLoading: false },
+      );
     }
   }, []);
 
