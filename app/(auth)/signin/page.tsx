@@ -1,8 +1,6 @@
 'use client';
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RiErrorWarningFill } from '@remixicon/react';
 import { AlertCircle, Eye, EyeOff, LoaderCircleIcon } from 'lucide-react';
@@ -10,7 +8,6 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '@/providers/auth-provider';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -23,20 +20,11 @@ import { Input } from '@/components/ui/input';
 import { getSigninSchema, SigninSchemaType } from '../forms/signin-schema';
 
 export default function Page() {
-  const router = useRouter();
-  const { login, isAuthenticated, isLoading } = useAuth();
+  
+  const { login } = useAuth();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Navegar DESPUÉS de que React haya committeado isAuthenticated=true.
-  // Esto evita el race condition donde router.push('/') ocurre antes del flush.
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      console.log('Navegando a / desde SigninPage useEffect');
-      router.push('/');
-    }
-  }, [isAuthenticated, isLoading, router]);
 
   const form = useForm<SigninSchemaType>({
     resolver: zodResolver(getSigninSchema()),
@@ -57,6 +45,7 @@ export default function Page() {
       if (result.success) {
         // isAuthenticated se volverá true → el useEffect maneja la navegación.
         // Mantener isProcessing=true hasta que la navegación ocurra.
+        window.location.replace('/');
         return;
       } else {
         setError(result.message || 'Error de autenticación');
