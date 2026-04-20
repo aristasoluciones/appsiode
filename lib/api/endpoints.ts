@@ -20,7 +20,7 @@ export const API_ENDPOINTS = {
     LOGIN: '/Auth/login',
     REFRESH: '/Auth/refresh',
     PERFIL: '/Auth/perfil',
-    // LOGOUT: '/Auth/logout',
+    LOGOUT: '/Auth/logout',
   },
   USUARIOS: {
     LIST: '/Usuarios',

@@ -66,8 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
 
         if (res.status === 200 && res.data.status === 200 && res.data.data) {
-          // Delegar en refreshUser: llama al BFF /perfil que ya retorna user+proceso
-          await refreshUser();
+          
+          // Mapear directamente los datos que ya vienen en el login
+          setState({
+            user: res.data.data,   // ya trae modulos + proceso
+            isAuthenticated: true,
+            isLoading: false,
+          });
           return { success: true };
         }
 
@@ -82,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
     },
-    [refreshUser],
+    [],
   );
 
   const logout = useCallback(async () => {
