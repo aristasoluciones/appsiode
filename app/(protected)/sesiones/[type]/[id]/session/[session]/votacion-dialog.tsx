@@ -35,6 +35,7 @@ export interface VotacionDialogProps {
   punto: IPunto;
   consejeros: IConsejero[];
   idSesion: string;
+  readonly?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ const VOTOS: { value: TVoto; label: string; icon: React.ReactNode; activeClass: 
 
 // ─── VotacionDialog ───────────────────────────────────────────────────────────
 
-export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion }: VotacionDialogProps) {
+export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion, readonly = false }: VotacionDialogProps) {
   const queryClient = useQueryClient();
   const { mutate: votar, isPending: votando } = useVotar(idSesion);
   const { data: votosExistentes, isLoading: cargandoVotos } = useObtenerVotos(idSesion);
@@ -168,7 +169,7 @@ export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {consejeros.map((c) => {
+              {consejeros.filter((c) => c.cargo?.toUpperCase() !== 'SECRETARÍA').map((c) => {
                 const idAsistencia = c.id_asistencia!;
                 const votoActual = votos[idAsistencia];
                 const nombre = `${c.nombre ?? ''} ${c.apellidos ?? ''}`.trim();
@@ -190,9 +191,12 @@ export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion
                           <button
                             key={value}
                             type="button"
-                            onClick={() => handleVoto(idAsistencia, value)}
+                            disabled={readonly}
+                            onClick={() => !readonly && handleVoto(idAsistencia, value)}
                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                              votoActual === value
+                              readonly
+                                ? 'border-border text-muted-foreground opacity-50 cursor-not-allowed'
+                                : votoActual === value
                                 ? activeClass
                                 : 'border-border text-muted-foreground hover:bg-muted'
                             }`}

@@ -170,7 +170,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   const [asistenciaExtOverrides, setAsistenciaExtOverrides] = useState<Record<number, boolean>>({});
   const [votacionPunto, setVotacionPunto] = useState<ISesionDetalleAPI['pod'][number] | null>(null);
   const [nuevoAsunto, setNuevoAsunto] = useState('');
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const [modoEdicion, setModoEdicion] = useState(false);
 
   const session       = data?.session ?? null;
@@ -192,6 +192,9 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   const canEditarOrdenDia = hasPermission('sesionesdelconsejo.sesiones.update');
   const canEliminarOrdenDia = hasPermission('sesionesdelconsejo.sesiones.eliminarpod');
   const canAgregarAsuntoGeneral = hasPermission('sesionesdelconsejo.sesiones.agregarpodasuntosgerales');
+  const canVotar = hasPermission('sesionesdelconsejo.sesiones.votar');
+  const ROLES_VOTAR_CONCLUIDA = ['ADMINISTRADOR', 'ADMINISTRADOR SESIONES'];
+  const canEditarVotacionConcluida = canVotar && ROLES_VOTAR_CONCLUIDA.includes(user?.rol ?? '');
 
 
   const handleIniciarSesion = () => {
@@ -583,7 +586,9 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                     <ol className="divide-y divide-border">
                       {session.pod.map((point) => {
                         const esAprobacion = point.tipo === 'APROBACION';
-                        const readonly = session.status != 'PROCESO';
+                        const readonly = session.status === 'PROCESO' ? false
+                          : (session.status === 'CONCLUIDA' && canEditarVotacionConcluida) ? false
+                          : true;
                         const totalVotos = point.votos_afavor + point.votos_encontra + point.votos_abstencion;
                         return (
                           <li
@@ -673,6 +678,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                 punto={votacionPunto}
                 consejeros={session.asistencia}
                 idSesion={sessionId}
+                readonly={session.status === 'CONCLUIDA' && !canEditarVotacionConcluida}
               />
             )}
 
@@ -680,7 +686,11 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
             <TabsContent value="incidencias">
               <IncidenciasCard
                 idSesion={sessionId}
-                readonly={session.status !== 'PROCESO'}
+                readonly={
+                  session.status === 'PROCESO' ? false
+                  : (session.status === 'CONCLUIDA' && canEditarVotacionConcluida) ? false
+                  : true
+                }
               />
             </TabsContent>
 
@@ -688,7 +698,11 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
             <TabsContent value="expediente">
               <ExpedientesCard
                 idSesion={sessionId}
-                readonly={session.status !== 'PROCESO'}
+                readonly={
+                  session.status === 'PROCESO' ? false
+                  : (session.status === 'CONCLUIDA' && canEditarVotacionConcluida) ? false
+                  : true
+                }
               />
             </TabsContent>
 

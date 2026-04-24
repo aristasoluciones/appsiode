@@ -188,7 +188,9 @@ function NuevaIncidenciaInline({
   const [idCatalogoSel, setIdCatalogoSel] = useState('');
 
   const periodos = Object.keys(catalogo).sort();
-  const incidenciasDePeriodo = periodoSel ? (catalogo[periodoSel] ?? []) : [];
+  const incidenciasDePeriodo = periodoSel
+    ? [...(catalogo[periodoSel] ?? [])].sort((a, b) => a.incidencia.localeCompare(b.incidencia, 'es', { numeric: true }))
+    : [];
 
   const handlePeriodoChange = (value: string) => {
     setPeriodoSel(value);
