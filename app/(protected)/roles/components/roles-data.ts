@@ -155,12 +155,12 @@ export function useTogglePermiso() {
 
       queryClient.setQueryData<IPermisosResponse>([QK_PERMISOS, idRol], (old) => {
         if (!old) return old;
-        const tiene = old.permisos.some((p) => p.id_accion === idAccion);
+        const tiene = old.permisos?.some((p) => p.id_accion === idAccion);
         return {
           ...old,
           permisos: tiene
-            ? old.permisos.filter((p) => p.id_accion !== idAccion)
-            : [...old.permisos, { id_accion: idAccion, controlador: '', accion: '' }],
+            ? old.permisos?.filter((p) => p.id_accion !== idAccion)
+            : [...(old.permisos ?? []), { id_accion: idAccion, controlador: '', accion: '' }],
         };
       });
 
