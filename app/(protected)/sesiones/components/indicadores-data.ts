@@ -104,11 +104,11 @@ export function useSesionesOptions(tipoConsejo: TTipoConsejo) {
   return useQuery({
     queryKey: ['sesiones', 'opciones', tipoConsejo],
     queryFn: async () => {
-      const { data } = await apiClient.get<ISesionDistinct[]>(
+      const { data } = await apiClient.get<ISesionDistinct[] | null>(
         API_ENDPOINTS.SESIONES.DISTINCT,
       );
       // Formato esperado por el API: "no_sesion;tipo;fecha_hora"
-      return data.map((s) => ({
+      return (data ?? []).map((s) => ({
         id: `${s.no_sesion};${s.tipo};${s.fecha_hora}`,
         label: `${s.no_sesion} ${s.tipo} (${formatFechaHora(s.fecha_hora)})`,
       }));

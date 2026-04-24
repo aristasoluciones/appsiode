@@ -54,8 +54,8 @@ export function useSesionesConsejo(type: string, idConsejo: string, enabled = tr
           API_ENDPOINTS.SESIONES.CONSEJO_SESIONES(tipoChar, idConsejo),
         );
         return {
-          sessions: data.data.map(mapSesion),
-          meta: data.meta,
+          sessions: (data.data ?? []).map(mapSesion),
+          meta: data.meta ?? null,
           notFound: false,
         };
       } catch (err) {

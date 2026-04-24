@@ -10,7 +10,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { AlertTriangle, Eye, Search, SearchX, Trash2 } from 'lucide-react';
+import { AlertTriangle, CalendarX2, Eye, Plus, Search, SearchX, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -87,10 +87,11 @@ function formatFecha(iso: string | null): string {
 interface Props {
   type: string;
   idConsejo: string;
-  sessions: ISesionConsejo[];
+  sessions: ISesionConsejo[] | null | undefined;
   isLoading: boolean;
   isError: boolean;
   notFound: boolean;
+  canCrearSesion?: boolean;
   onRetry: () => void;
 }
 
@@ -101,18 +102,19 @@ export function SesionesConsejoList({
   isLoading,
   isError,
   notFound,
+  canCrearSesion = false,
   onRetry,
 }: Props) {
   const [search, setSearch] = useState('');
   const [estadosActivos, setEstadosActivos] = useState<Set<TEstadoIndicador>>(
     new Set(ALL_ESTADOS),
   );
-  const [localSessions, setLocalSessions] = useState<ISesionConsejo[]>(sessions);
+  const [localSessions, setLocalSessions] = useState<ISesionConsejo[]>(sessions ?? []);
   const [deletingSession, setDeletingSession] = useState<ISesionConsejo | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
-  useEffect(() => setLocalSessions(sessions), [sessions]);
+  useEffect(() => setLocalSessions(sessions ?? []), [sessions]);
 
   function toggleEstado(estado: TEstadoIndicador) {
     setEstadosActivos((prev) => {
@@ -319,6 +321,32 @@ export function SesionesConsejoList({
         <Button variant="outline" size="sm" onClick={onRetry}>
           Reintentar
         </Button>
+      </div>
+    );
+  }
+
+  if (!isLoading && localSessions.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-14 text-center space-y-3">
+        <CalendarX2 className="h-10 w-10 text-gray-300 dark:text-gray-600 mx-auto" />
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          No hay sesiones registradas para este consejo.
+        </p>
+        {canCrearSesion && (
+          <>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Comienza creando la primera sesión.
+            </p>
+            <div className="pt-1">
+              <Button size="sm" asChild>
+                <a href={`/sesiones/new?tipo=${type.toUpperCase()}&consejo=${idConsejo}`}>
+                  <Plus className="h-4 w-4" />
+                  Nueva sesión
+                </a>
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     );
   }

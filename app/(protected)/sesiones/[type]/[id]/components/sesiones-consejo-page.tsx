@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, ShieldOff } from 'lucide-react';
+import { ArrowLeft, Plus, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/common/container';
 import {
@@ -28,7 +28,8 @@ interface Props {
 }
 
 export function SesionesConsejoPage({ type, idConsejo }: Props) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canCrearSesion = hasPermission('sesionesdelconsejo.sesiones.insert');
 
   // Capturistas (idRol=1) solo pueden ver su consejo asignado
   const isCapturista = user?.idRol === '1';
@@ -112,6 +113,14 @@ export function SesionesConsejoPage({ type, idConsejo }: Props) {
             )}
           </ToolbarHeading>
           <ToolbarActions>
+            {canCrearSesion && sessions.length > 0 && (
+              <Button size="sm" asChild>
+                <Link href={`/sesiones/new?tipo=${type.toUpperCase()}&consejo=${idConsejo}`}>
+                  <Plus className="h-4 w-4" />
+                  Nueva sesión
+                </Link>
+              </Button>
+            )}
             {!isCapturista && (
               <Button variant="outline" size="sm" asChild>
                 <Link href="/sesiones">
@@ -132,6 +141,7 @@ export function SesionesConsejoPage({ type, idConsejo }: Props) {
           isLoading={isLoading}
           isError={isError}
           notFound={notFound}
+          canCrearSesion={canCrearSesion}
           onRetry={refetch}
         />
       </Container>
