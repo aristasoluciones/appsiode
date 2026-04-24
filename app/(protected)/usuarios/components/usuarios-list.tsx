@@ -51,6 +51,7 @@ export default function UsuariosList() {
 
   const usuarios = formData?.usuarios ?? [];
   const roles = formData?.roles ?? [];
+  const consejos = formData?.consejos ?? [];
 
   function handleEdit(usuario: IUsuario) {
     setEditingUsuario(usuario);
@@ -107,6 +108,32 @@ export default function UsuariosList() {
         enableSorting: true,
       },
       {
+        id: 'tipo',
+        header: 'Tipo',
+        accessorFn: (row) => row.tipo ?? '',
+        cell: ({ row }) => {
+          const { tipo, consejo_tipo, consejo_clave } = row.original;
+          if (tipo === 'consejo') {
+            const consejo = consejos.find((c) => c.clave_consejo === consejo_clave);
+            return (
+              <div className="flex flex-col gap-0.5">
+                <Badge variant="primary" className="w-fit">Consejo</Badge>
+                <span className="text-xs text-muted-foreground">
+                  {consejo_tipo === 'D' ? 'Distrital' : consejo_tipo === 'M' ? 'Municipal' : consejo_tipo}
+                  {consejo ? ` · ${consejo_clave} - ${consejo.consejo}` : consejo_clave ? ` · ${consejo_clave}` : ''}
+                </span>
+              </div>
+            );
+          }
+          if (tipo === 'oficina_central') {
+            return <Badge variant="outline">Oficina Central</Badge>;
+          }
+          return <span className="text-muted-foreground text-sm">{tipo || '—'}</span>;
+        },
+        meta: { skeleton: <Skeleton className="w-32 h-5 rounded-full" /> },
+        enableSorting: true,
+      },
+      {
         id: 'actions',
         header: '',
         size: 100,
@@ -135,7 +162,7 @@ export default function UsuariosList() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deleteMutation.isPending],
+    [deleteMutation.isPending, consejos],
   );
 
   const filtered = useMemo(
@@ -240,6 +267,7 @@ export default function UsuariosList() {
         }}
         initialData={editingUsuario ?? undefined}
         roles={roles}
+        consejos={consejos}
         onSuccess={handleCloseForm}
       />
 
