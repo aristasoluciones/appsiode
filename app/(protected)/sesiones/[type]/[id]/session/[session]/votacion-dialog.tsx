@@ -35,7 +35,9 @@ export interface VotacionDialogProps {
   punto: IPunto;
   consejeros: IConsejero[];
   idSesion: string;
-  readonly?: boolean;
+  status: string;
+  canRegistrarVotacion: boolean;
+  canActualizarVotacionConcluida: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,7 +65,10 @@ const VOTOS: { value: TVoto; label: string; icon: React.ReactNode; activeClass: 
 
 // ─── VotacionDialog ───────────────────────────────────────────────────────────
 
-export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion, readonly = false }: VotacionDialogProps) {
+export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion, status, canRegistrarVotacion, canActualizarVotacionConcluida }: VotacionDialogProps) {
+  const readonly = status === 'PROCESO' ? !canRegistrarVotacion
+    : status === 'CONCLUIDA' ? !canActualizarVotacionConcluida
+    : true;
   const queryClient = useQueryClient();
   const { mutate: votar, isPending: votando } = useVotar(idSesion);
   const { data: votosExistentes, isLoading: cargandoVotos } = useObtenerVotos(idSesion);

@@ -19,37 +19,28 @@ export interface ICreateRolInput {
   descripcion?: string;
 }
 
-// Permiso que el rol YA tiene → data.permisos[]
-export interface IPermisoRol {
-  id_accion: number;
-  controlador: string;
-  accion: string;
+// Módulo del catálogo → data.modulos[]
+export interface IModuloCatalogo {
+  clave: string;
+  titulo: string;
 }
 
-// Acción del catálogo completo → data.acciones.data.acciones[]
+// Acción del catálogo completo → data.acciones[]
 export interface IAccionCatalogo {
   id: number;
-  controlador: string;
-  accion: string;
-  descripcion: string;
-  grupo: string;
-  menu: string | null;
+  clave: string;
+  titulo: string;
+  modulo: string;
   icono: string | null;
   orden: number;
-  grupo_adm: string;
+  es_menu: boolean;
 }
 
 // Estructura completa del response de /Roles/{idRol}/permisos (ya desenvuelta por interceptor)
 export interface IPermisosResponse {
-  permisos: IPermisoRol[];
-  acciones: {
-    status: string;
-    message: string;
-    data: {
-      grupos: { grupo: string }[];
-      acciones: IAccionCatalogo[];
-    };
-  };
+  permisos: number[];          // IDs de acciones activas para el rol
+  modulos: IModuloCatalogo[];
+  acciones: IAccionCatalogo[];
 }
 
 // ── Query Keys ────────────────────────────────────────────────────────────────
@@ -155,12 +146,12 @@ export function useTogglePermiso() {
 
       queryClient.setQueryData<IPermisosResponse>([QK_PERMISOS, idRol], (old) => {
         if (!old) return old;
-        const tiene = old.permisos?.some((p) => p.id_accion === idAccion);
+        const tiene = old.permisos?.includes(idAccion);
         return {
           ...old,
           permisos: tiene
-            ? old.permisos?.filter((p) => p.id_accion !== idAccion)
-            : [...(old.permisos ?? []), { id_accion: idAccion, controlador: '', accion: '' }],
+            ? old.permisos?.filter((p) => p !== idAccion)
+            : [...(old.permisos ?? []), idAccion],
         };
       });
 

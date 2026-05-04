@@ -41,8 +41,15 @@ import {
 
 interface IncidenciasCardProps {
   idSesion: string;
-  /** Si la sesión está concluida se oculta el alta de nuevas incidencias */
-  readonly?: boolean;
+  status: string;
+  canRegistrarIncidencia: boolean;
+  canActualizarIncidencia: boolean;
+  canEliminarIncidencia: boolean;
+  canRegistrarIncidenciaConcluida: boolean;
+  canActualizarIncidenciaConcluida: boolean;
+  canEliminarIncidenciaConcluida: boolean;
+  canInformarSeguimientoIncidencia: boolean;
+  canInformarSeguimientoIncidenciaConcluida: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -79,7 +86,23 @@ function EstatusChip({ status }: { status: 'ABIERTA' | 'CERRADA' }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function IncidenciasCard({ idSesion, readonly = false }: IncidenciasCardProps) {
+export function IncidenciasCard({
+  idSesion,
+  status,
+  canRegistrarIncidencia,
+  canActualizarIncidencia,
+  canEliminarIncidencia,
+  canRegistrarIncidenciaConcluida,
+  canActualizarIncidenciaConcluida,
+  canEliminarIncidenciaConcluida,
+  canInformarSeguimientoIncidencia,
+  canInformarSeguimientoIncidenciaConcluida,
+}: IncidenciasCardProps) {
+  // Permisos efectivos según estado de la sesión
+  const canRegistrar  = status === 'PROCESO' ? canRegistrarIncidencia  : status === 'CONCLUIDA' ? canRegistrarIncidenciaConcluida  : false;
+  const canEliminar   = status === 'PROCESO' ? canEliminarIncidencia   : status === 'CONCLUIDA' ? canEliminarIncidenciaConcluida   : false;
+  const canInformar   = status === 'PROCESO' ? canInformarSeguimientoIncidencia : status === 'CONCLUIDA' ? canInformarSeguimientoIncidenciaConcluida : false;
+
   const { data: incidencias = [], isLoading } = useIncidenciasSesion(idSesion);
   const [showForm, setShowForm] = useState(false);
 
@@ -97,7 +120,7 @@ export function IncidenciasCard({ idSesion, readonly = false }: IncidenciasCardP
             </Badge>
           )}
         </div>
-        {!readonly && (
+        {canRegistrar && (
           <Button
             size="sm"
             variant={showForm ? 'outline' : 'primary'}
@@ -119,7 +142,6 @@ export function IncidenciasCard({ idSesion, readonly = false }: IncidenciasCardP
       </CardHeader>
 
       <CardContent className="p-0">
-        {/* ── Formulario inline ─── */}
         {showForm && (
           <NuevaIncidenciaInline idSesion={idSesion} onSuccess={handleFormSuccess} />
         )}
@@ -160,7 +182,9 @@ export function IncidenciasCard({ idSesion, readonly = false }: IncidenciasCardP
                     key={`${inc.id}-${inc.id_sesion}`}
                     incidencia={inc}
                     idSesion={idSesion}
-                    readonly={readonly}
+                    canEliminar={canEliminar}
+                    canInformar={canInformar}
+                    sessionConcluida={status === 'CONCLUIDA'}
                   />
                 ))}
               </tbody>
@@ -291,11 +315,15 @@ function NuevaIncidenciaInline({
 function IncidenciaRow({
   incidencia,
   idSesion,
-  readonly,
+  canEliminar,
+  canInformar,
+  sessionConcluida,
 }: {
   incidencia: IIncidencia;
   idSesion: string;
-  readonly: boolean;
+  canEliminar: boolean;
+  canInformar: boolean;
+  sessionConcluida: boolean;
 }) {
   const seguimientos = incidencia.seguimiento ?? [];
 
@@ -366,7 +394,7 @@ function IncidenciaRow({
         </td>
         {/* Eliminar */}
         <td className="px-4 py-3 align-middle">
-          {!readonly && (
+          {canEliminar && (
             <button
               type="button"
               onClick={() => setConfirmarEliminar(true)}
@@ -407,7 +435,7 @@ function IncidenciaRow({
               ))}
 
               {/* ── Formulario nuevo seguimiento (siempre visible) ── */}
-              {!readonly && incidencia.status !== 'CERRADA' && (
+              {canInformar && (sessionConcluida || incidencia.status !== 'CERRADA') && (
                 <div className="space-y-2 pt-1 border-t border-border/60">
                   <Textarea
                     value={nuevoTexto}

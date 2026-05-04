@@ -8,16 +8,20 @@ function processQueue(success: boolean) {
   refreshQueue = [];
 }
 
-async function redirectToLogin() {
+async function redirectToLogin(reason?: string) {
   if (typeof window === 'undefined') return;
   try {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
   } catch { /* continuar aunque falle */ }
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-  const currentPath = `${window.location.pathname}${window.location.search}`;
-  window.location.replace(
-    `${basePath}/signin?callbackUrl=${encodeURIComponent(currentPath)}`,
-  );
+  if (reason) {
+    window.location.replace(`${basePath}/signin?reason=${encodeURIComponent(reason)}`);
+  } else {
+    const currentPath = `${window.location.pathname}${window.location.search}`;
+    window.location.replace(
+      `${basePath}/signin?callbackUrl=${encodeURIComponent(currentPath)}`,
+    );
+  }
 }
 
 const apiClient = axios.create({
@@ -61,9 +65,17 @@ apiClient.interceptors.response.use((response) => {
   return response;
 }, async (error) => {
   const originalRequest = error.config;
+  const status = error?.response?.status;
+  const body = error?.response?.data;
+
+  // Permisos del rol cambiaron — cerrar sesión inmediatamente
+  if (status === 401 && body?.code === 'PERMISSIONS_CHANGED') {
+    await redirectToLogin('permissions_changed');
+    return Promise.reject(error);
+  }
 
   if (
-    error?.response?.status !== 401 ||
+    status !== 401 ||
     originalRequest._retry
   ) {
     return Promise.reject(error);

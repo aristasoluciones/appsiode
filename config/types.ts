@@ -16,8 +16,8 @@ export interface MenuItem {
   expandTitle?: string;
   badge?: string;
   separator?: boolean;
-  /** Clave de módulo requerida para ver este ítem. Si no se define, es público. */
-  permission?: string;
+  /** Clave(s) de módulo requeridas para ver este ítem. Si no se define, es público. Con array basta tener uno. */
+  permission?: string | string[];
 }
 
 export type MenuConfig = MenuItem[];

@@ -29,7 +29,7 @@ interface Props {
 
 export function SesionesConsejoPage({ type, idConsejo }: Props) {
   const { user, hasPermission } = useAuth();
-  const canCrearSesion = hasPermission('sesionesdelconsejo.sesiones.insert');
+  const canCrearSesion = hasPermission('sesiones.crear');
 
   // Capturistas (idRol=1) solo pueden ver su consejo asignado
   const isCapturista = user?.idRol === '1';

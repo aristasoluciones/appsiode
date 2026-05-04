@@ -184,17 +184,53 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   const { data: repData = EMPTY_REPS, isLoading: loadingExt, isError: errorExt } = useRepresentantesExternos(type as 'd' | 'm', String(consejoClave));
   const representantesNorm = useMemo(() => repData.map(normalizeRepresentante), [repData]);
 
-  // Permisos de acceso para acciones específicas
-  const canIniciarSesion = hasPermission('sesionesdelconsejo.sesiones.iniciar'); 
-  const canEditarSesion = hasPermission('sesionesdelconsejo.sesiones.update');
-  const canTerminarSesion = hasPermission('sesionesdelconsejo.sesiones.terminar'); 
-  const canAgregarActualizarAsistencia = hasPermission('sesionesdelconsejo.sesiones.actualizarasistencia');
-  const canEditarOrdenDia = hasPermission('sesionesdelconsejo.sesiones.update');
-  const canEliminarOrdenDia = hasPermission('sesionesdelconsejo.sesiones.eliminarpod');
-  const canAgregarAsuntoGeneral = hasPermission('sesionesdelconsejo.sesiones.agregarpodasuntosgerales');
-  const canVotar = hasPermission('sesionesdelconsejo.sesiones.votar');
-  const ROLES_VOTAR_CONCLUIDA = ['ADMINISTRADOR', 'ADMINISTRADOR SESIONES'];
-  const canEditarVotacionConcluida = canVotar && ROLES_VOTAR_CONCLUIDA.includes(user?.rol ?? '');
+  // Permisos generales
+  const canIniciarSesion = hasPermission('sesiones.iniciar'); 
+  const canEditarSesion = hasPermission('sesiones.editar');
+  const canTerminarSesion = hasPermission('sesiones.terminar'); 
+
+  // Permisos de asistencia
+  const canVerAsistencia = hasPermission('sesiones.asistencia.ver');
+  const canRegistrarAsistencia = hasPermission('sesiones.asistencia.registrar');
+  const canActualizarAsistencia = hasPermission('sesiones.asistencia.actualizar');
+  const canActualizarAsistenciaConcluida = hasPermission('sesiones.asistencia.actualizarconcluida');
+  
+  // Permisos de orden del día
+  const canVerOrdenDia = hasPermission('sesiones.ordendeldia.ver');
+  const canEditarOrdenDia = hasPermission('sesiones.ordendeldia.editar');
+  const canEliminarOrdenDia = hasPermission('sesiones.ordendeldia.eliminar');
+  const canAgregarOrdenDiaConcluida = hasPermission('sesiones.ordendeldia.agregarconcluida');
+  const canActualizarOrdenDiaConcluida = hasPermission('sesiones.ordendeldia.actualizarconcluida');
+  const canEliminarOrdenDiaConcluida = hasPermission('sesiones.ordendeldia.eliminarconcluida');
+  const canAgregarAsuntoGeneral = hasPermission('sesiones.ordendeldia.agregarasuntogeneral');
+  const canVerVotacion = hasPermission('sesiones.votacion.ver');
+  const canRegistrarVotacion = hasPermission('sesiones.votacion.registrar');
+  const canActualizarVotacionConcluida = hasPermission('sesiones.votacion.actualizarconcluida');
+
+  // Permisos de expedientes
+  const canVerExpedientes = hasPermission('sesiones.expedientes.ver');
+  const canRegistrarExpediente = hasPermission('sesiones.expedientes.registrar');
+  const canRegistrarExpedienteConcluida = hasPermission('sesiones.expedientes.registrarconcluida');
+  const canEliminarExpediente = hasPermission('sesiones.expedientes.eliminar');
+  const canEliminarExpedienteConcluida = hasPermission('sesiones.expedientes.eliminarconcluida');
+
+  // Permisos de incidencias 
+  const canVerIncidencias = hasPermission('sesiones.incidencias.ver');
+  const canRegistrarIncidencia = hasPermission('sesiones.incidencias.registrar');
+  const canActualizarIncidencia = hasPermission('sesiones.incidencias.actualizar');
+  const canEliminarIncidencia = hasPermission('sesiones.incidencias.eliminar');
+  const canRegistrarIncidenciaConcluida = hasPermission('sesiones.incidencias.registrarconcluida');
+  const canActualizarIncidenciaConcluida = hasPermission('sesiones.incidencias.actualizarconcluida');
+  const canEliminarIncidenciaConcluida = hasPermission('sesiones.incidencias.eliminarconcluida');
+  const canInformarSeguimientoIncidencia = hasPermission('sesiones.incidencias.informarseguimiento');
+  const canInformarSeguimientoIncidenciaConcluida = hasPermission('sesiones.incidencias.informarseguimientoconcluida');
+
+  // Tab visible por defecto: el primero que el usuario tenga permiso de ver
+  const defaultTab = canVerAsistencia ? 'asistencia'
+    : canVerOrdenDia ? 'pod'
+    : canVerIncidencias ? 'incidencias'
+    : canVerExpedientes ? 'expediente'
+    : 'asistencia';
 
 
   const handleIniciarSesion = () => {
@@ -533,12 +569,12 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
           </Card>}
 
           {/* ── Tabs ──────────────────────────────────────────────────────── */}
-          {!modoEdicion && <Tabs defaultValue="asistencia">
+          {!modoEdicion && <Tabs defaultValue={defaultTab}>
             <TabsList variant="line">
-              <TabsTrigger value="asistencia">Asistencia</TabsTrigger>
-              <TabsTrigger value="pod">Puntos del orden del día</TabsTrigger>
-              <TabsTrigger value="incidencias">Incidencias</TabsTrigger>
-              <TabsTrigger value="expediente">Expedientes</TabsTrigger>
+              {canVerAsistencia && <TabsTrigger value="asistencia">Asistencia</TabsTrigger>}
+              {canVerOrdenDia && <TabsTrigger value="pod">Puntos del orden del día</TabsTrigger>}
+              {canVerIncidencias && <TabsTrigger value="incidencias">Incidencias</TabsTrigger>}
+              {canVerExpedientes && <TabsTrigger value="expediente">Expedientes</TabsTrigger>}
             </TabsList>
 
             {/* ── Tab: Asistencia ─────────────────────────────────────────── */}
@@ -550,7 +586,9 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                   status={session.status}
                   asistencia={session.asistencia}
                   sessionId={sessionId}
-                  canAgregarActualizarAsistencia={canAgregarActualizarAsistencia}
+                  canRegistrarAsistencia={canRegistrarAsistencia}
+                  canActualizarAsistencia={canActualizarAsistencia}
+                  canActualizarAsistenciaConcluida={canActualizarAsistenciaConcluida}
                 />
 
                 {/* Representaciones de Partidos Políticos */}
@@ -586,8 +624,10 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                     <ol className="divide-y divide-border">
                       {session.pod.map((point) => {
                         const esAprobacion = point.tipo === 'APROBACION';
-                        const readonly = session.status === 'PROCESO' ? false
-                          : (session.status === 'CONCLUIDA' && canEditarVotacionConcluida) ? false
+                        const readonly = session.status === 'PROCESO'
+                          ? !canRegistrarVotacion
+                          : session.status === 'CONCLUIDA'
+                          ? !canActualizarVotacionConcluida
                           : true;
                         const totalVotos = point.votos_afavor + point.votos_encontra + point.votos_abstencion;
                         return (
@@ -627,7 +667,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                                 )}
                               </div>
                             </div>
-                            {esAprobacion && !readonly && (
+                            {esAprobacion && canVerVotacion && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -678,7 +718,9 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                 punto={votacionPunto}
                 consejeros={session.asistencia}
                 idSesion={sessionId}
-                readonly={session.status === 'CONCLUIDA' && !canEditarVotacionConcluida}
+                status={session.status}
+                canRegistrarVotacion={canRegistrarVotacion}
+                canActualizarVotacionConcluida={canActualizarVotacionConcluida}
               />
             )}
 
@@ -686,11 +728,15 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
             <TabsContent value="incidencias">
               <IncidenciasCard
                 idSesion={sessionId}
-                readonly={
-                  session.status === 'PROCESO' ? false
-                  : (session.status === 'CONCLUIDA' && canEditarVotacionConcluida) ? false
-                  : true
-                }
+                status={session.status}
+                canRegistrarIncidencia={canRegistrarIncidencia}
+                canActualizarIncidencia={canActualizarIncidencia}
+                canEliminarIncidencia={canEliminarIncidencia}
+                canRegistrarIncidenciaConcluida={canRegistrarIncidenciaConcluida}
+                canActualizarIncidenciaConcluida={canActualizarIncidenciaConcluida}
+                canEliminarIncidenciaConcluida={canEliminarIncidenciaConcluida}
+                canInformarSeguimientoIncidencia={canInformarSeguimientoIncidencia}
+                canInformarSeguimientoIncidenciaConcluida={canInformarSeguimientoIncidenciaConcluida}
               />
             </TabsContent>
 
@@ -698,11 +744,11 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
             <TabsContent value="expediente">
               <ExpedientesCard
                 idSesion={sessionId}
-                readonly={
-                  session.status === 'PROCESO' ? false
-                  : (session.status === 'CONCLUIDA' && canEditarVotacionConcluida) ? false
-                  : true
-                }
+                status={session.status}
+                canRegistrarExpediente={canRegistrarExpediente}
+                canEliminarExpediente={canEliminarExpediente}
+                canRegistrarExpedienteConcluida={canRegistrarExpedienteConcluida}
+                canEliminarExpedienteConcluida={canEliminarExpedienteConcluida}
               />
             </TabsContent>
 
@@ -719,12 +765,16 @@ function ConsejerosAsistenciaCard({
   status,
   asistencia,
   sessionId,
-  canAgregarActualizarAsistencia,
+  canRegistrarAsistencia,
+  canActualizarAsistencia,
+  canActualizarAsistenciaConcluida
 }: {
   status: string;
   asistencia: ISesionDetalleAPI['asistencia'];
   sessionId: string;
-  canAgregarActualizarAsistencia: boolean;
+  canRegistrarAsistencia: boolean;
+  canActualizarAsistencia: boolean;
+  canActualizarAsistenciaConcluida: boolean;
 }) {
   const canSave  = status !== 'PROGRAMADA' && status !== 'DEMORA';
 
@@ -799,7 +849,7 @@ function ConsejerosAsistenciaCard({
                 <CardTitle>Consejeros Electorales</CardTitle>
               </label>
             </div>
-            {(canSave && canAgregarActualizarAsistencia) && (
+            {(canSave && canActualizarAsistencia) && (
               <Button
                 size="sm"
                 disabled={guardando}
@@ -864,7 +914,7 @@ function ConsejerosAsistenciaCard({
       <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle>Consejeros Electorales</CardTitle>
           <div className="flex items-center gap-2">
-            {(desbloqueado && canSave && canAgregarActualizarAsistencia) && (
+            {(desbloqueado && canActualizarAsistenciaConcluida) && (
               <Button
                 size="sm"
                 disabled={guardando}
@@ -890,7 +940,7 @@ function ConsejerosAsistenciaCard({
                 Cancelar edición
               </Button>
             )}
-            {(!desbloqueado && canAgregarActualizarAsistencia) && (
+            {(!desbloqueado && canActualizarAsistenciaConcluida) && (
               <Button
                 variant="outline"
                 size="sm"

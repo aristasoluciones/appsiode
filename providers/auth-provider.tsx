@@ -20,8 +20,8 @@ interface AuthContextType extends AuthState {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Devuelve true si el usuario tiene acceso al módulo indicado.
-   * Los ADMINISTRADORES siempre tienen acceso. */
-  hasPermission: (modulo: string) => boolean;
+   * Acepta una clave o un array de claves (OR). Los ADMINISTRADORES siempre tienen acceso. */
+  hasPermission: (modulo: string | string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -111,10 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const hasPermission = useCallback(
-    (modulo: string): boolean => {
+    (modulo: string | string[]): boolean => {
       if (!state.user) return false;
       if (state.user.rol === 'ADMINISTRADOR') return true;
-      return state.user.modulos?.includes(modulo) ?? false;
+      const claves = Array.isArray(modulo) ? modulo : [modulo];
+      return claves.some((c) => state.user!.modulos?.includes(c) ?? false);
     },
     [state.user],
   );

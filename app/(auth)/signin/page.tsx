@@ -1,9 +1,10 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RiErrorWarningFill } from '@remixicon/react';
-import { AlertCircle, Eye, EyeOff, LoaderCircleIcon } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, LoaderCircleIcon, ShieldAlert } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/providers/auth-provider';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
@@ -22,6 +23,8 @@ import { getSigninSchema, SigninSchemaType } from '../forms/signin-schema';
 export default function Page() {
   
   const { login } = useAuth();
+  const searchParams = useSearchParams();
+  const reason = searchParams.get('reason');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +80,17 @@ export default function Page() {
             Ingrese sus credenciales para acceder al sistema.
           </AlertTitle>
         </Alert>
+
+        {reason === 'permissions_changed' && (
+          <Alert variant="warning" size="sm" close={false}>
+            <AlertIcon>
+              <ShieldAlert />
+            </AlertIcon>
+            <AlertTitle>
+              Sus permisos fueron modificados. Por seguridad, su sesión fue cerrada. Vuelva a iniciar sesión.
+            </AlertTitle>
+          </Alert>
+        )}
 
         {error && (
           <Alert variant="destructive">

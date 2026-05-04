@@ -304,13 +304,13 @@ function SubirExpedienteDialog({ idSesion, open, onOpenChange }: SubirExpediente
 function ExpedienteRow({
   exp,
   idSesion,
-  readonly,
+  canEliminar,
   onVer,
   previewing,
 }: {
   exp: IExpediente;
   idSesion: string;
-  readonly: boolean;
+  canEliminar: boolean;
   onVer: (exp: IExpediente) => void;
   previewing: boolean;
 }) {
@@ -357,7 +357,7 @@ function ExpedienteRow({
             <Eye className="h-4 w-4" />
           </button>
           {/* Eliminar */}
-          {!readonly && (
+          {canEliminar && (
             <button
               type="button"
               disabled={eliminando}
@@ -403,10 +403,24 @@ function ExpedienteRow({
 
 interface ExpedientesCardProps {
   idSesion: string;
-  readonly?: boolean;
+  status: string;
+  canRegistrarExpediente: boolean;
+  canEliminarExpediente: boolean;
+  canRegistrarExpedienteConcluida: boolean;
+  canEliminarExpedienteConcluida: boolean;
 }
 
-export function ExpedientesCard({ idSesion, readonly = false }: ExpedientesCardProps) {
+export function ExpedientesCard({
+  idSesion,
+  status,
+  canRegistrarExpediente,
+  canEliminarExpediente,
+  canRegistrarExpedienteConcluida,
+  canEliminarExpedienteConcluida,
+}: ExpedientesCardProps) {
+  // Permisos efectivos según estado de la sesión
+  const canRegistrar = status === 'PROCESO' ? canRegistrarExpediente : status === 'CONCLUIDA' ? canRegistrarExpedienteConcluida : false;
+  const canEliminar  = status === 'PROCESO' ? canEliminarExpediente  : status === 'CONCLUIDA' ? canEliminarExpedienteConcluida  : false;
   const { data: expedientes = [], isLoading, isError } = useExpedientesSesion(idSesion);
   const { mutate: visualizar, isPending: visualizando } = useVerExpediente(idSesion);
 
@@ -462,7 +476,7 @@ export function ExpedientesCard({ idSesion, readonly = false }: ExpedientesCardP
                 </Badge>
               )}
           </div>
-          {!readonly && (
+          {canRegistrar && (
               <Button size="sm" onClick={handleOpenDialog}>
                 <Plus className="h-4 w-4" />
                 Subir documento
@@ -511,7 +525,7 @@ export function ExpedientesCard({ idSesion, readonly = false }: ExpedientesCardP
                       key={exp.id}
                       exp={exp}
                       idSesion={idSesion}
-                      readonly={readonly}
+                      canEliminar={canEliminar}
                       onVer={handleVer}
                       previewing={previewExp?.id === exp.id}
                     />
