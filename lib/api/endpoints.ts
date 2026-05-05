@@ -53,6 +53,7 @@ export const API_ENDPOINTS = {
       `/Sesiones/consejo/${tipoConsejo}/${idConsejo}`,
     CREATE: '/Sesiones',
     SAVE_ASISTENCIA: (idSesion: string | number) => `/Sesiones/${idSesion}/asistencia`,
+    SAVE_ASISTENCIA_PP: (idSesion: string | number) => `/Sesiones/${idSesion}/asistencia-pp`,
     INICIAR_SESION: (idSesion: string | number) => `/Sesiones/${idSesion}/iniciar`,
     TERMINAR_SESION: (idSesion: string | number) => `/Sesiones/${idSesion}/terminar`,
     INCIDENCIAS: (idSesion: string | number) => `/Sesiones/${idSesion}/incidencias`,

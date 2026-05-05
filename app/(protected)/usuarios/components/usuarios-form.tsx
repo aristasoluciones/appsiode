@@ -168,7 +168,7 @@ export default function UsuarioForm({
     { id: 'consejo', nombre: 'Consejo' },
   ];
 
-  const ROLES_CONSEJO = ['CAPTURISTA'];
+  const ROLES_CONSEJO = ['CAPTURISTA','CAPTURISTA AVANZADO', 'CAPTURISTA ADMINISTRADOR'];
 
 
   const defaultValues: ICreateUsuarioInput = {

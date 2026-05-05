@@ -51,7 +51,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSesionesConsejo } from '../../components/sesiones-consejo-data';
-import { useSesionDetalle, useRepresentantesExternos, useGuardarAsistencia, useIniciarSesion, 
+import { useSesionDetalle, useRepresentantesExternos, useGuardarAsistencia, useGuardarAsistenciaPP, useIniciarSesion, 
         useTerminarSesion, useAgregarAsuntoGeneral, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
 import { IncidenciasCard } from './incidencias-card';
 import { ExpedientesCard } from './expedientes-card';
@@ -194,6 +194,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   const canRegistrarAsistencia = hasPermission('sesiones.asistencia.registrar');
   const canActualizarAsistencia = hasPermission('sesiones.asistencia.actualizar');
   const canActualizarAsistenciaConcluida = hasPermission('sesiones.asistencia.actualizarconcluida');
+  const canActualizarAsistenciaRpp = hasPermission('sesiones.asistencia.actualizarrpp');
   
   // Permisos de orden del día
   const canVerOrdenDia = hasPermission('sesiones.ordendeldia.ver');
@@ -602,6 +603,8 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                   representantes={representantesNorm}
                   loadingExt={loadingExt}
                   errorExt={errorExt}
+                  sessionId={sessionId}
+                  canActualizarAsistenciaRpp={canActualizarAsistenciaRpp}
                 />
 
               </div>
@@ -909,10 +912,32 @@ function ConsejerosAsistenciaCard({
   }
 
   // ── Modo CONCLUIDA: listar desde sesión, editable con desbloqueo ─────────
+  const allConcluida = asistencia.every((p) => asistenciaConc[p.id_asistencia ?? 0] ?? false);
+  const someConcluida = asistencia.some((p) => asistenciaConc[p.id_asistencia ?? 0] ?? false);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle>Consejeros Electorales</CardTitle>
+          <div className="flex items-center gap-2">
+            {desbloqueado && (
+              <Checkbox
+                id="select-all-consejeros-conc"
+                checked={allConcluida ? true : someConcluida ? 'indeterminate' : false}
+                onCheckedChange={(checked) => {
+                  const newValue = checked === true;
+                  setAsistenciaConc(
+                    Object.fromEntries(asistencia.map((p) => [p.id_asistencia ?? 0, newValue]))
+                  );
+                }}
+              />
+            )}
+            <label
+              htmlFor={desbloqueado ? 'select-all-consejeros-conc' : undefined}
+              className={desbloqueado ? 'cursor-pointer' : undefined}
+            >
+              <CardTitle>Consejerias Electorales</CardTitle>
+            </label>
+          </div>
           <div className="flex items-center gap-2">
             {(desbloqueado && canActualizarAsistenciaConcluida) && (
               <Button
@@ -1019,6 +1044,8 @@ function RepresentacionesPPCard({
   representantes,
   loadingExt,
   errorExt,
+  sessionId,
+  canActualizarAsistenciaRpp,
 }: {
   status: string;
   asistenciaPP: AsistenciaPPItem[];
@@ -1029,16 +1056,11 @@ function RepresentacionesPPCard({
   representantes: IRepresentanteNorm[];
   loadingExt: boolean;
   errorExt: boolean;
+  sessionId: string;
+  canActualizarAsistenciaRpp: boolean;
 }) {
 
-  const isActive = ACTIVE_STATUSES.has(status);
-
-  // ── API externa: datos pasados desde el componente padre ──
-  // const { data: repData = EMPTY_REPS, isLoading: loadingExt } = useRepresentantesExternos(
-  //   tipo,
-  //   idConsejo,
-  // );
-  // const representantes = repData.map(normalizeRepresentante);
+  const { mutate: guardarPP, isPending: guardandoPP } = useGuardarAsistenciaPP(sessionId);
 
   // Mapa id_partido → partyImagePath, siempre desde la API externa
   const partyImageMap = useMemo(
@@ -1161,7 +1183,7 @@ function RepresentacionesPPCard({
     );
   }
 
-  // ── Modo PROCESO: lista con checkboxes + Guardar ──────────────────────────
+  // ── Modo PROCESO: lista con checkboxes (se envía al terminar sesión) ──────
   if (status === 'PROCESO') {
     const allSelected = representantes.every((rep) => asistenciaExt[rep.id_representante] ?? false);
     const someSelected = representantes.some((rep) => asistenciaExt[rep.id_representante] ?? false);
@@ -1175,7 +1197,6 @@ function RepresentacionesPPCard({
               checked={allSelected ? true : someSelected ? 'indeterminate' : false}
               onCheckedChange={(checked) => {
                 const newValue = checked === true;
-                // Actualizar todos los representantes
                 representantes.forEach((rep) => {
                   if (asistenciaExt[rep.id_representante] !== newValue) {
                     onToggleExt(rep.id_representante);
@@ -1297,11 +1318,52 @@ function RepresentacionesPPCard({
   }
 
   // ── Modo CONCLUIDA ───────────────────────────────────────────────────────
+  const handleGuardarConcluida = () => {
+    const payload = asistenciaPP.map((p) => ({
+      id_asistencia_pp: p.id_asistencia_pp,
+      asistencia: asistenciaConc[p.id_asistencia_pp] ?? p.asistencia,
+    }));
+    guardarPP({ representantes: payload }, { onSuccess: () => setDesbloqueado(false) });
+  };
+
+  const allConcPP = asistenciaPP.every((p) => asistenciaConc[p.id_asistencia_pp] ?? false);
+  const someConcPP = asistenciaPP.some((p) => asistenciaConc[p.id_asistencia_pp] ?? false);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle>Representaciones de Partidos Políticos</CardTitle>
           <div className="flex items-center gap-2">
+            {desbloqueado && (
+              <Checkbox
+                id="select-all-rpp-conc"
+                checked={allConcPP ? true : someConcPP ? 'indeterminate' : false}
+                onCheckedChange={(checked) => {
+                  const newValue = checked === true;
+                  setAsistenciaConc(
+                    Object.fromEntries(asistenciaPP.map((p) => [p.id_asistencia_pp, newValue]))
+                  );
+                }}
+              />
+            )}
+            <label
+              htmlFor={desbloqueado ? 'select-all-rpp-conc' : undefined}
+              className={desbloqueado ? 'cursor-pointer' : undefined}
+            >
+              <CardTitle>Representaciones de Partidos Políticos</CardTitle>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            {(desbloqueado && canActualizarAsistenciaRpp) && (
+              <Button
+                size="sm"
+                disabled={guardandoPP}
+                onClick={handleGuardarConcluida}
+              >
+                {guardandoPP ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</>
+                ) : 'Guardar'}
+              </Button>
+            )}
             {desbloqueado ? (
               <Button
                 variant="outline"
@@ -1310,7 +1372,7 @@ function RepresentacionesPPCard({
               >
                 Cancelar edición
               </Button>
-            ) : (
+            ) : canActualizarAsistenciaRpp ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -1318,7 +1380,7 @@ function RepresentacionesPPCard({
               >
                 <LockOpen className="h-3.5 w-3.5" /> Editar asistencia
               </Button>
-            )}
+            ) : null}
           </div>
       </CardHeader>
       <CardContent className="p-0">

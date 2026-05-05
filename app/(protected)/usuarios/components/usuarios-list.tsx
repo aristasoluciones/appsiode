@@ -114,7 +114,9 @@ export default function UsuariosList() {
         cell: ({ row }) => {
           const { tipo, consejo_tipo, consejo_clave } = row.original;
           if (tipo === 'consejo') {
-            const consejo = consejos.find((c) => c.clave_consejo === consejo_clave);
+            const consejo = consejos.find(
+              (c) => c.clave_consejo === consejo_clave && c.tipo_consejo === consejo_tipo
+            );
             return (
               <div className="flex flex-col gap-0.5">
                 <Badge variant="primary" className="w-fit">Consejo</Badge>

@@ -52,7 +52,7 @@ export function IndicadoresContainer() {
   const router = useRouter();
   const { hasPermission } = useAuth();
 
-  const canAgregarSesion = hasPermission('sesiones.sesiones.insert');
+  const canAgregarSesion = hasPermission('sesiones.crear');
 
   // null = "usar el primer tipo del proceso" (default dinámico desde API).
   // Solo se vuelve no-null cuando el usuario elige explícitamente una pill.

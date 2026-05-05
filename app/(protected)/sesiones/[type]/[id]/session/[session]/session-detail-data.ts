@@ -68,6 +68,19 @@ export function useGuardarAsistencia(idSesion: string) {
   });
 }
 
+export function useGuardarAsistenciaPP(idSesion: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { representantes: { id_asistencia_pp: number; asistencia: boolean }[] }) =>
+      apiClient.put(API_ENDPOINTS.SESIONES.SAVE_ASISTENCIA_PP(idSesion), payload),
+    onSuccess: () => {
+      toastSuccess('Asistencia de representantes guardada correctamente.');
+      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+    },
+    onError: () => toastError('No se pudo guardar la asistencia de representantes. Intenta nuevamente.'),
+  });
+}
+
 export function useIniciarSesion(idSesion: string) {
   const queryClient = useQueryClient();
   return useMutation({
