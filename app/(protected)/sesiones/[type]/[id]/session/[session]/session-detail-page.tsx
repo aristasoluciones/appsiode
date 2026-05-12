@@ -51,7 +51,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSesionesConsejo } from '../../components/sesiones-consejo-data';
-import { useSesionDetalle, useRepresentantesExternos, useGuardarAsistencia, useGuardarAsistenciaPP, useIniciarSesion, 
+import { useSesionDetalle, useRepresentantesExternos, useIntegracion, useGuardarAsistencia, useGuardarAsistenciaPP, useIniciarSesion, 
         useTerminarSesion, useAgregarAsuntoGeneral, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
 import { IncidenciasCard } from './incidencias-card';
 import { ExpedientesCard } from './expedientes-card';
@@ -99,39 +99,11 @@ const STATUS_VARIANT: Record<string, BadgeVariant> = {
 const statusVariant = (s: string): BadgeVariant => STATUS_VARIANT[s] ?? 'secondary';
 const statusLabel   = (s: string): string => s.replaceAll('_', ' ');
 
-// ─── Consejeros externos (API externa — mock hasta integración) ───────────────
+// ─── Consejeros externos ─────────────────────────────────────────────────────
 
 const ACTIVE_STATUSES = new Set(['PROCESO', 'DEMORA', 'PROGRAMADA']);
 
-
-
-/** TODO: reemplazar con llamada a API externa cuando esté disponible */
-const MOCK_CONSEJEROS_ELECTORALES: IConsejeroExterno[] = [
-  {
-    consejo_tipo: 'M', consejo_clave: 66, consejo: 'PANTELHÓ',
-    id: 17, grupo_cargo: 'PRESIDENTA(E)', id_cargo: 1,
-    nombre: 'PATRICIA ELIZABETH', apellidos: 'RAMOS GUTIERREZ',
-    genero: 'M', cargo: 'PRESIDENCIA',
-  },
-  {
-    consejo_tipo: 'M', consejo_clave: 66, consejo: 'PANTELHÓ',
-    id: 18, grupo_cargo: 'CONSEJERO(A)', id_cargo: 2,
-    nombre: 'JUAN CARLOS', apellidos: 'MÉNDEZ TORRES',
-    genero: 'H', cargo: 'CONSEJERÍA ELECTORAL',
-  },
-  {
-    consejo_tipo: 'M', consejo_clave: 66, consejo: 'PANTELHÓ',
-    id: 19, grupo_cargo: 'CONSEJERO(A)', id_cargo: 2,
-    nombre: 'ANA LUCÍA', apellidos: 'PÉREZ GÓMEZ',
-    genero: 'M', cargo: 'CONSEJERÍA ELECTORAL',
-  },
-  {
-    consejo_tipo: 'M', consejo_clave: 66, consejo: 'PANTELHÓ',
-    id: 20, grupo_cargo: 'SECRETARIO(A)', id_cargo: 3,
-    nombre: 'ROBERTO', apellidos: 'HERNÁNDEZ RUIZ',
-    genero: 'H', cargo: 'SECRETARÍA',
-  },
-];
+const EMPTY_CONSEJEROS: IConsejeroExterno[] = [];
 
 // ─── Representantes PP: tipos y normalización ─────────────────────────────────
 
@@ -182,6 +154,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   const consejoTipoDesc = consejMeta?.tipo_consejo_desc ?? tipoLabel;
 
   const { data: repData = EMPTY_REPS, isLoading: loadingExt, isError: errorExt } = useRepresentantesExternos(type as 'd' | 'm', String(consejoClave));
+  const { data: consejeros = EMPTY_CONSEJEROS, isLoading: loadingConsejeros } = useIntegracion(type, consejoClave);
   const representantesNorm = useMemo(() => repData.map(normalizeRepresentante), [repData]);
 
   // Permisos generales
@@ -236,7 +209,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
 
   const handleIniciarSesion = () => {
     iniciarSesion({
-      consejeros: MOCK_CONSEJEROS_ELECTORALES.map((c) => ({
+      consejeros: consejeros.map((c) => ({
         cargo: c.cargo,
         genero: c.genero,
         nombre: c.nombre,
@@ -587,6 +560,8 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                   status={session.status}
                   asistencia={session.asistencia}
                   sessionId={sessionId}
+                  consejeros={consejeros}
+                  loadingConsejeros={loadingConsejeros}
                   canRegistrarAsistencia={canRegistrarAsistencia}
                   canActualizarAsistencia={canActualizarAsistencia}
                   canActualizarAsistenciaConcluida={canActualizarAsistenciaConcluida}
@@ -768,6 +743,8 @@ function ConsejerosAsistenciaCard({
   status,
   asistencia,
   sessionId,
+  consejeros,
+  loadingConsejeros,
   canRegistrarAsistencia,
   canActualizarAsistencia,
   canActualizarAsistenciaConcluida
@@ -775,6 +752,8 @@ function ConsejerosAsistenciaCard({
   status: string;
   asistencia: ISesionDetalleAPI['asistencia'];
   sessionId: string;
+  consejeros: IConsejeroExterno[];
+  loadingConsejeros: boolean;
   canRegistrarAsistencia: boolean;
   canActualizarAsistencia: boolean;
   canActualizarAsistenciaConcluida: boolean;
@@ -799,19 +778,25 @@ function ConsejerosAsistenciaCard({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Consejeros Electorales</CardTitle>
+          <CardTitle>Consejerías Electorales</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {MOCK_CONSEJEROS_ELECTORALES.length === 0 ? (
+          {loadingConsejeros ? (
+            <div className="flex flex-col gap-2 p-5">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full animate-pulse motion-reduce:animate-none" />
+              ))}
+            </div>
+          ) : consejeros.length === 0 ? (
             <EmptyState
               icon={<SearchX className="h-7 w-7 text-gray-400" />}
-              title="Sin consejeros"
-              description="No hay consejeros registrados para esta sesión."
+              title="Sin consejerías"
+              description="No hay consejerías registradas para esta sesión."
             />
           ) : (
             <ScrollArea className="h-[calc(100dvh-440px)] min-h-[200px]">
               <ul className="divide-y divide-border">
-                {MOCK_CONSEJEROS_ELECTORALES.map((c) => (
+                {consejeros.map((c) => (
                   <li key={c.id} className="flex items-center gap-3 px-5 py-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground leading-tight">
@@ -849,7 +834,7 @@ function ConsejerosAsistenciaCard({
                 }}
               />
               <label htmlFor="select-all-consejeros" className="cursor-pointer">
-                <CardTitle>Consejeros Electorales</CardTitle>
+                <CardTitle>Consejerías Electorales</CardTitle>
               </label>
             </div>
             {(canSave && canActualizarAsistencia) && (
@@ -874,8 +859,8 @@ function ConsejerosAsistenciaCard({
           {asistencia.length === 0 ? (
             <EmptyState
               icon={<SearchX className="h-7 w-7 text-gray-400" />}
-              title="Sin consejeros"
-              description="No hay consejeros registrados para esta sesión."
+              title="Sin consejerías"
+              description="No hay consejerías registradas para esta sesión."
             />
           ) : (
             <ScrollArea className="h-[calc(100dvh-440px)] min-h-[200px]">
@@ -980,8 +965,8 @@ function ConsejerosAsistenciaCard({
         {asistencia.length === 0 ? (
           <EmptyState
             icon={<SearchX className="h-7 w-7 text-gray-400" />}
-            title="Sin consejeros"
-            description="No hay consejeros registrados para esta sesión."
+            title="Sin consejerías"
+            description="No hay consejerías registradas para esta sesión."
           />
         ) : (
           <ScrollArea className="h-[calc(100dvh-440px)] min-h-[200px]">

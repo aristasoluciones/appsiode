@@ -30,6 +30,8 @@ interface Props {
 export function SesionesConsejoPage({ type, idConsejo }: Props) {
   const { user, hasPermission } = useAuth();
   const canCrearSesion = hasPermission('sesiones.crear');
+  const canEditarSesion = hasPermission('sesiones.editar');
+  const canEliminarSesion = hasPermission('sesiones.eliminar');
 
   // Capturistas (idRol=1) solo pueden ver su consejo asignado
   const isCapturista = user?.idRol === '1';
@@ -91,7 +93,6 @@ export function SesionesConsejoPage({ type, idConsejo }: Props) {
               </div>
             ) : (
               <>
-               
                 <Breadcrumb>
                   <BreadcrumbList>
                     {!isCapturista && (
@@ -142,6 +143,8 @@ export function SesionesConsejoPage({ type, idConsejo }: Props) {
           isError={isError}
           notFound={notFound}
           canCrearSesion={canCrearSesion}
+          canEliminarSesion={canEliminarSesion}
+          canEditarSesion={canEditarSesion}
           onRetry={refetch}
         />
       </Container>

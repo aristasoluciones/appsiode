@@ -92,6 +92,8 @@ interface Props {
   isError: boolean;
   notFound: boolean;
   canCrearSesion?: boolean;
+  canEliminarSesion?: boolean;
+  canEditarSesion?: boolean;
   onRetry: () => void;
 }
 
@@ -103,6 +105,8 @@ export function SesionesConsejoList({
   isError,
   notFound,
   canCrearSesion = false,
+  canEliminarSesion = false,
+  canEditarSesion = false,
   onRetry,
 }: Props) {
   const [search, setSearch] = useState('');
@@ -269,7 +273,7 @@ export function SesionesConsejoList({
               </Link>
             </Button>
 
-            {(row.original.status === 'PROGRAMADA' || row.original.status === 'DEMORA') && (
+            {((row.original.status === 'PROGRAMADA' || row.original.status === 'DEMORA') && canEliminarSesion) && (
               <Button
                 variant="outline"
                 size="icon"

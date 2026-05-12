@@ -10,7 +10,33 @@ import type {
   ISesionDetalleAPI,
   ISesionDetalleResponseEnvelope,
   IConsejeroAsistenciaInput,
+  IConsejeroExterno,
 } from '@/types/sesiones';
+
+// ─── Integración SICE: consejeros electorales ────────────────────────────────
+
+export function useIntegracion(consejoTipo: string, consejoClave: number | string | null) {
+  return useQuery({
+    queryKey: ['integracion-sice', consejoTipo, consejoClave],
+    queryFn: async (): Promise<IConsejeroExterno[]> => {
+      if (consejoClave === null) return [];
+      const { data } = await axios.get<IConsejeroExterno[]>(
+        '/api/sice-proxy/integracion',
+      );
+      
+      const tipo = consejoTipo.toUpperCase();
+      const clave = Number(consejoClave);
+      return Array.isArray(data)
+        ? data.filter(
+            (c) => c.consejo_tipo.toUpperCase() === tipo && c.consejo_clave === clave,
+          )
+        : [];
+    },
+    enabled: consejoClave !== null,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+}
 
 // ─── Tipos externos: representantes de partidos ───────────────────────────────
 
