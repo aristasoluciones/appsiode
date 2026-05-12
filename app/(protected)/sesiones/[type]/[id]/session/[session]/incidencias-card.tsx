@@ -339,7 +339,7 @@ function IncidenciaRow({
   const handleInformar = () => {
     if (!nuevoTexto.trim()) return;
     guardar(
-      { id_incidencia: incidencia.id, id_sesion: idSesion, seguimiento: nuevoTexto },
+      { id_incidencia: incidencia.id, id_sesion: idSesion, seguimiento: nuevoTexto, status: 'ABIERTA' },
       { onSuccess: () => setNuevoTexto('') },
     );
   };

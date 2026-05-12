@@ -52,12 +52,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSesionesConsejo } from '../../components/sesiones-consejo-data';
 import { useSesionDetalle, useRepresentantesExternos, useIntegracion, useGuardarAsistencia, useGuardarAsistenciaPP, useIniciarSesion, 
-        useTerminarSesion, useAgregarAsuntoGeneral, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
+        useTerminarSesion, useAgregarAsuntoGeneral, useActualizarPOD, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
 import { IncidenciasCard } from './incidencias-card';
 import { ExpedientesCard } from './expedientes-card';
 import { VotacionDialog } from './votacion-dialog';
 import { SesionEdicion } from './sesion-edicion';
 import type { ISesionDetalleAPI, IRepresentanteNorm, IConsejeroExterno } from '@/types/sesiones';
+import apiClient from '@/lib/api/axios-client';
+import { toastError } from '@/lib/toast';
 
 import { useAuth } from '@/providers/auth-provider';
 
@@ -220,6 +222,26 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   };
 
   const handleAbrirVotacion = (point: ISesionDetalleAPI['pod'][number]) => setVotacionPunto(point);
+  const [descargandoReporte, setDescargandoReporte] = useState(false);
+  const handleDescargarReporte = async () => {
+    setDescargandoReporte(true);
+    try {
+      const response = await apiClient.get(`/Sesiones/${sessionId}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte-de-sesion-${sessionId}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toastError('No se pudo descargar el reporte. Intenta nuevamente.');
+    } finally {
+      setDescargandoReporte(false);
+    }
+  };
+  const [editandoGeneral, setEditandoGeneral] = useState<string | null>(null);
+  const [editTextoGeneral, setEditTextoGeneral] = useState('');
+  const { mutate: actualizarGeneral, isPending: guardandoGeneral } = useActualizarPOD(sessionId);
   const { mutate: agregarAsunto, isPending: guardandoAsunto } = useAgregarAsuntoGeneral(sessionId);
   const handleGuardarAsunto = () => {
     const texto = nuevoAsunto.trim();
@@ -354,9 +376,12 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                 Volver
               </Link>
             </Button>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4" />
-              Reporte
+            <Button variant="outline" size="sm" disabled={descargandoReporte} onClick={handleDescargarReporte}>
+              {descargandoReporte ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Descargando...</>
+              ) : (
+                <><Download className="h-4 w-4" /> Reporte</>
+              )}
             </Button>
             {((session.status === 'DEMORA' || session.status === 'PROGRAMADA') && canEditarSesion) && (
               <Button
@@ -602,15 +627,14 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                     <ol className="divide-y divide-border">
                       {session.pod.map((point) => {
                         const esAprobacion = point.tipo === 'APROBACION';
-                        const readonly = session.status === 'PROCESO'
-                          ? !canRegistrarVotacion
-                          : session.status === 'CONCLUIDA'
-                          ? !canActualizarVotacionConcluida
-                          : true;
-                        const totalVotos = point.votos_afavor + point.votos_encontra + point.votos_abstencion;
+                        const esGeneral = point.tipo === 'GENERALES';
+                        const puntoKey = `${point.id_punto}-${point.id_subpunto}`;
+                        const canEditarGeneral =
+                          session.status === 'PROCESO' && canAgregarAsuntoGeneral;
+                        const estaEditando = editandoGeneral === puntoKey;
                         return (
                           <li
-                            key={`${point.id_punto}-${point.id_subpunto}`}
+                            key={puntoKey}
                             className="flex items-start gap-3 px-5 py-4"
                           >
                             <span className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-muted text-xs font-semibold text-muted-foreground mt-0.5">
@@ -618,32 +642,74 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                             </span>
                             <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-start sm:gap-6">
                               {/* Descripción + badge */}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-foreground leading-relaxed text-justify">
-                                  {point.descripcion}
-                                </p>
-                              </div>
-                              {/* Resumen de votación */}
-                              <div className="mt-3 sm:mt-0 sm:shrink-0 flex flex-col gap-1 sm:min-w-[130px]">
-                                {esAprobacion ? (
-                                  <>
-                                    <span className="inline-flex items-center gap-1.5 text-sm text-primary font-medium">
-                                      <ThumbsUp className="h-3.5 w-3.5 shrink-0" />
-                                      {point.votos_afavor} a favor
-                                    </span>
-                                    <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium">
-                                      <ThumbsDown className="h-3.5 w-3.5 shrink-0" />
-                                      {point.votos_encontra} en contra
-                                    </span>
-                                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
-                                      <Minus className="h-3.5 w-3.5 shrink-0" />
-                                      {point.votos_abstencion} abstención
-                                    </span>
-                                  </>
+                              <div className="flex-1 min-w-0 space-y-2">
+                                {esGeneral && (
+                                  <Badge variant="secondary" appearance="light" size="sm">Asunto general</Badge>
+                                )}
+                                {esGeneral && estaEditando ? (
+                                  <div className="space-y-2">
+                                    <Textarea
+                                      value={editTextoGeneral}
+                                      onChange={(e) => setEditTextoGeneral(e.target.value)}
+                                      maxLength={2000}
+                                      rows={3}
+                                      disabled={guardandoGeneral}
+                                    />
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-muted-foreground">{editTextoGeneral.length}/2000</span>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={guardandoGeneral}
+                                          onClick={() => { setEditandoGeneral(null); setEditTextoGeneral(''); }}
+                                        >
+                                          Cancelar
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          disabled={!editTextoGeneral.trim() || guardandoGeneral}
+                                          onClick={() => {
+                                            actualizarGeneral(
+                                              { id_punto: point.id_punto, id_subpunto: point.id_subpunto, tipo: point.tipo, descripcion: editTextoGeneral },
+                                              { onSuccess: () => { setEditandoGeneral(null); setEditTextoGeneral(''); } },
+                                            );
+                                          }}
+                                        >
+                                          {guardandoGeneral ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando...</> : 'Guardar'}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground italic">No aplica</span>
+                                  <p className="text-sm text-foreground leading-relaxed text-justify">
+                                    {point.descripcion}
+                                  </p>
                                 )}
                               </div>
+                              {/* Resumen de votación */}
+                              {!esGeneral && (
+                                <div className="mt-3 sm:mt-0 sm:shrink-0 flex flex-col gap-1 sm:min-w-[130px]">
+                                  {esAprobacion ? (
+                                    <>
+                                      <span className="inline-flex items-center gap-1.5 text-sm text-primary font-medium">
+                                        <ThumbsUp className="h-3.5 w-3.5 shrink-0" />
+                                        {point.votos_afavor} a favor
+                                      </span>
+                                      <span className="inline-flex items-center gap-1.5 text-sm text-destructive font-medium">
+                                        <ThumbsDown className="h-3.5 w-3.5 shrink-0" />
+                                        {point.votos_encontra} en contra
+                                      </span>
+                                      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
+                                        <Minus className="h-3.5 w-3.5 shrink-0" />
+                                        {point.votos_abstencion} abstención
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">No aplica</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             {esAprobacion && canVerVotacion && (
                               <Button
@@ -654,6 +720,17 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                               >
                                 <Vote className="h-3.5 w-3.5" />
                                 Votar
+                              </Button>
+                            )}
+                            {esGeneral && canEditarGeneral && !estaEditando && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0 mt-0.5"
+                                onClick={() => { setEditandoGeneral(puntoKey); setEditTextoGeneral(point.descripcion); }}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Editar
                               </Button>
                             )}
                           </li>
@@ -933,7 +1010,7 @@ function ConsejerosAsistenciaCard({
                     id: p.id_asistencia ?? 0,
                     asistencia: asistenciaConc[p.id_asistencia ?? 0] ?? (p.asistencia ?? false),
                   }));
-                  guardar({ asistencia: payload });
+                  guardar({ asistencia: payload }, { onSuccess: () => setDesbloqueado(false) });
                 }}
               >
                 {guardando ? (
@@ -945,7 +1022,10 @@ function ConsejerosAsistenciaCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setDesbloqueado(false)}
+                onClick={() => {
+                  setAsistenciaConc(Object.fromEntries(asistencia.map((p) => [p.id_asistencia ?? 0, p.asistencia ?? false])));
+                  setDesbloqueado(false);
+                }}
               >
                 Cancelar edición
               </Button>
@@ -1353,7 +1433,10 @@ function RepresentacionesPPCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setDesbloqueado(false)}
+                onClick={() => {
+                  setAsistenciaConc(Object.fromEntries(asistenciaPP.map((p) => [p.id_asistencia_pp, p.asistencia])));
+                  setDesbloqueado(false);
+                }}
               >
                 Cancelar edición
               </Button>

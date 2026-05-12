@@ -17,15 +17,6 @@ export function Footer() {
               Instituto de Elecciones y Participación Ciudadana
             </a>
           </div>
-          <nav className="flex order-1 md:order-2 gap-4 font-normal text-sm text-muted-foreground">
-            <a
-              href="https://devs.keenthemes.com"
-              target="_blank"
-              className="hover:text-primary"
-            >
-              Soporte
-            </a>
-          </nav>
         </div>
       </div>
     </footer>
