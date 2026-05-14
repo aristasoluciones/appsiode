@@ -140,3 +140,19 @@ export function useEliminarIncidencia(idSesion: string) {
     onError: () => toastError('No se pudo eliminar la incidencia.'),
   });
 }
+
+export function useEliminarSeguimiento(idSesion: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ idIncidencia, idSeguimiento }: { idIncidencia: number; idSeguimiento: number }) =>
+      apiClient.delete(
+        API_ENDPOINTS.SESIONES.ELIMINAR_SEGUIMIENTO(idSesion, idIncidencia, idSeguimiento),
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QK_INCIDENCIAS, idSesion] });
+      toastSuccess('Seguimiento eliminado.');
+    },
+    onError: () => toastError('No se pudo eliminar el seguimiento.'),
+  });
+}

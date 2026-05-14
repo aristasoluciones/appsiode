@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { useVotar, useObtenerVotos, type TVoto, type IVotoInput } from './session-detail-data';
 import type { ISesionDetalleAPI } from '@/types/sesiones';
 
@@ -62,7 +62,7 @@ const VOTOS: { value: TVoto; label: string; icon: React.ReactNode; activeClass: 
     activeClass: 'bg-muted text-foreground border-border',
   },
 ];
-
+const NO_PUEDEN_VOTAR = ['SECRETARÍA', 'SECRETARÍA TÉCNICA', 'SECRETARIO', 'SECRETARIO TÉCNICO'];
 // ─── VotacionDialog ───────────────────────────────────────────────────────────
 
 export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion, status, canRegistrarVotacion, canActualizarVotacionConcluida }: VotacionDialogProps) {
@@ -159,7 +159,7 @@ export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion
         </div>
 
         {/* Tabla de votos */}
-        <ScrollArea className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {cargandoVotos ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -174,7 +174,7 @@ export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {consejeros.filter((c) => c.cargo?.toUpperCase() !== 'SECRETARÍA').map((c) => {
+              {consejeros.filter((c) => !NO_PUEDEN_VOTAR.includes(c.cargo?.toUpperCase() ?? '')).map((c) => {
                 const idAsistencia = c.id_asistencia!;
                 const votoActual = votos[idAsistencia];
                 const nombre = `${c.nombre ?? ''} ${c.apellidos ?? ''}`.trim();
@@ -218,7 +218,7 @@ export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion
             </tbody>
           </table>
           )}
-        </ScrollArea>
+        </div>
 
         {/* Resumen */}
         <div className="flex items-center gap-4 pt-3 border-t border-border">

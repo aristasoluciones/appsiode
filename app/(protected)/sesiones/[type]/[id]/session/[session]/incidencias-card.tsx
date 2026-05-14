@@ -33,6 +33,7 @@ import {
   useCrearIncidencia,
   useGuardarSeguimiento,
   useEliminarIncidencia,
+  useEliminarSeguimiento,
   type IIncidencia,
   type ISeguimiento,
 } from './incidencias-data';
@@ -210,8 +211,10 @@ function NuevaIncidenciaInline({
 
   const [periodoSel, setPeriodoSel] = useState('');
   const [idCatalogoSel, setIdCatalogoSel] = useState('');
+  const [otroTexto, setOtroTexto] = useState('');
 
-  const periodos = Object.keys(catalogo).sort();
+  const OTRO_VALUE = 'otro';
+  const periodos = ['PREVIA','DURANTE','POSTERIOR'];
   const incidenciasDePeriodo = periodoSel
     ? [...(catalogo[periodoSel] ?? [])].sort((a, b) => a.incidencia.localeCompare(b.incidencia, 'es', { numeric: true }))
     : [];
@@ -219,20 +222,35 @@ function NuevaIncidenciaInline({
   const handlePeriodoChange = (value: string) => {
     setPeriodoSel(value);
     setIdCatalogoSel('');
+    setOtroTexto('');
   };
 
+  const isOtro = idCatalogoSel === OTRO_VALUE;
   const incidenciaSelObj = incidenciasDePeriodo.find((i) => String(i.id) === idCatalogoSel);
 
+  const canSubmit = periodoSel && idCatalogoSel && (isOtro ? otroTexto.trim().length > 0 : !!incidenciaSelObj);
+
   const handleSubmit = () => {
-    if (!periodoSel || !idCatalogoSel || !incidenciaSelObj) return;
-    crear(
-      {
-        id_catalogo: Number(idCatalogoSel),
-        periodo: periodoSel,
-        incidencia: incidenciaSelObj.incidencia,
-      },
-      { onSuccess },
-    );
+    if (!canSubmit) return;
+    if (isOtro) {
+      crear(
+        {
+          id_catalogo: 0,
+          periodo: periodoSel,
+          incidencia: otroTexto.trim(),
+        },
+        { onSuccess },
+      );
+    } else {
+      crear(
+        {
+          id_catalogo: Number(idCatalogoSel),
+          periodo: periodoSel,
+          incidencia: incidenciaSelObj!.incidencia,
+        },
+        { onSuccess },
+      );
+    }
   };
 
   return (
@@ -289,13 +307,33 @@ function NuevaIncidenciaInline({
                       {inc.incidencia}
                     </SelectItem>
                   ))}
+                  <SelectItem value={OTRO_VALUE}>Otro</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
           </div>
 
+          {/* Otro — texto personalizado */}
+          {isOtro && (
+            <div className="flex flex-col gap-1.5 w-full">
+              <Label htmlFor="inline-otro">Especifique</Label>
+              <Textarea
+                id="inline-otro"
+                placeholder="Especifique la incidencia (máx. 300 caracteres)"
+                maxLength={300}
+                rows={2}
+                value={otroTexto}
+                onChange={(e) => setOtroTexto(e.target.value)}
+                className="resize-none"
+              />
+              <span className="text-xs text-muted-foreground text-right">
+                {otroTexto.length}/300
+              </span>
+            </div>
+          )}
+
           {/* Acción */}
-          <Button disabled={!periodoSel || !idCatalogoSel || creando} onClick={handleSubmit}>
+          <Button disabled={!canSubmit || creando} onClick={handleSubmit}>
             {creando ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" /> Registrando...
@@ -330,9 +368,11 @@ function IncidenciaRow({
   const [expanded, setExpanded] = useState(false);
   const [nuevoTexto, setNuevoTexto] = useState('');
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+  const [confirmarEliminarSeg, setConfirmarEliminarSeg] = useState<number | null>(null);
 
   const { mutate: guardar, isPending: guardando } = useGuardarSeguimiento(idSesion);
   const { mutate: eliminar, isPending: eliminando } = useEliminarIncidencia(idSesion);
+  const { mutate: eliminarSeg, isPending: eliminandoSeg } = useEliminarSeguimiento(idSesion);
 
   const handleToggleExpand = () => setExpanded((v) => !v);
 
@@ -429,7 +469,24 @@ function IncidenciaRow({
                   key={s.id}
                   className="border-b border-border/60 pb-2 last:border-0 last:pb-0 space-y-0.5"
                 >
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{s.seguimiento}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{s.seguimiento}</p>
+                    {canInformar && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmarEliminarSeg(s.id)}
+                        disabled={eliminandoSeg}
+                        className="shrink-0 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 mt-0.5"
+                        aria-label="Eliminar seguimiento"
+                      >
+                        {eliminandoSeg && confirmarEliminarSeg === s.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{formatFechaHora(s.fecha_registro)}</p>
                 </div>
               ))}
@@ -482,7 +539,35 @@ function IncidenciaRow({
         </tr>
       )}
 
-      {/* Confirmación eliminar */}
+      {/* Confirmación eliminar seguimiento */}
+      <AlertDialog open={confirmarEliminarSeg !== null} onOpenChange={(open) => { if (!open) setConfirmarEliminarSeg(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este seguimiento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción <span className="font-semibold text-destructive">no es reversible</span>.
+              Se eliminará el seguimiento de forma permanente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmarEliminarSeg === null) return;
+                eliminarSeg(
+                  { idIncidencia: incidencia.id, idSeguimiento: confirmarEliminarSeg },
+                  { onSuccess: () => setConfirmarEliminarSeg(null) },
+                );
+              }}
+            >
+              Sí, eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmación eliminar incidencia */}
       <AlertDialog open={confirmarEliminar} onOpenChange={setConfirmarEliminar}>
         <AlertDialogContent>
           <AlertDialogHeader>

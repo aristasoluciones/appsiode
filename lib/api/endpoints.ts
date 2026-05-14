@@ -59,6 +59,7 @@ export const API_ENDPOINTS = {
     INCIDENCIAS: (idSesion: string | number) => `/Sesiones/${idSesion}/incidencias`,
     INCIDENCIA_SEGUIMIENTO: (idSesion: string | number) => `/Sesiones/${idSesion}/incidencias/seguimiento`,
     ELIMINAR_INCIDENCIA: (idSesion: string | number, idIncidencia: string | number) => `/Sesiones/${idSesion}/incidencias/${idIncidencia}`,
+    ELIMINAR_SEGUIMIENTO: (idSesion: string | number, idIncidencia: string | number, idSeguimiento: string | number) => `/Sesiones/${idSesion}/incidencias/${idIncidencia}/seguimiento/${idSeguimiento}`,
     EXPEDIENTES: (idSesion: string | number) => `/Sesiones/${idSesion}/expedientes`,
     ELIMINAR_EXPEDIENTE: (idSesion: string | number, idExpediente: string | number) => `/Sesiones/${idSesion}/expedientes/${idExpediente}`,
     VER_EXPEDIENTE: (idSesion: string | number, idExpediente: string | number) => `/Sesiones/${idSesion}/expedientes/${idExpediente}/visualizar`,

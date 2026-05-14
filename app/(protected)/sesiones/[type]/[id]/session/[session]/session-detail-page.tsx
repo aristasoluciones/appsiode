@@ -625,7 +625,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
                     />
                   ) : (
                     <ol className="divide-y divide-border">
-                      {session.pod.map((point) => {
+                      {session.pod.sort((a, b) => a.id_punto - b.id_punto).map((point) => {
                         const esAprobacion = point.tipo === 'APROBACION';
                         const esGeneral = point.tipo === 'GENERALES';
                         const puntoKey = `${point.id_punto}-${point.id_subpunto}`;
