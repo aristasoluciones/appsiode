@@ -21,8 +21,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/providers/auth-provider';
 import { useSesionesConsejo } from './sesiones-consejo-data';
 import { SesionesConsejoList } from './sesiones-consejo-list';
-import { ROLES_LIMITED_ACCESS_BY_CONSEJO } from '@/config/settings.config';
-
 interface Props {
   type: string;
   idConsejo: string;
@@ -34,8 +32,8 @@ export function SesionesConsejoPage({ type, idConsejo }: Props) {
   const canEditarSesion = hasPermission('sesiones.editar');
   const canEliminarSesion = hasPermission('sesiones.eliminar');
 
-  // Capturistas (idRol=1) solo pueden ver su consejo asignado
-  const isCapturista = user?.idRol === '1' || ROLES_LIMITED_ACCESS_BY_CONSEJO.includes(user?.rol ?? '');
+  // Usuario con consejo asignado (idConsejo > 0) solo puede ver su consejo
+  const isCapturista = parseInt(user?.idConsejo ?? '0') > 0;
   const hasAccess = !isCapturista || (
     type.toUpperCase() === user?.tipoConsejo.toUpperCase() &&
     idConsejo === user?.idConsejo
