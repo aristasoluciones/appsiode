@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { useCreateUsuario, useUpdateUsuario } from './usuarios-data';
 import type { IUsuario, ICreateUsuarioInput, IConsejo, IRolOpcion } from './usuarios-data';
 import { SelectContent, SelectTrigger, SelectValue,Select,SelectItem } from '@/components/ui/select';
+import { ROLES_LIMITED_ACCESS_BY_CONSEJO } from '@/config/settings.config';
 
 // ── Password utilities ───────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ export default function UsuarioForm({
     { id: 'consejo', nombre: 'Consejo' },
   ];
 
-  const ROLES_CONSEJO = ['CAPTURISTA','CAPTURISTA AVANZADO', 'CAPTURISTA ADMINISTRADOR'];
+  const ROLES_CONSEJO = ROLES_LIMITED_ACCESS_BY_CONSEJO;
 
 
   const defaultValues: ICreateUsuarioInput = {

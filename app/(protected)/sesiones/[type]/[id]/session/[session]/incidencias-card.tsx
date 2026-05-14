@@ -319,15 +319,15 @@ function NuevaIncidenciaInline({
               <Label htmlFor="inline-otro">Especifique</Label>
               <Textarea
                 id="inline-otro"
-                placeholder="Especifique la incidencia (máx. 300 caracteres)"
-                maxLength={300}
+                placeholder="Especifique la incidencia (máx. 500 caracteres)"
+                maxLength={500}
                 rows={2}
                 value={otroTexto}
                 onChange={(e) => setOtroTexto(e.target.value)}
                 className="resize-none"
               />
               <span className="text-xs text-muted-foreground text-right">
-                {otroTexto.length}/300
+                {otroTexto.length}/500
               </span>
             </div>
           )}
@@ -498,7 +498,7 @@ function IncidenciaRow({
                     value={nuevoTexto}
                     onChange={(e) => setNuevoTexto(e.target.value)}
                     rows={3}
-                    maxLength={400}
+                    maxLength={500}
                     placeholder="Escribe el seguimiento..."
                     className="resize-none text-sm"
                   />
@@ -529,7 +529,7 @@ function IncidenciaRow({
                       </Button>
                     </div>
                     <span className={`text-xs tabular-nums ${nuevoTexto.length >= 500 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                      {nuevoTexto.length} / 400
+                      {nuevoTexto.length} / 500
                     </span>
                   </div>
                 </div>

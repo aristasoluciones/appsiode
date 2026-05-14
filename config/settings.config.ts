@@ -26,3 +26,5 @@ export const APP_SETTINGS: Settings = {
     },
   },
 };
+
+export const ROLES_LIMITED_ACCESS_BY_CONSEJO = ['CAPTURISTA','CAPTURISTA AVANZADO', 'CAPTURISTA ADMINISTRADOR'];

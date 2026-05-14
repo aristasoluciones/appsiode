@@ -7,6 +7,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { ScreenLoader } from '@/components/common/screen-loader';
 import { Layout1 } from '@/components/layouts/layout-1';
 import { useDeviceName } from '@/hooks/use-device-name';
+import { ROLES_LIMITED_ACCESS_BY_CONSEJO } from '@/config/settings.config';
 
 export default function ProtectedLayout({
   children,
@@ -25,9 +26,9 @@ export default function ProtectedLayout({
       router.push('/signin');
       return;
     }
-    // Capturista (idRol=1): redirigir solo dentro de /sesiones si no es su consejo asignado
-    if (!isLoading && isAuthenticated && user?.idRol === '1' && user.tipoConsejo && user.idConsejo && pathname.startsWith('/sesiones')) {
-      const targetBase = `/sesiones/${user.tipoConsejo.toLowerCase()}/${user.idConsejo}`;
+    // Capturista (idRol=1) o roles con acceso limitado por consejo: redirigir solo dentro de /sesiones si no es su consejo asignado
+    if (!isLoading && isAuthenticated && (user?.idRol === '1' || ROLES_LIMITED_ACCESS_BY_CONSEJO.includes(user?.rol ?? '')) && user?.tipoConsejo && user?.idConsejo && pathname.startsWith('/sesiones')) {
+      const targetBase = `/sesiones/${user?.tipoConsejo.toLowerCase()}/${user?.idConsejo}`;
       if (!pathname.startsWith(targetBase)) {
         router.replace(targetBase);
       }
@@ -36,8 +37,8 @@ export default function ProtectedLayout({
 
   // Bloquear render mientras carga o mientras un capturista necesita ser redirigido
   const targetBase =
-    user?.idRol === '1' && user.tipoConsejo && user.idConsejo
-      ? `/sesiones/${user.tipoConsejo.toLowerCase()}/${user.idConsejo}`
+    (user?.idRol === '1' || ROLES_LIMITED_ACCESS_BY_CONSEJO.includes(user?.rol ?? '')) && user?.tipoConsejo && user?.idConsejo
+      ? `/sesiones/${user?.tipoConsejo.toLowerCase()}/${user?.idConsejo}`
       : null;
 
   const needsRedirect =
