@@ -70,4 +70,14 @@ export const API_ENDPOINTS = {
     UPDATE_POD: (idSesion: string | number) => `/Sesiones/${idSesion}/orden-dia`,
     DELETE_POD: (idSesion: string | number) => `/Sesiones/${idSesion}/orden-dia`,
   },
+  BODEGAS: {
+    LIST: (tipoConsejo: string) => `/bodegas?tipoConsejo=${tipoConsejo}`,
+    BY_ID: (id: string | number) => `/bodegas/${id}`,
+    CREATE: '/bodegas/nueva',
+    UPDATE: '/bodegas',
+    ACUERDO: (id: string | number) => `/bodegas/${id}/acuerdo`,
+    FOTOGRAFIAS: (id: string | number) => `/bodegas/${id}/fotografias`,
+    DASHBOARD: (tipoConsejo: string) => `/bodegas/dashboard?tipoConsejo=${tipoConsejo}`,
+    EXPORTAR: (tipoConsejo: string) => `/bodegas/exportar?tipoConsejo=${tipoConsejo}`,
+  },
 } as const;

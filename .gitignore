@@ -34,3 +34,4 @@ Thumbs.db
 *.tsbuildinfo
 /docs
 /scripts
+/.agents/prompts

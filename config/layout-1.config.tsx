@@ -55,6 +55,7 @@ import {
   FilePenLine,
   CarFront,
   CarIcon,
+  Warehouse,
 } from 'lucide-react';
 import { MenuConfig } from '@/config/types';
 
@@ -69,6 +70,13 @@ export const MENU_SIDEBAR: MenuConfig = [
       permission: 'sesiones.ver',
   },
   { heading: 'Bodegas Electorales', permission: 'bodegas.ver' },
+  { 
+      title: 'Bodegas',
+      icon: Warehouse,
+      path: '/bodegas',
+      badge: 'New',
+      permission: 'bodegas.ver',
+  },
   { 
       title: 'Bitacora de Aperturas', 
       icon: Logs,

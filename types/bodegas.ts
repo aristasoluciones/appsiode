@@ -1,0 +1,112 @@
+// ─── Tipos centralizados del módulo Bodegas ──────────────────────────────────
+
+export type TStatusBodega = 'Registrada' | 'Verificada' | 'Comprobada' | 'Informada';
+export type TOrganoCompetente =
+  | 'Órgano Central'
+  | 'Órgano Competente (Municipal)'
+  | 'Órgano Competente (Distrital)'
+  | 'Otro';
+
+// ─── Modelo principal de bodega ───────────────────────────────────────────────
+
+export interface IBodega {
+  id: number;
+  id_proceso: number;
+  tipo_consejo: 'M' | 'D';
+  id_consejo: number;
+  organo_competente: TOrganoCompetente;
+  otro_organo_competente: string;
+  ubicada_en_inmueble: boolean | null;
+  espacio_no_inmueble: string | null;
+  num_paquetes_estimados: number | null;
+  superficie_m2: number | null;
+  espacio_materiales: boolean | null;
+  medidas_no_espacio: string | null;
+  observaciones: string | null;
+  status: TStatusBodega;
+  data_user: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── Formulario alta/edición ──────────────────────────────────────────────────
+
+export interface IBodegaFormValues {
+  tipo_consejo: 'M' | 'D' | '';
+  id_consejo: number | '';
+  organo_competente: TOrganoCompetente | '';
+  otro_organo_competente: string;
+  ubicada_en_inmueble: boolean | null;
+  espacio_no_inmueble: string;
+  num_paquetes_estimados: number | '';
+  superficie_m2: number | '';
+  espacio_materiales: boolean | null;
+  medidas_no_espacio: string;
+  observaciones: string;
+}
+
+export interface IBodegaCreatePayload {
+  tipo_consejo: 'M' | 'D';
+  id_consejo: number;
+  organo_competente: TOrganoCompetente;
+  otro_organo_competente?: string;
+  ubicada_en_inmueble?: boolean | null;
+  espacio_no_inmueble?: string | null;
+  num_paquetes_estimados?: number | null;
+  superficie_m2?: number | null;
+  espacio_materiales?: boolean | null;
+  medidas_no_espacio?: string | null;
+  observaciones?: string | null;
+}
+
+export interface IBodegaUpdatePayload extends IBodegaCreatePayload {
+  id: number;
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+export interface IBodegaDashboard {
+  total: number;
+  registradas: number;
+  verificadas: number;
+  comprobadas: number;
+  informadas: number;
+  bodegas: IBodegaResumen[];
+}
+
+export interface IBodegaResumen {
+  id: number;
+  id_consejo: number;
+  tipo_consejo: 'M' | 'D';
+  nombre_consejo: string;
+  organo_competente: string;
+  superficie_m2: number | null;
+  num_paquetes_estimados: number | null;
+  status: TStatusBodega;
+  updated_at: string;
+}
+
+// ─── Acuerdo ──────────────────────────────────────────────────────────────────
+
+export interface IAcuerdo {
+  id: number;
+  id_bodega: number;
+  ruta_archivo: string;
+  nomenclatura: string;
+  data_user: string;
+}
+
+// ─── Fotografía ───────────────────────────────────────────────────────────────
+
+export type TComponenteFoto = 'C1' | 'C2' | 'C3' | 'C4';
+
+export interface IFotografia {
+  id: number;
+  id_bodega: number;
+  ruta_archivo: string;
+  componente: TComponenteFoto;
+  etapa: string | null;
+  tipo: string;
+  data_user: string;
+  created_at: string;
+}
