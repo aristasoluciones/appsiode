@@ -1,6 +1,18 @@
 // ─── Tipos centralizados del módulo Bodegas ──────────────────────────────────
 
-export type TStatusBodega = 'Registrada' | 'Verificada' | 'Comprobada' | 'Informada';
+export type TTipoBodega = 'Oficina central' | 'Consejo';
+
+export type TStatusBodega =
+  | 'En captura'
+  | 'Registrada'
+  | 'Validada'
+  | 'Verificacion 1'
+  | 'Verificacion 2'
+  | 'Verificacion 3'
+  | 'Verificacion N'
+  | 'Observada'
+  | 'Informada';
+
 export type TOrganoCompetente =
   | 'Órgano Central'
   | 'Órgano Competente (Municipal)'
@@ -12,8 +24,9 @@ export type TOrganoCompetente =
 export interface IBodega {
   id: number;
   id_proceso: number;
-  tipo_consejo: 'M' | 'D';
-  id_consejo: number;
+  tipo: TTipoBodega;
+  tipo_consejo: 'M' | 'D' | null;
+  id_consejo: number | null;
   organo_competente: TOrganoCompetente;
   otro_organo_competente: string;
   ubicada_en_inmueble: boolean | null;
@@ -32,8 +45,9 @@ export interface IBodega {
 // ─── Formulario alta/edición ──────────────────────────────────────────────────
 
 export interface IBodegaFormValues {
-  tipo_consejo: 'M' | 'D' | '';
-  id_consejo: number | '';
+  tipo: TTipoBodega | '';
+  tipo_consejo: 'M' | 'D' | '' | null;
+  id_consejo: number | '' | null;
   organo_competente: TOrganoCompetente | '';
   otro_organo_competente: string;
   ubicada_en_inmueble: boolean | null;
@@ -46,8 +60,9 @@ export interface IBodegaFormValues {
 }
 
 export interface IBodegaCreatePayload {
-  tipo_consejo: 'M' | 'D';
-  id_consejo: number;
+  tipo: TTipoBodega;
+  tipo_consejo: 'M' | 'D' | null;
+  id_consejo: number | null;
   organo_competente: TOrganoCompetente;
   otro_organo_competente?: string;
   ubicada_en_inmueble?: boolean | null;
@@ -76,9 +91,10 @@ export interface IBodegaDashboard {
 
 export interface IBodegaResumen {
   id: number;
-  id_consejo: number;
-  tipo_consejo: 'M' | 'D';
-  nombre_consejo: string;
+  tipo: TTipoBodega;
+  id_consejo: number | null;
+  tipo_consejo: 'M' | 'D' | null;
+  nombre_consejo: string | null;
   organo_competente: string;
   superficie_m2: number | null;
   num_paquetes_estimados: number | null;
@@ -96,6 +112,16 @@ export interface IAcuerdo {
   data_user: string;
 }
 
+// ─── Configuración de fotografías ─────────────────────────────────────────────
+
+export interface IFotografiaConfig {
+  id: number;
+  categoria: 'Acondicionamiento' | 'Equipamiento';
+  momento: 'Antes' | 'Durante' | 'Despues';
+  max_fotos: number;
+  descripcion: string | null;
+}
+
 // ─── Fotografía ───────────────────────────────────────────────────────────────
 
 export type TComponenteFoto = 'C1' | 'C2' | 'C3' | 'C4';
@@ -103,10 +129,16 @@ export type TComponenteFoto = 'C1' | 'C2' | 'C3' | 'C4';
 export interface IFotografia {
   id: number;
   id_bodega: number;
+  id_config: number;
   ruta_archivo: string;
+  url: string;
   componente: TComponenteFoto;
   etapa: string | null;
   tipo: string;
+  observacion: string | null;
+  observador_id: number | null;
+  observador_nombre: string | null;
+  status_foto: 'Pendiente' | 'Observada' | 'Validada';
   data_user: string;
   created_at: string;
 }

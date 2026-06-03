@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { toastSuccess } from '@/lib/toast';
+import { toastSuccess, toastError } from '@/lib/toast';
 import type {
   IBodega,
   IBodegaDashboard,
@@ -12,6 +12,7 @@ import type {
   IBodegaUpdatePayload,
   IAcuerdo,
   IFotografia,
+  IFotografiaConfig,
   TComponenteFoto,
 } from '@/types/bodegas';
 
@@ -24,6 +25,7 @@ export const BODEGAS_KEYS = {
   acuerdo: (idBodega: string | number) => ['bodegas', 'acuerdo', idBodega] as const,
   fotografias: (idBodega: string | number, componente?: TComponenteFoto, etapa?: string) =>
     ['bodegas', 'fotografias', idBodega, componente, etapa] as const,
+  fotografiasConfig: () => ['bodegas', 'fotografias-config'] as const,
 };
 
 // ─── Hooks de lectura ─────────────────────────────────────────────────────────
@@ -175,9 +177,10 @@ export function useSubirFotografias(idBodega: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (files: File[]) => {
+    mutationFn: async (payload: { files: File[]; id_config?: number }) => {
       const form = new FormData();
-      files.forEach((f) => form.append('files', f));
+      payload.files.forEach((f) => form.append('files', f));
+      if (payload.id_config != null) form.append('id_config', String(payload.id_config));
       const { data } = await apiClient.post<IFotografia[]>(
         API_ENDPOINTS.BODEGAS.FOTOGRAFIAS(idBodega),
         form,
@@ -190,6 +193,101 @@ export function useSubirFotografias(idBodega: number) {
       queryClient.invalidateQueries({
         queryKey: ['bodegas', 'fotografias', idBodega],
       });
+    },
+  });
+}
+
+// ─── Hooks de fotografías con config ──────────────────────────────────────────
+
+export function useFotografiasConfig() {
+  return useQuery<IFotografiaConfig[]>({
+    queryKey: BODEGAS_KEYS.fotografiasConfig(),
+    queryFn: async () => {
+      const { data } = await apiClient.get<IFotografiaConfig[]>(
+        API_ENDPOINTS.BODEGAS.FOTOGRAFIAS_CONFIG,
+      );
+      return data ?? [];
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+export function useFotografiasConConfig(
+  idBodega: string | number,
+  categoria?: IFotografiaConfig['categoria'],
+  momento?: IFotografiaConfig['momento'],
+) {
+  return useQuery<IFotografia[]>({
+    queryKey: ['bodegas', 'fotografias', idBodega, categoria, momento],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (categoria) params.set('categoria', categoria);
+      if (momento) params.set('momento', momento);
+      const url =
+        API_ENDPOINTS.BODEGAS.FOTOGRAFIAS(idBodega) +
+        (params.toString() ? `?${params.toString()}` : '');
+      const { data } = await apiClient.get<IFotografia[]>(url);
+      return data ?? [];
+    },
+    enabled: !!idBodega,
+    staleTime: 30_000,
+  });
+}
+
+export function useObservarFotografia(idBodega: string | number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, observacion }: { id: string | number; observacion: string }) => {
+      const { data } = await apiClient.post<IFotografia>(
+        API_ENDPOINTS.BODEGAS.FOTOGRAFIA_OBSERVAR(id),
+        { observacion },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['bodegas', 'fotografias', idBodega],
+      });
+    },
+  });
+}
+
+export function useValidarFotografia(idBodega: string | number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id }: { id: string | number }) => {
+      const { data } = await apiClient.post<IFotografia>(
+        API_ENDPOINTS.BODEGAS.FOTOGRAFIA_VALIDAR(id),
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['bodegas', 'fotografias', idBodega],
+      });
+    },
+  });
+}
+
+export function useEliminarFotografia(idBodega: string | number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (idFotografia: string | number) => {
+      await apiClient.delete(
+        API_ENDPOINTS.BODEGAS.FOTOGRAFIA_DELETE(idBodega, idFotografia),
+      );
+    },
+    onSuccess: () => {
+      toastSuccess('Fotografía eliminada correctamente.');
+      queryClient.invalidateQueries({
+        queryKey: ['bodegas', 'fotografias', idBodega],
+      });
+    },
+    onError: () => {
+      toastError('No se pudo eliminar la fotografía.');
     },
   });
 }

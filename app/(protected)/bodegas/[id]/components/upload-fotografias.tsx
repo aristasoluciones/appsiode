@@ -22,7 +22,7 @@ export function UploadFotografias({ idBodega, componente, etapa }: UploadFotogra
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
-    subirMutation.mutate(files);
+    subirMutation.mutate({ files });
     e.target.value = '';
   }
 

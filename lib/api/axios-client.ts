@@ -58,7 +58,7 @@ apiClient.interceptors.response.use((response) => {
   if (
     response.data !== null &&
     typeof response.data === 'object' &&
-    'isSuccess' in response.data
+    ('isSuccess' in response.data || 'status' in response.data)
   ) {
     response.data = response.data.data;
   }

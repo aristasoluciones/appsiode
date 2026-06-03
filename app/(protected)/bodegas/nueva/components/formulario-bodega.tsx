@@ -37,6 +37,7 @@ import type {
   IBodega,
   IBodegaFormValues,
   TOrganoCompetente,
+  TTipoBodega,
 } from '@/types/bodegas';
 import type { ICatalogosData, ICatalogoConsejo } from '@/types/sesiones';
 
@@ -49,6 +50,11 @@ const ORGANOS_COMPETENTES: TOrganoCompetente[] = [
   'Otro',
 ];
 
+const TIPO_BODEGA_OPTIONS: { value: TTipoBodega; label: string }[] = [
+  { value: 'Oficina central', label: 'Oficina central' },
+  { value: 'Consejo', label: 'Consejo' },
+];
+
 const TIPO_CONSEJO_OPTIONS = [
   { value: 'D', label: 'Distrital' },
   { value: 'M', label: 'Municipal' },
@@ -57,13 +63,26 @@ const TIPO_CONSEJO_OPTIONS = [
 // ─── Esquema de validación ────────────────────────────────────────────────────
 
 const validationSchema = Yup.object({
-  tipo_consejo: Yup.string()
-    .oneOf(['M', 'D'], 'Selecciona un tipo de consejo')
-    .required('El tipo de consejo es obligatorio'),
-  id_consejo: Yup.number()
-    .typeError('Selecciona un consejo')
-    .min(1, 'Selecciona un consejo')
-    .required('El consejo es obligatorio'),
+  tipo: Yup.string()
+    .oneOf(['Oficina central', 'Consejo'] as TTipoBodega[], 'Selecciona un tipo de bodega')
+    .required('El tipo de bodega es obligatorio'),
+  tipo_consejo: Yup.string().when('tipo', {
+    is: 'Consejo',
+    then: (s) =>
+      s
+        .oneOf(['M', 'D'], 'Selecciona un tipo de consejo')
+        .required('El tipo de consejo es obligatorio'),
+    otherwise: (s) => s.optional().nullable(),
+  }),
+  id_consejo: Yup.number().when('tipo', {
+    is: 'Consejo',
+    then: (s) =>
+      s
+        .typeError('Selecciona un consejo')
+        .min(1, 'Selecciona un consejo')
+        .required('El consejo es obligatorio'),
+    otherwise: (s) => s.optional().nullable(),
+  }),
   organo_competente: Yup.string()
     .oneOf(ORGANOS_COMPETENTES, 'Selecciona un órgano competente')
     .required('El órgano competente es obligatorio'),
@@ -97,6 +116,7 @@ const validationSchema = Yup.object({
 // ─── Valores iniciales ────────────────────────────────────────────────────────
 
 const EMPTY_FORM: IBodegaFormValues = {
+  tipo: '',
   tipo_consejo: '',
   id_consejo: '',
   organo_competente: '',
@@ -112,8 +132,9 @@ const EMPTY_FORM: IBodegaFormValues = {
 
 function bodegaToFormValues(b: IBodega): IBodegaFormValues {
   return {
-    tipo_consejo: b.tipo_consejo,
-    id_consejo: b.id_consejo,
+    tipo: b.tipo,
+    tipo_consejo: b.tipo_consejo ?? '',
+    id_consejo: b.id_consejo ?? '',
     organo_competente: b.organo_competente,
     otro_organo_competente: b.otro_organo_competente ?? '',
     ubicada_en_inmueble: b.ubicada_en_inmueble ?? null,
@@ -219,6 +240,7 @@ export function FormularioBodega({ modo, bodega }: FormularioBodegaProps) {
     if (modo === 'editar' && bodega) return bodegaToFormValues(bodega);
     return {
       ...EMPTY_FORM,
+      tipo: isAdminGlobal ? '' : 'Consejo',
       tipo_consejo: isAdminGlobal ? '' : (userTipoConsejo as 'M' | 'D' | ''),
       id_consejo: isAdminGlobal ? '' : userIdConsejo || '',
     };
@@ -228,9 +250,11 @@ export function FormularioBodega({ modo, bodega }: FormularioBodegaProps) {
 
   async function handleSubmit(values: IBodegaFormValues) {
     const organoCompetente = values.organo_competente as TOrganoCompetente;
+    const esConsejo = values.tipo === 'Consejo';
     const payload = {
-      tipo_consejo: values.tipo_consejo as 'M' | 'D',
-      id_consejo: Number(values.id_consejo),
+      tipo: values.tipo as TTipoBodega,
+      tipo_consejo: esConsejo ? (values.tipo_consejo as 'M' | 'D') : null,
+      id_consejo: esConsejo && values.id_consejo !== '' ? Number(values.id_consejo) : null,
       organo_competente: organoCompetente,
       otro_organo_competente:
         organoCompetente === 'Otro' ? values.otro_organo_competente || 'Sin captura' : undefined,
@@ -337,8 +361,43 @@ function FormularioInner({
           </CardHeader>
           <CardContent className="space-y-4">
 
-            {/* Grid: Tipo + Consejo en misma fila (admin) */}
-            {isAdminGlobal ? (
+            {/* Tipo de bodega */}
+            <div>
+              <label
+                htmlFor="tipo"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+              >
+                Tipo de Bodega <span aria-hidden="true" className="text-destructive">*</span>
+              </label>
+              <Select
+                value={values.tipo}
+                onValueChange={(v) => {
+                  setFieldValue('tipo', v);
+                  if (v === 'Oficina central') {
+                    setFieldValue('tipo_consejo', null);
+                    setFieldValue('id_consejo', null);
+                    setOpenConsejo(false);
+                  }
+                }}
+                disabled={isPending || modo === 'editar'}
+              >
+                <SelectTrigger id="tipo" className="w-full sm:max-w-xs">
+                  <SelectValue placeholder="Selecciona tipo de bodega…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPO_BODEGA_OPTIONS.map((op) => (
+                    <SelectItem key={op.value} value={op.value}>
+                      {op.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError name="tipo" />
+            </div>
+
+            {/* Grid: Tipo + Consejo en misma fila (solo cuando tipo = Consejo) */}
+            {values.tipo === 'Consejo' && (
+              isAdminGlobal ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Tipo de consejo */}
                 <div>
@@ -349,7 +408,7 @@ function FormularioInner({
                     Tipo de Consejo <span aria-hidden="true" className="text-destructive">*</span>
                   </label>
                   <Select
-                    value={values.tipo_consejo}
+                    value={values.tipo_consejo ?? ''}
                     onValueChange={(v) => {
                       setFieldValue('tipo_consejo', v);
                       setFieldValue('id_consejo', '');
@@ -443,7 +502,7 @@ function FormularioInner({
                   <FieldError name="id_consejo" />
                 </div>
               </div>
-            ) : (
+              ) : (
               /* Usuario con consejo asignado: campos de solo lectura */
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -463,6 +522,7 @@ function FormularioInner({
                   </div>
                 </div>
               </div>
+              )
             )}
 
             {/* Entidad (fijo Chiapas) */}

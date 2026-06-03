@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   FileText,
-  Images,
   Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,16 +14,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/providers/auth-provider';
 import { useBodegaDetalle } from '../../components/bodegas-data';
 import { UploadAcuerdo } from './upload-acuerdo';
-import { UploadFotografias } from './upload-fotografias';
+import { FotografiasCard } from './fotografias-card';
 import type { TStatusBodega } from '@/types/bodegas';
 
 // ─── Badge de status ──────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<TStatusBodega, string> = {
-  Registrada: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  Verificada: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  Comprobada: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  Informada:  'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+  'En captura':    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  Registrada:      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  Observada:       'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+  Validada:        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  'Verificacion 1': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  'Verificacion 2': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  'Verificacion 3': 'bg-orange-200 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+  'Verificacion N': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  Informada:       'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
 };
 
 function StatusBadge({ status }: { status: TStatusBodega }) {
@@ -190,11 +194,19 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
             </CardHeader>
             <CardContent>
               <dl>
-                <DataRow
-                  label="Tipo de Consejo"
-                  value={bodega.tipo_consejo === 'D' ? 'Distrital' : 'Municipal'}
-                />
-                <DataRow label="Consejo" value={`#${bodega.id_consejo}`} />
+                <DataRow label="Tipo de Bodega" value={bodega.tipo} />
+                {bodega.tipo === 'Consejo' && (
+                  <>
+                    <DataRow
+                      label="Tipo de Consejo"
+                      value={bodega.tipo_consejo === 'D' ? 'Distrital' : 'Municipal'}
+                    />
+                    <DataRow
+                      label="Consejo"
+                      value={bodega.id_consejo != null ? `#${bodega.id_consejo}` : null}
+                    />
+                  </>
+                )}
                 <DataRow label="Entidad Federativa" value="Chiapas" />
                 <DataRow label="Órgano Competente" value={bodega.organo_competente} />
                 {bodega.organo_competente === 'Otro' && (
@@ -204,7 +216,14 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
             </CardContent>
           </Card>
 
-          {/* Características */}
+          {/* Fotografías */}
+          <FotografiasCard idBodega={bodega.id} />
+        </div>
+
+        {/* ── Columna derecha ────────────────────────────────────────────────── */}
+        <div className="lg:col-span-4 space-y-5">
+
+          {/* Características de la Bodega */}
           <Card>
             <CardHeader className="pb-2">
               <h2 className="text-sm font-semibold text-foreground">
@@ -256,34 +275,17 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               </dl>
             </CardContent>
           </Card>
-        </div>
 
-        {/* ── Columna derecha (documentos + metadatos) ───────────────────────── */}
-        <div className="lg:col-span-4 space-y-5">
-
-          {/* Acuerdo */}
+          {/* Acuerdo — Drag & Drop */}
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center gap-1.5">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">Acuerdo (C1)</h2>
+                <h2 className="text-sm font-semibold text-foreground">Acuerdo</h2>
               </div>
             </CardHeader>
             <CardContent>
               <UploadAcuerdo idBodega={bodega.id} />
-            </CardContent>
-          </Card>
-
-          {/* Fotografías */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-1.5">
-                <Images className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">Fotografías (C1)</h2>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <UploadFotografias idBodega={bodega.id} componente="C1" />
             </CardContent>
           </Card>
         </div>

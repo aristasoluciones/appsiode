@@ -38,7 +38,7 @@ import { useAuth } from '@/providers/auth-provider';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { toast } from 'sonner';
-import type { IBodegaResumen, TStatusBodega } from '@/types/bodegas';
+import type { IBodegaResumen, TStatusBodega, TTipoBodega } from '@/types/bodegas';
 
 // ─── Configuración de estados ─────────────────────────────────────────────────
 
@@ -46,23 +46,53 @@ const STATUS_CONFIG: Record<
   TStatusBodega,
   { label: string; colorText: string; colorBg: string; colorBorder: string }
 > = {
+  'En captura': {
+    label: 'En captura',
+    colorText: 'text-blue-700 dark:text-blue-400',
+    colorBg: 'bg-blue-50 dark:bg-blue-900/20',
+    colorBorder: 'border-blue-300 dark:border-blue-700',
+  },
   Registrada: {
     label: 'Registrada',
     colorText: 'text-gray-600 dark:text-gray-400',
     colorBg: 'bg-gray-100 dark:bg-gray-800',
     colorBorder: 'border-gray-300 dark:border-gray-600',
   },
-  Verificada: {
-    label: 'Verificada',
+  Observada: {
+    label: 'Observada',
+    colorText: 'text-rose-700 dark:text-rose-400',
+    colorBg: 'bg-rose-50 dark:bg-rose-900/20',
+    colorBorder: 'border-rose-400',
+  },
+  Validada: {
+    label: 'Validada',
+    colorText: 'text-emerald-700 dark:text-emerald-400',
+    colorBg: 'bg-emerald-50 dark:bg-emerald-900/20',
+    colorBorder: 'border-emerald-400',
+  },
+  'Verificacion 1': {
+    label: 'Verificación 1',
     colorText: 'text-yellow-700 dark:text-yellow-400',
     colorBg: 'bg-yellow-50 dark:bg-yellow-900/20',
     colorBorder: 'border-yellow-400',
   },
-  Comprobada: {
-    label: 'Comprobada',
-    colorText: 'text-green-700 dark:text-green-400',
-    colorBg: 'bg-green-50 dark:bg-green-900/20',
-    colorBorder: 'border-green-400',
+  'Verificacion 2': {
+    label: 'Verificación 2',
+    colorText: 'text-orange-700 dark:text-orange-400',
+    colorBg: 'bg-orange-50 dark:bg-orange-900/20',
+    colorBorder: 'border-orange-400',
+  },
+  'Verificacion 3': {
+    label: 'Verificación 3',
+    colorText: 'text-orange-800 dark:text-orange-300',
+    colorBg: 'bg-orange-100 dark:bg-orange-900/30',
+    colorBorder: 'border-orange-600',
+  },
+  'Verificacion N': {
+    label: 'Verificación N',
+    colorText: 'text-red-700 dark:text-red-400',
+    colorBg: 'bg-red-50 dark:bg-red-900/20',
+    colorBorder: 'border-red-400',
   },
   Informada: {
     label: 'Informada',
@@ -74,9 +104,14 @@ const STATUS_CONFIG: Record<
 
 const STATUS_OPTIONS: { value: TStatusBodega | '__all__'; label: string }[] = [
   { value: '__all__', label: 'Todos los estados' },
+  { value: 'En captura', label: 'En captura' },
   { value: 'Registrada', label: 'Registrada' },
-  { value: 'Verificada', label: 'Verificada' },
-  { value: 'Comprobada', label: 'Comprobada' },
+  { value: 'Observada', label: 'Observada' },
+  { value: 'Validada', label: 'Validada' },
+  { value: 'Verificacion 1', label: 'Verificación 1' },
+  { value: 'Verificacion 2', label: 'Verificación 2' },
+  { value: 'Verificacion 3', label: 'Verificación 3' },
+  { value: 'Verificacion N', label: 'Verificación N' },
   { value: 'Informada', label: 'Informada' },
 ];
 
@@ -100,13 +135,19 @@ function MobileCard({ row, canEditar }: { row: IBodegaResumen; canEditar: boolea
     <article className="border border-border rounded-lg p-4 space-y-3 bg-card">
       <header className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-mono text-muted-foreground">#{row.id_consejo}</p>
+          {row.tipo === 'Consejo' && row.id_consejo != null ? (
+            <p className="text-xs font-mono text-muted-foreground">#{row.id_consejo}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">{row.tipo}</p>
+          )}
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
-            {row.nombre_consejo}
+            {row.nombre_consejo ?? row.tipo}
           </h3>
-          <p className="text-xs text-gray-400 dark:text-gray-500">
-            {row.tipo_consejo === 'D' ? 'Consejo Distrital' : 'Consejo Municipal'}
-          </p>
+          {row.tipo === 'Consejo' && (
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              {row.tipo_consejo === 'D' ? 'Consejo Distrital' : 'Consejo Municipal'}
+            </p>
+          )}
         </div>
         <StatusBadge status={row.status} />
       </header>
@@ -208,7 +249,8 @@ export function TablaBodegas({
       const matchBusqueda =
         !busqueda ||
         b.organo_competente.toLowerCase().includes(busqueda.toLowerCase()) ||
-        String(b.id_consejo).includes(busqueda);
+        (b.nombre_consejo ?? '').toLowerCase().includes(busqueda.toLowerCase()) ||
+        (b.id_consejo != null ? String(b.id_consejo).includes(busqueda) : false);
       const matchStatus = statusFiltro === '__all__' || b.status === statusFiltro;
       return matchBusqueda && matchStatus;
     });
@@ -242,12 +284,13 @@ export function TablaBodegas({
   const columns = useMemo<ColumnDef<IBodegaResumen>[]>(
     () => [
       {
-        accessorKey: 'id_consejo',
+        id: 'clave',
+        accessorFn: (row) => row.id_consejo ?? 0,
         header: 'Clave',
         size: 72,
         cell: ({ row }) => (
           <span className="text-sm font-mono text-gray-500 dark:text-gray-400 block text-center">
-            {row.original.id_consejo}
+            {row.original.id_consejo != null ? `#${row.original.id_consejo}` : '—'}
           </span>
         ),
         meta: {
@@ -258,19 +301,43 @@ export function TablaBodegas({
         enableSorting: true,
       },
       {
+        accessorKey: 'tipo',
+        header: 'Tipo',
+        size: 130,
+        cell: ({ row }) => (
+          <span className="text-[0.8125rem] text-foreground">
+            {row.original.tipo}
+          </span>
+        ),
+        meta: {
+          skeleton: (
+            <Skeleton className="h-4 w-24 animate-pulse motion-reduce:animate-none" />
+          ),
+        },
+        enableSorting: true,
+      },
+      {
         accessorKey: 'nombre_consejo',
         header: 'Consejo',
-        cell: ({ row }) => (
-          <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              {row.original.nombre_consejo}
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              {row.original.tipo_consejo === 'D' ? 'Consejo Distrital' : 'Consejo Municipal'} { ' '}
-              {row.original.id_consejo}
-            </p>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const b = row.original;
+          if (b.tipo === 'Oficina central') {
+            return (
+              <span className="text-sm text-muted-foreground italic">—</span>
+            );
+          }
+          return (
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                {b.nombre_consejo ?? `Consejo #${b.id_consejo}`}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                {b.tipo_consejo === 'D' ? 'Consejo Distrital' : 'Consejo Municipal'}{' '}
+                {b.id_consejo}
+              </p>
+            </div>
+          );
+        },
         meta: {
           skeleton: (
             <div className="space-y-1.5">

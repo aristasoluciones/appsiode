@@ -77,6 +77,11 @@ export const API_ENDPOINTS = {
     UPDATE: '/bodegas',
     ACUERDO: (id: string | number) => `/bodegas/${id}/acuerdo`,
     FOTOGRAFIAS: (id: string | number) => `/bodegas/${id}/fotografias`,
+    FOTOGRAFIAS_CONFIG: '/bodegas/fotografias/config',
+    FOTOGRAFIA_OBSERVAR: (id: string | number) => `/bodegas/fotografias/${id}/observar`,
+    FOTOGRAFIA_VALIDAR: (id: string | number) => `/bodegas/fotografias/${id}/validar`,
+    FOTOGRAFIA_DELETE: (idBodega: string | number, idFotografia: string | number) =>
+      `/bodegas/${idBodega}/fotografias/${idFotografia}`,
     DASHBOARD: (tipoConsejo: string) => `/bodegas/dashboard?tipoConsejo=${tipoConsejo}`,
     EXPORTAR: (tipoConsejo: string) => `/bodegas/exportar?tipoConsejo=${tipoConsejo}`,
   },
