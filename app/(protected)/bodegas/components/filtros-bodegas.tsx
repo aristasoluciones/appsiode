@@ -13,9 +13,11 @@ import type { TStatusBodega } from '@/types/bodegas';
 
 const STATUS_OPTIONS: { value: TStatusBodega | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
+  { value: 'En captura', label: 'En captura' },
   { value: 'Registrada', label: 'Registrada' },
+  { value: 'Observada', label: 'Observada' },
+  { value: 'Validada', label: 'Validada' },
   { value: 'Verificada', label: 'Verificada' },
-  { value: 'Comprobada', label: 'Comprobada' },
   { value: 'Informada', label: 'Informada' },
 ];
 

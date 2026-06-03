@@ -71,7 +71,12 @@ export const API_ENDPOINTS = {
     DELETE_POD: (idSesion: string | number) => `/Sesiones/${idSesion}/orden-dia`,
   },
   BODEGAS: {
-    LIST: (tipoConsejo: string) => `/bodegas?tipoConsejo=${tipoConsejo}`,
+    LIST: (tipo: string, tipoConsejo?: string, idConsejo?: string | number) => {
+      let url = `/bodegas/lista?tipo=${tipo}`;
+      if (tipoConsejo) url += `&tipoConsejo=${tipoConsejo}`;
+      if (idConsejo != null && idConsejo !== 0) url += `&idConsejo=${idConsejo}`;
+      return url;
+    },
     BY_ID: (id: string | number) => `/bodegas/${id}`,
     CREATE: '/bodegas/nueva',
     UPDATE: '/bodegas',
@@ -82,7 +87,15 @@ export const API_ENDPOINTS = {
     FOTOGRAFIA_VALIDAR: (id: string | number) => `/bodegas/fotografias/${id}/validar`,
     FOTOGRAFIA_DELETE: (idBodega: string | number, idFotografia: string | number) =>
       `/bodegas/${idBodega}/fotografias/${idFotografia}`,
-    DASHBOARD: (tipoConsejo: string) => `/bodegas/dashboard?tipoConsejo=${tipoConsejo}`,
-    EXPORTAR: (tipoConsejo: string) => `/bodegas/exportar?tipoConsejo=${tipoConsejo}`,
+    DASHBOARD: (tipo: string, tipoConsejo?: string) => {
+      let url = `/bodegas/dashboard?tipo=${tipo}`;
+      if (tipoConsejo) url += `&tipoConsejo=${tipoConsejo}`;
+      return url;
+    },
+    EXPORTAR: (tipo: string, tipoConsejo?: string) => {
+      let url = `/bodegas/exportar?tipo=${tipo}`;
+      if (tipoConsejo) url += `&tipoConsejo=${tipoConsejo}`;
+      return url;
+    },
   },
 } as const;

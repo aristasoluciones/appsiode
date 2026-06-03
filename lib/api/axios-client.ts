@@ -54,13 +54,23 @@ apiClient.interceptors.request.use((config) => {
 
 // Unwrap the .NET API envelope: { status, message, data, isSuccess }
 // After this interceptor, `response.data` is directly the payload (e.g. IRol[])
+// If the envelope also contains `meta`, we preserve it as { data, meta }
+// so consumers that need metadata (e.g. /Sesiones/consejo/{tipo}/{id}) don't lose it.
 apiClient.interceptors.response.use((response) => {
   if (
     response.data !== null &&
     typeof response.data === 'object' &&
     ('isSuccess' in response.data || 'status' in response.data)
   ) {
-    response.data = response.data.data;
+    const envelope = response.data;
+    const payload = envelope.data;
+
+    // Preserve meta when the envelope includes it (e.g. paginated / consejo endpoints)
+    if ('meta' in envelope) {
+      response.data = { data: payload, meta: envelope.meta };
+    } else {
+      response.data = payload;
+    }
   }
   return response;
 }, async (error) => {

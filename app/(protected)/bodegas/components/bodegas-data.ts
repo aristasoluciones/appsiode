@@ -14,14 +14,17 @@ import type {
   IFotografia,
   IFotografiaConfig,
   TComponenteFoto,
+  IBodegasListaResult,
 } from '@/types/bodegas';
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
 export const BODEGAS_KEYS = {
-  lista: (tipoConsejo: string) => ['bodegas', 'lista', tipoConsejo] as const,
+  lista: (tipo: string, tipoConsejo?: string, idConsejo?: number) =>
+    ['bodegas', 'lista', tipo, tipoConsejo ?? 'all', idConsejo ?? 0] as const,
   detalle: (id: string | number) => ['bodegas', 'detalle', id] as const,
-  dashboard: (tipoConsejo: string) => ['bodegas', 'dashboard', tipoConsejo] as const,
+  dashboard: (tipo: string, tipoConsejo?: string) =>
+    ['bodegas', 'dashboard', tipo, tipoConsejo ?? 'all'] as const,
   acuerdo: (idBodega: string | number) => ['bodegas', 'acuerdo', idBodega] as const,
   fotografias: (idBodega: string | number, componente?: TComponenteFoto, etapa?: string) =>
     ['bodegas', 'fotografias', idBodega, componente, etapa] as const,
@@ -30,15 +33,38 @@ export const BODEGAS_KEYS = {
 
 // ─── Hooks de lectura ─────────────────────────────────────────────────────────
 
-export function useBodegasLista(tipoConsejo: string) {
-  return useQuery<IBodega[]>({
-    queryKey: BODEGAS_KEYS.lista(tipoConsejo),
+export function useBodegasLista(
+  tipo: 'OC' | 'C',
+  tipoConsejo?: string,
+  idConsejo?: number,
+  enabled = true,
+) {
+  return useQuery<IBodegasListaResult>({
+    queryKey: BODEGAS_KEYS.lista(tipo, tipoConsejo, idConsejo),
     queryFn: async () => {
-      const { data } = await apiClient.get<IBodega[]>(
-        API_ENDPOINTS.BODEGAS.LIST(tipoConsejo),
+      const response = await apiClient.get<
+        IBodega[] | { data: IBodega[]; meta: any }
+      >(
+        API_ENDPOINTS.BODEGAS.LIST(tipo, tipoConsejo, idConsejo),
       );
-      return data ?? [];
+      const result = response.data;
+      
+      // Handle envelope with meta: { data: [], meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result) {
+        const envelope = result as { data: IBodega[]; meta: any };
+        return {
+          bodegas: envelope.data ?? [],
+          meta: envelope.meta ?? null,
+        };
+      }
+      
+      // Handle direct array (no meta)
+      return {
+        bodegas: Array.isArray(result) ? result : [],
+        meta: null,
+      };
     },
+    enabled,
     staleTime: 30_000,
   });
 }
@@ -47,25 +73,54 @@ export function useBodegaDetalle(id: string | number) {
   return useQuery<IBodega>({
     queryKey: BODEGAS_KEYS.detalle(id),
     queryFn: async () => {
-      const { data } = await apiClient.get<IBodega>(
+      const response = await apiClient.get<IBodega | { data: IBodega; meta: any }>(
         API_ENDPOINTS.BODEGAS.BY_ID(id),
       );
-      return data;
+      const result = response.data;
+      // Handle envelope with meta: { data: {...}, meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+        return (result as { data: IBodega; meta: any }).data;
+      }
+      return result;
     },
     enabled: !!id,
     staleTime: 30_000,
   });
 }
 
-export function useBodegasDashboard(tipoConsejo: string) {
+export function useBodegasDashboard(
+  tipo: 'OC' | 'C',
+  tipoConsejo?: string,
+  enabled = true,
+) {
   return useQuery<IBodegaDashboard>({
-    queryKey: BODEGAS_KEYS.dashboard(tipoConsejo),
+    queryKey: BODEGAS_KEYS.dashboard(tipo, tipoConsejo),
     queryFn: async () => {
-      const { data } = await apiClient.get<IBodegaDashboard>(
-        API_ENDPOINTS.BODEGAS.DASHBOARD(tipoConsejo),
+      const response = await apiClient.get<IBodegaDashboard | { data: IBodegaDashboard; meta: any }>(
+        API_ENDPOINTS.BODEGAS.DASHBOARD(tipo, tipoConsejo),
       );
-      return data;
+      const result = response.data;
+      // Handle envelope with meta: { data: {...}, meta: {...} }
+      let dashboard: IBodegaDashboard;
+      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+        dashboard = (result as { data: IBodegaDashboard; meta: any }).data;
+      } else {
+        dashboard = result;
+      }
+      return dashboard ?? {
+        progreso: {
+          total: 0,
+          captura: 0,
+          registrada: 0,
+          observada: 0,
+          validada: 0,
+          verificada: 0,
+          informada: 0,
+        },
+        consejos: [],
+      };
     },
+    enabled,
     staleTime: 30_000,
   });
 }
@@ -74,10 +129,15 @@ export function useAcuerdoBodega(idBodega: string | number) {
   return useQuery<IAcuerdo | null>({
     queryKey: BODEGAS_KEYS.acuerdo(idBodega),
     queryFn: async () => {
-      const { data } = await apiClient.get<IAcuerdo | null>(
+      const response = await apiClient.get<IAcuerdo | null | { data: IAcuerdo | null; meta: any }>(
         API_ENDPOINTS.BODEGAS.ACUERDO(idBodega),
       );
-      return data ?? null;
+      const result = response.data;
+      // Handle envelope with meta: { data: {...}, meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+        return (result as { data: IAcuerdo | null; meta: any }).data ?? null;
+      }
+      return result ?? null;
     },
     enabled: !!idBodega,
     staleTime: 60_000,
@@ -98,8 +158,13 @@ export function useFotografiasBodega(
       const url =
         API_ENDPOINTS.BODEGAS.FOTOGRAFIAS(idBodega) +
         (params.toString() ? `?${params.toString()}` : '');
-      const { data } = await apiClient.get<IFotografia[]>(url);
-      return data ?? [];
+      const response = await apiClient.get<IFotografia[] | { data: IFotografia[]; meta: any }>(url);
+      const result = response.data;
+      // Handle envelope with meta: { data: [], meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result) {
+        return (result as { data: IFotografia[]; meta: any }).data ?? [];
+      }
+      return Array.isArray(result) ? result : [];
     },
     enabled: !!idBodega,
     staleTime: 30_000,
@@ -114,11 +179,16 @@ export function useCrearBodega() {
 
   return useMutation({
     mutationFn: async (payload: IBodegaCreatePayload) => {
-      const { data } = await apiClient.post<IBodega>(
+      const response = await apiClient.post<IBodega | { data: IBodega; meta: any }>(
         API_ENDPOINTS.BODEGAS.CREATE,
         payload,
       );
-      return data;
+      const result = response.data;
+      // Handle envelope with meta: { data: {...}, meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+        return (result as { data: IBodega; meta: any }).data;
+      }
+      return result;
     },
     onSuccess: (bodega) => {
       toastSuccess('Bodega registrada correctamente.');
@@ -135,11 +205,16 @@ export function useActualizarBodega() {
 
   return useMutation({
     mutationFn: async (payload: IBodegaUpdatePayload) => {
-      const { data } = await apiClient.put<IBodega>(
+      const response = await apiClient.put<IBodega | { data: IBodega; meta: any }>(
         API_ENDPOINTS.BODEGAS.UPDATE,
         payload,
       );
-      return data;
+      const result = response.data;
+      // Handle envelope with meta: { data: {...}, meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+        return (result as { data: IBodega; meta: any }).data;
+      }
+      return result;
     },
     onSuccess: (bodega) => {
       toastSuccess('Bodega actualizada correctamente.');
@@ -158,12 +233,17 @@ export function useSubirAcuerdo(idBodega: number) {
     mutationFn: async (file: File) => {
       const form = new FormData();
       form.append('file', file);
-      const { data } = await apiClient.post<IAcuerdo>(
+      const response = await apiClient.post<IAcuerdo | { data: IAcuerdo; meta: any }>(
         API_ENDPOINTS.BODEGAS.ACUERDO(idBodega),
         form,
         { headers: { 'Content-Type': 'multipart/form-data' } },
       );
-      return data;
+      const result = response.data;
+      // Handle envelope with meta: { data: {...}, meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+        return (result as { data: IAcuerdo; meta: any }).data;
+      }
+      return result;
     },
     onSuccess: () => {
       toastSuccess('Acuerdo cargado correctamente.');
@@ -181,12 +261,17 @@ export function useSubirFotografias(idBodega: number) {
       const form = new FormData();
       payload.files.forEach((f) => form.append('files', f));
       if (payload.id_config != null) form.append('id_config', String(payload.id_config));
-      const { data } = await apiClient.post<IFotografia[]>(
+      const response = await apiClient.post<IFotografia[] | { data: IFotografia[]; meta: any }>(
         API_ENDPOINTS.BODEGAS.FOTOGRAFIAS(idBodega),
         form,
         { headers: { 'Content-Type': 'multipart/form-data' } },
       );
-      return data;
+      const result = response.data;
+      // Handle envelope with meta: { data: [], meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result) {
+        return (result as { data: IFotografia[]; meta: any }).data ?? [];
+      }
+      return Array.isArray(result) ? result : [];
     },
     onSuccess: () => {
       toastSuccess('Fotografías cargadas correctamente.');
@@ -203,10 +288,15 @@ export function useFotografiasConfig() {
   return useQuery<IFotografiaConfig[]>({
     queryKey: BODEGAS_KEYS.fotografiasConfig(),
     queryFn: async () => {
-      const { data } = await apiClient.get<IFotografiaConfig[]>(
+      const response = await apiClient.get<IFotografiaConfig[] | { data: IFotografiaConfig[]; meta: any }>(
         API_ENDPOINTS.BODEGAS.FOTOGRAFIAS_CONFIG,
       );
-      return data ?? [];
+      const result = response.data;
+      // Handle envelope with meta: { data: [], meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result) {
+        return (result as { data: IFotografiaConfig[]; meta: any }).data ?? [];
+      }
+      return Array.isArray(result) ? result : [];
     },
     staleTime: 60 * 60 * 1000,
   });
@@ -226,8 +316,13 @@ export function useFotografiasConConfig(
       const url =
         API_ENDPOINTS.BODEGAS.FOTOGRAFIAS(idBodega) +
         (params.toString() ? `?${params.toString()}` : '');
-      const { data } = await apiClient.get<IFotografia[]>(url);
-      return data ?? [];
+      const response = await apiClient.get<IFotografia[] | { data: IFotografia[]; meta: any }>(url);
+      const result = response.data;
+      // Handle envelope with meta: { data: [], meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result) {
+        return (result as { data: IFotografia[]; meta: any }).data ?? [];
+      }
+      return Array.isArray(result) ? result : [];
     },
     enabled: !!idBodega,
     staleTime: 30_000,
@@ -239,11 +334,16 @@ export function useObservarFotografia(idBodega: string | number) {
 
   return useMutation({
     mutationFn: async ({ id, observacion }: { id: string | number; observacion: string }) => {
-      const { data } = await apiClient.post<IFotografia>(
+      const response = await apiClient.post<IFotografia | { data: IFotografia; meta: any }>(
         API_ENDPOINTS.BODEGAS.FOTOGRAFIA_OBSERVAR(id),
         { observacion },
       );
-      return data;
+      const result = response.data;
+      // Handle envelope with meta: { data: {...}, meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+        return (result as { data: IFotografia; meta: any }).data;
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -258,10 +358,15 @@ export function useValidarFotografia(idBodega: string | number) {
 
   return useMutation({
     mutationFn: async ({ id }: { id: string | number }) => {
-      const { data } = await apiClient.post<IFotografia>(
+      const response = await apiClient.post<IFotografia | { data: IFotografia; meta: any }>(
         API_ENDPOINTS.BODEGAS.FOTOGRAFIA_VALIDAR(id),
       );
-      return data;
+      const result = response.data;
+      // Handle envelope with meta: { data: {...}, meta: {...} }
+      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+        return (result as { data: IFotografia; meta: any }).data;
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({

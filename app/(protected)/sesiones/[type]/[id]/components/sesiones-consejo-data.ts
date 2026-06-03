@@ -53,9 +53,20 @@ export function useSesionesConsejo(type: string, idConsejo: string, enabled = tr
         const { data } = await apiClient.get<ISesionesConsejoPayload>(
           API_ENDPOINTS.SESIONES.CONSEJO_SESIONES(tipoChar, idConsejo),
         );
+
+        // The axios interceptor preserves meta when the .NET envelope includes it,
+        // so data here is { data: ISesionConsejoAPI[], meta: { consejo: ... } }.
+        // We keep a fallback for array just in case.
+        const sessions = Array.isArray(data)
+          ? data
+          : (data.data ?? []);
+        const meta = Array.isArray(data)
+          ? null
+          : (data.meta ?? null);
+
         return {
-          sessions: (data.data ?? []).map(mapSesion),
-          meta: data.meta ?? null,
+          sessions: sessions.map(mapSesion),
+          meta,
           notFound: false,
         };
       } catch (err) {

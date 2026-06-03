@@ -24,10 +24,7 @@ const STATUS_STYLES: Record<TStatusBodega, string> = {
   Registrada:      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   Observada:       'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
   Validada:        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  'Verificacion 1': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  'Verificacion 2': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  'Verificacion 3': 'bg-orange-200 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
-  'Verificacion N': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  Verificada:      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   Informada:       'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
 };
 

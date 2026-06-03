@@ -1,7 +1,15 @@
 'use client';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { Warehouse, CheckCircle, ClipboardCheck, FileText, Info } from 'lucide-react';
+import {
+  Warehouse,
+  ClipboardCheck,
+  FileText,
+  Info,
+  AlertTriangle,
+  ShieldCheck,
+  PenTool,
+} from 'lucide-react';
 import type { IBodegaDashboard } from '@/types/bodegas';
 
 // ─── Configuración de estados ──────────────────────────────────────────────────
@@ -16,7 +24,15 @@ const STATS_CONFIG = [
     colorValue: 'text-gray-900 dark:text-gray-100',
   },
   {
-    key: 'registradas' as const,
+    key: 'captura' as const,
+    label: 'En captura',
+    icon: PenTool,
+    colorIcon: 'text-sky-500 dark:text-sky-400',
+    colorBg: 'bg-sky-50 dark:bg-sky-900/20',
+    colorValue: 'text-sky-700 dark:text-sky-400',
+  },
+  {
+    key: 'registrada' as const,
     label: 'Registradas',
     icon: FileText,
     colorIcon: 'text-gray-500 dark:text-gray-400',
@@ -24,7 +40,23 @@ const STATS_CONFIG = [
     colorValue: 'text-gray-700 dark:text-gray-300',
   },
   {
-    key: 'verificadas' as const,
+    key: 'observada' as const,
+    label: 'Observadas',
+    icon: AlertTriangle,
+    colorIcon: 'text-rose-500 dark:text-rose-400',
+    colorBg: 'bg-rose-50 dark:bg-rose-900/20',
+    colorValue: 'text-rose-700 dark:text-rose-400',
+  },
+  {
+    key: 'validada' as const,
+    label: 'Validadas',
+    icon: ShieldCheck,
+    colorIcon: 'text-emerald-600 dark:text-emerald-400',
+    colorBg: 'bg-emerald-50 dark:bg-emerald-900/20',
+    colorValue: 'text-emerald-700 dark:text-emerald-400',
+  },
+  {
+    key: 'verificada' as const,
     label: 'Verificadas',
     icon: Info,
     colorIcon: 'text-yellow-600 dark:text-yellow-400',
@@ -32,15 +64,7 @@ const STATS_CONFIG = [
     colorValue: 'text-yellow-700 dark:text-yellow-400',
   },
   {
-    key: 'comprobadas' as const,
-    label: 'Comprobadas',
-    icon: CheckCircle,
-    colorIcon: 'text-green-600 dark:text-green-400',
-    colorBg: 'bg-green-50 dark:bg-green-900/20',
-    colorValue: 'text-green-700 dark:text-green-400',
-  },
-  {
-    key: 'informadas' as const,
+    key: 'informada' as const,
     label: 'Informadas',
     icon: ClipboardCheck,
     colorIcon: 'text-violet-600 dark:text-violet-400',
@@ -70,10 +94,7 @@ function StatCard({ label, value, Icon, colorIcon, colorBg, colorValue, isLoadin
       role="region"
       aria-label={label}
     >
-      <div
-        className={`shrink-0 rounded-md p-2 ${colorBg}`}
-        aria-hidden="true"
-      >
+      <div className={`shrink-0 rounded-md p-2 ${colorBg}`} aria-hidden="true">
         <Icon className={`h-4 w-4 ${colorIcon}`} />
       </div>
       <div className="min-w-0">
@@ -98,13 +119,15 @@ interface EstadisticasDashboardProps {
 }
 
 export function EstadisticasDashboard({ data, isLoading }: EstadisticasDashboardProps) {
+  const progreso = data?.progreso;
+
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-7">
       {STATS_CONFIG.map((s) => (
         <StatCard
           key={s.key}
           label={s.label}
-          value={data?.[s.key as StatKey]}
+          value={progreso?.[s.key as StatKey]}
           Icon={s.icon}
           colorIcon={s.colorIcon}
           colorBg={s.colorBg}

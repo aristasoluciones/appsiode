@@ -5,12 +5,9 @@ export type TTipoBodega = 'Oficina central' | 'Consejo';
 export type TStatusBodega =
   | 'En captura'
   | 'Registrada'
-  | 'Validada'
-  | 'Verificacion 1'
-  | 'Verificacion 2'
-  | 'Verificacion 3'
-  | 'Verificacion N'
   | 'Observada'
+  | 'Validada'
+  | 'Verificada'
   | 'Informada';
 
 export type TOrganoCompetente =
@@ -27,6 +24,7 @@ export interface IBodega {
   tipo: TTipoBodega;
   tipo_consejo: 'M' | 'D' | null;
   id_consejo: number | null;
+  nombre_consejo: string | null;
   organo_competente: TOrganoCompetente;
   otro_organo_competente: string;
   ubicada_en_inmueble: boolean | null;
@@ -80,13 +78,32 @@ export interface IBodegaUpdatePayload extends IBodegaCreatePayload {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-export interface IBodegaDashboard {
+export interface IBodegaDashboardProgreso {
   total: number;
-  registradas: number;
-  verificadas: number;
-  comprobadas: number;
-  informadas: number;
-  bodegas: IBodegaResumen[];
+  captura: number;
+  registrada: number;
+  observada: number;
+  validada: number;
+  verificada: number;
+  informada: number;
+}
+
+export interface IBodegaDashboardConsejo {
+  tipo_consejo: 'M' | 'D' | null;
+  id_consejo: number | null;
+  nombre_consejo: string;
+  total: number;
+  captura: number;
+  registrada: number;
+  observada: number;
+  validada: number;
+  verificada: number;
+  informada: number;
+}
+
+export interface IBodegaDashboard {
+  progreso: IBodegaDashboardProgreso;
+  consejos: IBodegaDashboardConsejo[];
 }
 
 export interface IBodegaResumen {
@@ -141,4 +158,23 @@ export interface IFotografia {
   status_foto: 'Pendiente' | 'Observada' | 'Validada';
   data_user: string;
   created_at: string;
+}
+
+// ─── Meta / Consejo Info ──────────────────────────────────────────────────────
+
+export interface IConsejoMeta {
+  id: number;
+  consejo: string;
+  tipo_consejo: 'M' | 'D';
+  tipo_consejo_desc: string;
+  clave_consejo: string;
+}
+
+export interface IBodegasListaMeta {
+  consejo?: IConsejoMeta;
+}
+
+export interface IBodegasListaResult {
+  bodegas: IBodega[];
+  meta: IBodegasListaMeta | null;
 }

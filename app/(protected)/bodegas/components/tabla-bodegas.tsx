@@ -70,29 +70,11 @@ const STATUS_CONFIG: Record<
     colorBg: 'bg-emerald-50 dark:bg-emerald-900/20',
     colorBorder: 'border-emerald-400',
   },
-  'Verificacion 1': {
-    label: 'Verificación 1',
+  Verificada: {
+    label: 'Verificada',
     colorText: 'text-yellow-700 dark:text-yellow-400',
     colorBg: 'bg-yellow-50 dark:bg-yellow-900/20',
     colorBorder: 'border-yellow-400',
-  },
-  'Verificacion 2': {
-    label: 'Verificación 2',
-    colorText: 'text-orange-700 dark:text-orange-400',
-    colorBg: 'bg-orange-50 dark:bg-orange-900/20',
-    colorBorder: 'border-orange-400',
-  },
-  'Verificacion 3': {
-    label: 'Verificación 3',
-    colorText: 'text-orange-800 dark:text-orange-300',
-    colorBg: 'bg-orange-100 dark:bg-orange-900/30',
-    colorBorder: 'border-orange-600',
-  },
-  'Verificacion N': {
-    label: 'Verificación N',
-    colorText: 'text-red-700 dark:text-red-400',
-    colorBg: 'bg-red-50 dark:bg-red-900/20',
-    colorBorder: 'border-red-400',
   },
   Informada: {
     label: 'Informada',
@@ -108,10 +90,7 @@ const STATUS_OPTIONS: { value: TStatusBodega | '__all__'; label: string }[] = [
   { value: 'Registrada', label: 'Registrada' },
   { value: 'Observada', label: 'Observada' },
   { value: 'Validada', label: 'Validada' },
-  { value: 'Verificacion 1', label: 'Verificación 1' },
-  { value: 'Verificacion 2', label: 'Verificación 2' },
-  { value: 'Verificacion 3', label: 'Verificación 3' },
-  { value: 'Verificacion N', label: 'Verificación N' },
+  { value: 'Verificada', label: 'Verificada' },
   { value: 'Informada', label: 'Informada' },
 ];
 
@@ -224,7 +203,8 @@ interface TablaBodegasProps {
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
-  tipoConsejo: string;
+  tipo: 'OC' | 'C';
+  tipoConsejo?: string;
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -234,6 +214,7 @@ export function TablaBodegas({
   isLoading,
   isError,
   onRetry,
+  tipo,
   tipoConsejo,
 }: TablaBodegasProps) {
   const { hasPermission } = useAuth();
@@ -260,7 +241,7 @@ export function TablaBodegas({
     setIsExporting(true);
     try {
       const { data: blob, headers } = await apiClient.get(
-        API_ENDPOINTS.BODEGAS.EXPORTAR(tipoConsejo),
+        API_ENDPOINTS.BODEGAS.EXPORTAR(tipo, tipoConsejo),
         { responseType: 'blob' },
       );
       const cd = headers['content-disposition'] as string | undefined;
@@ -552,6 +533,7 @@ export function TablaBodegas({
         value={statusFiltro}
         onValueChange={(v) => setStatusFiltro(v as TStatusBodega | '__all__')}
         disabled={isLoading}
+        indicatorVisibility={false}
       >
         <SelectTrigger className="w-full sm:w-44 h-9" aria-label="Filtrar por estado">
           <SelectValue placeholder="Todos los estados" />

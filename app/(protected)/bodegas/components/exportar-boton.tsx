@@ -8,17 +8,18 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { toast } from 'sonner';
 
 interface ExportarBotonProps {
-  tipoConsejo: string;
+  tipo: 'OC' | 'C';
+  tipoConsejo?: string;
 }
 
-export function ExportarBoton({ tipoConsejo }: ExportarBotonProps) {
+export function ExportarBoton({ tipo, tipoConsejo }: ExportarBotonProps) {
   const [isExporting, setIsExporting] = useState(false);
 
   async function handleExportar() {
     setIsExporting(true);
     try {
       const { data, headers } = await apiClient.get(
-        API_ENDPOINTS.BODEGAS.EXPORTAR(tipoConsejo),
+        API_ENDPOINTS.BODEGAS.EXPORTAR(tipo, tipoConsejo),
         { responseType: 'blob' },
       );
 
