@@ -14,7 +14,7 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
-import { BodegasDashboardClient } from './components/bodegas-dashboard-client';
+import { BodegasDashboardClient } from './_components/dashboard-client';
 
 export const metadata: Metadata = {
   title: 'Bodegas Electorales | SIODE',

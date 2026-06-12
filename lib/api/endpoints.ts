@@ -79,12 +79,16 @@ export const API_ENDPOINTS = {
     },
     BY_ID: (id: string | number) => `/bodegas/${id}`,
     CREATE: '/bodegas/nueva',
-    UPDATE: '/bodegas',
+    UPDATE: (id: string | number) => `/bodegas/${id}`,
     ACUERDO: (id: string | number) => `/bodegas/${id}/acuerdo`,
     FOTOGRAFIAS: (id: string | number) => `/bodegas/${id}/fotografias`,
     FOTOGRAFIAS_CONFIG: '/bodegas/fotografias/config',
-    FOTOGRAFIA_OBSERVAR: (id: string | number) => `/bodegas/fotografias/${id}/observar`,
-    FOTOGRAFIA_VALIDAR: (id: string | number) => `/bodegas/fotografias/${id}/validar`,
+    FOTOGRAFIA_OBSERVAR: (idBodega: string | number, idFotografia: string | number) =>
+      `/bodegas/${idBodega}/fotografias/${idFotografia}/observar`,
+    FOTOGRAFIA_TOGGLE_STATUS: (idBodega: string | number, idFotografia: string | number) =>
+      `/bodegas/${idBodega}/fotografias/${idFotografia}/toggle-status`,
+    ACUERDO_DELETE: (idBodega: string | number, idAcuerdo: string | number) =>
+      `/bodegas/${idBodega}/acuerdo/${idAcuerdo}`,
     FOTOGRAFIA_DELETE: (idBodega: string | number, idFotografia: string | number) =>
       `/bodegas/${idBodega}/fotografias/${idFotografia}`,
     DASHBOARD: (tipo: string, tipoConsejo?: string) => {
@@ -97,5 +101,25 @@ export const API_ENDPOINTS = {
       if (tipoConsejo) url += `&tipoConsejo=${tipoConsejo}`;
       return url;
     },
+    OBSERVACIONES: (
+      idBodega: string | number,
+      filters?: { status?: string; seccion?: string; referencia?: string | number },
+    ) => {
+      const params = new URLSearchParams();
+      if (filters?.status) params.set('status', filters.status);
+      if (filters?.seccion) params.set('seccion', filters.seccion);
+      if (filters?.referencia != null) params.set('referencia', String(filters.referencia));
+      const query = params.toString();
+      return `/bodegas/${idBodega}/observaciones${query ? `?${query}` : ''}`;
+    },
+    CREAR_OBSERVACION: (idBodega: string | number) => `/bodegas/${idBodega}/observaciones`,
+    VALIDAR: (idBodega: string | number) => `/bodegas/${idBodega}/validar`,
+    ENVIAR_OBSERVACIONES: (idBodega: string | number) => `/bodegas/${idBodega}/enviar-observaciones`,
+    OBSERVACION_DELETE: (idBodega: string | number, idObservacion: string | number) =>
+      `/bodegas/${idBodega}/observaciones/${idObservacion}`,
+    OBSERVACION_TOGGLE_STATUS: (idBodega: string | number, idObservacion: string | number) =>
+      `/bodegas/${idBodega}/observaciones/${idObservacion}/toggle-status`,
+    SOLICITAR_VALIDACION: (idBodega: string | number) => `/bodegas/${idBodega}/solicitar-validacion`,
+    DELETE: (id: string | number) => `/bodegas/${id}`,
   },
 } as const;

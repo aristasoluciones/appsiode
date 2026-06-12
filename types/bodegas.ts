@@ -125,8 +125,10 @@ export interface IAcuerdo {
   id: number;
   id_bodega: number;
   ruta_archivo: string;
+  url: string;
   nomenclatura: string;
   data_user: string;
+  created_at: string;
 }
 
 // ─── Configuración de fotografías ─────────────────────────────────────────────
@@ -177,4 +179,31 @@ export interface IBodegasListaMeta {
 export interface IBodegasListaResult {
   bodegas: IBodega[];
   meta: IBodegasListaMeta | null;
+}
+
+export interface IBodegaDetalleResult {
+  bodega: IBodega;
+  meta: IBodegasListaMeta | null;
+}
+
+// ─── Observaciones a nivel bodega ─────────────────────────────────────────────
+
+export type TSeccionObservacion = 'General' | 'Acuerdos' | 'Fotografias';
+export type TStatusObservacion = 'Pendiente' | 'Solventada';
+
+export interface IObservacionBodega {
+  id: number;
+  id_bodega: number;
+  seccion: TSeccionObservacion;
+  id_referencia: number;
+  observacion: string;
+  status: TStatusObservacion;
+  data_user: string;
+  created_at: string;
+}
+
+export interface ICrearObservacionPayload {
+  seccion: TSeccionObservacion;
+  id_referencia: number | null;
+  observacion: string;
 }

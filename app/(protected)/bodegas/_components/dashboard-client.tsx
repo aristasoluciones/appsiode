@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Plus, Building2, Building, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProceso } from '@/hooks/use-proceso';
 import { useAuth } from '@/providers/auth-provider';
-import { useBodegasDashboard } from './bodegas-data';
+import { useBodegasDashboard } from '../_hooks/use-bodegas';
 import { EstadisticasDashboard } from './estadisticas-dashboard';
 import { ConsejosDashboard } from './consejos-dashboard';
 
@@ -82,10 +82,32 @@ function parsePill(value: TPillValue): { tipo: 'OC' | 'C'; tipoConsejo?: string 
 
 export function BodegasDashboardClient() {
   const { data: proceso, isLoading: isLoadingProceso } = useProceso();
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const router = useRouter();
 
-  const canCrear = hasPermission('bodegas.ver');
+  const canCrear = hasPermission('bodegas.be.registrar');
+
+  // Usuario con consejo asignado (idConsejo > 0) solo puede ver su consejo
+  const isCapturista = parseInt(user?.idConsejo ?? '0') > 0;
+
+  // Redirección automática para usuarios con consejo asignado
+  useEffect(() => {
+    if (isCapturista && user?.tipoConsejo && user?.idConsejo) {
+      const tipo = user.tipoConsejo.toUpperCase() === 'D' ? 'distritales' : 'municipales';
+      router.replace(`/bodegas/consejos/${tipo}/${user.idConsejo}`);
+    }
+  }, [isCapturista, user?.tipoConsejo, user?.idConsejo, router]);
+
+  // Si es capturista, no mostrar dashboard (se redirige)
+  if (isCapturista) {
+    return (
+      <div className="space-y-4 animate-pulse motion-reduce:animate-none" aria-busy="true" aria-label="Redirigiendo...">
+        <div className="h-8.5 bg-muted rounded-md w-48" />
+        <div className="h-24 bg-muted rounded-lg" />
+        <div className="h-64 bg-muted rounded-lg" />
+      </div>
+    );
+  }
 
   // Determinar pill inicial según elecciones del proceso
   const defaultPill: TPillValue | null = useMemo(() => {

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Check, ChevronsUpDown, FolderOpen, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FolderOpen, X, ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -18,7 +18,6 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 import type { IBodegaDashboardConsejo } from '@/types/bodegas';
 
 // ─── Combobox filtro de consejo (client-side, NO navega) ────────────────────────
@@ -92,9 +91,11 @@ function FiltrarConsejoCombobox({
 
 function ConsejoRow({ consejo, tipoConsejo }: { consejo: IBodegaDashboardConsejo; tipoConsejo?: string }) {
   const isOC = consejo.tipo_consejo == null || consejo.id_consejo == null;
+
+  // Rutas semánticas limpias
   const href = isOC
-    ? '/bodegas/oc'
-    : `/bodegas/c/${tipoConsejo!.toLowerCase()}/${consejo.id_consejo}`;
+    ? '/bodegas/oficina-central'
+    : `/bodegas/consejos/${consejo.tipo_consejo === 'D' ? 'distritales' : 'municipales'}/${consejo.id_consejo}`;
 
   const tipoTexto =
     consejo.tipo_consejo === 'D'

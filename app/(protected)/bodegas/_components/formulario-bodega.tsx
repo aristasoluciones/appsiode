@@ -32,7 +32,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { useAuth } from '@/providers/auth-provider';
-import { useCrearBodega, useActualizarBodega } from '../../components/bodegas-data';
+import { useCrearBodega, useActualizarBodega } from '../_hooks/use-bodegas';
 import type {
   IBodega,
   IBodegaFormValues,
@@ -88,24 +88,19 @@ const validationSchema = Yup.object({
     .required('El órgano competente es obligatorio'),
   otro_organo_competente: Yup.string().when('organo_competente', {
     is: 'Otro',
-    then: (s) =>
-      s
-        .min(2, 'Mínimo 2 caracteres')
-        .required('Especifica el órgano competente'),
+    then: (s) => s.min(2, 'Mínimo 2 caracteres').optional(),
     otherwise: (s) => s.optional(),
   }),
   num_paquetes_estimados: Yup.number()
     .typeError('Debe ser un número')
     .integer('Debe ser entero')
     .min(0, 'No puede ser negativo')
-    .nullable()
-    .optional(),
+    .required('El número estimado de paquetes es obligatorio'),
   superficie_m2: Yup.number()
     .typeError('Debe ser un número')
     .integer('Debe ser entero')
     .min(1, 'Mínimo 1 m²')
-    .nullable()
-    .optional(),
+    .required('La superficie es obligatoria'),
   espacio_no_inmueble: Yup.string().when('ubicada_en_inmueble', {
     is: false,
     then: (s) => s.optional(),
@@ -167,12 +162,14 @@ function SiNoToggle({
   labelSi = 'Sí',
   labelNo = 'No',
   id,
+  disabled = false,
 }: {
   value: boolean | null;
   onChange: (v: boolean | null) => void;
   labelSi?: string;
   labelNo?: string;
   id: string;
+  disabled?: boolean;
 }) {
   return (
     <div role="group" aria-label="Seleccionar opción" className="flex gap-2">
@@ -185,10 +182,12 @@ function SiNoToggle({
           type="button"
           id={val ? id : undefined}
           aria-pressed={value === val}
+          disabled={disabled}
           onClick={() => onChange(value === val ? null : val)}
           className={[
             'inline-flex items-center justify-center px-4 h-9 rounded-md text-sm font-medium border',
             'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
             value === val
               ? 'bg-primary text-primary-foreground border-primary'
               : 'bg-background text-foreground border-input hover:bg-accent',
@@ -220,11 +219,12 @@ function useCatalogosConsejos() {
 interface FormularioBodegaProps {
   modo: 'crear' | 'editar';
   bodega?: IBodega;
+  readOnly?: boolean;
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function FormularioBodega({ modo, bodega }: FormularioBodegaProps) {
+export function FormularioBodega({ modo, bodega, readOnly = false }: FormularioBodegaProps) {
   const router = useRouter();
   const { user } = useAuth();
   const crearMutation = useCrearBodega();
@@ -257,15 +257,17 @@ export function FormularioBodega({ modo, bodega }: FormularioBodegaProps) {
       id_consejo: esConsejo && values.id_consejo !== '' ? Number(values.id_consejo) : null,
       organo_competente: organoCompetente,
       otro_organo_competente:
-        organoCompetente === 'Otro' ? values.otro_organo_competente || 'Sin captura' : undefined,
+        organoCompetente === 'Otro' ? (values.otro_organo_competente || '') : '',
       ubicada_en_inmueble: values.ubicada_en_inmueble,
-      espacio_no_inmueble: values.espacio_no_inmueble || null,
+      espacio_no_inmueble:
+        values.ubicada_en_inmueble === false ? (values.espacio_no_inmueble || '') : '',
       num_paquetes_estimados:
         values.num_paquetes_estimados !== '' ? Number(values.num_paquetes_estimados) : null,
       superficie_m2: values.superficie_m2 !== '' ? Number(values.superficie_m2) : null,
       espacio_materiales: values.espacio_materiales,
-      medidas_no_espacio: values.medidas_no_espacio || null,
-      observaciones: values.observaciones || null,
+      medidas_no_espacio:
+        values.espacio_materiales === false ? (values.medidas_no_espacio || '') : '',
+      observaciones: values.observaciones || '',
     };
     if (modo === 'crear') {
       await crearMutation.mutateAsync(payload);
@@ -297,6 +299,7 @@ export function FormularioBodega({ modo, bodega }: FormularioBodegaProps) {
             modo={modo}
             onCancel={() => router.push('/bodegas')}
             user={user}
+            readOnly={readOnly}
           />
         );
       }}
@@ -319,6 +322,7 @@ interface FormularioInnerProps {
   modo: 'crear' | 'editar';
   onCancel: () => void;
   user: ReturnType<typeof useAuth>['user'];
+  readOnly?: boolean;
 }
 
 function FormularioInner({
@@ -333,30 +337,34 @@ function FormularioInner({
   modo,
   onCancel,
   user,
+  readOnly = false,
 }: FormularioInnerProps) {
   const [openConsejo, setOpenConsejo] = useState(false);
 
   // Consejos filtrados por tipo
-  const consejosFiltrados = (catalogos?.consejos ?? []).filter(
-    (c: ICatalogoConsejo) => !values.tipo_consejo || c.tipo_consejo === values.tipo_consejo,
-  );
+  const consejosFiltrados = useMemo(() => {
+    const todos = catalogos?.consejos ?? [];
+    const tipo = values.tipo_consejo?.trim() as 'D' | 'M' | '' | undefined | null;
+    if (!tipo) return todos;
+    return todos.filter((c: ICatalogoConsejo) => c.tipo_consejo === tipo);
+  }, [catalogos?.consejos, values.tipo_consejo]);
 
   const consejoLabel = values.id_consejo
-    ? (catalogos?.consejos ?? []).find(
+    ? (consejosFiltrados ?? []).find(
         (c: ICatalogoConsejo) => c.id_consejo === Number(values.id_consejo),
       )?.consejo ?? `Consejo #${values.id_consejo}`
     : null;
 
   return (
     <Form noValidate aria-label="Formulario de bodega electoral">
-      <div className="space-y-4 max-w-3xl">
+      <div className="space-y-5">
 
-        {/* ── 1. Identificación ──────────────────────────────────────────── */}
+        {/* ── Información de la Bodega (Identificación + Características) ───── */}
         <Card>
           <CardHeader className="pb-2">
-            <h2 className="text-sm font-semibold text-foreground">Identificación</h2>
+            <h2 className="text-sm font-semibold text-foreground">Información de la Bodega</h2>
             <p className="text-xs text-muted-foreground">
-              Información del consejo y órgano competente.
+              Datos de identificación y características físicas del espacio.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -370,6 +378,7 @@ function FormularioInner({
                 Tipo de Bodega <span aria-hidden="true" className="text-destructive">*</span>
               </label>
               <Select
+                indicatorVisibility={false}
                 value={values.tipo}
                 onValueChange={(v) => {
                   setFieldValue('tipo', v);
@@ -379,7 +388,7 @@ function FormularioInner({
                     setOpenConsejo(false);
                   }
                 }}
-                disabled={isPending || modo === 'editar'}
+                disabled={isPending || modo === 'editar' || readOnly || !isAdminGlobal}
               >
                 <SelectTrigger id="tipo" className="w-full sm:max-w-xs">
                   <SelectValue placeholder="Selecciona tipo de bodega…" />
@@ -415,7 +424,7 @@ function FormularioInner({
                       setOpenConsejo(false);
                     }}
                     indicatorVisibility={false}
-                    disabled={isPending}
+                    disabled={isPending || readOnly}
                   >
                     <SelectTrigger id="tipo_consejo" className="w-full">
                       <SelectValue placeholder="Selecciona tipo…" />
@@ -442,7 +451,7 @@ function FormularioInner({
                         type="button"
                         variant="outline"
                         role="combobox"
-                        disabled={isPending || !values.tipo_consejo || isLoadingCatalogos}
+                        disabled={isPending || !values.tipo_consejo || isLoadingCatalogos || readOnly}
                         className="w-full justify-between font-normal"
                       >
                         {isLoadingCatalogos ? (
@@ -453,7 +462,7 @@ function FormularioInner({
                           <span className="text-muted-foreground">Selecciona consejo…</span>
                         )}
                         <span className="flex items-center gap-0.5 shrink-0 ml-2">
-                          {values.id_consejo && (
+                          {values.id_consejo && !readOnly && (
                             <span
                               role="button"
                               aria-label="Limpiar consejo"
@@ -481,8 +490,8 @@ function FormularioInner({
                           <CommandGroup>
                             {consejosFiltrados.map((c: ICatalogoConsejo) => (
                               <CommandItem
-                                key={c.id_consejo}
-                                value={`${c.id_consejo} ${c.consejo}`}
+                                key={`${c.tipo_consejo}-${c.id_consejo}`}
+                                value={`${c.clave_consejo} ${c.consejo}`}
                                 onSelect={() => {
                                   setFieldValue('id_consejo', c.id_consejo);
                                   setOpenConsejo(false);
@@ -525,31 +534,24 @@ function FormularioInner({
               )
             )}
 
-            {/* Entidad (fijo Chiapas) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Entidad Federativa
-              </label>
-              <div className="flex h-9 items-center px-3 rounded-md border border-input bg-muted/50 text-sm text-foreground">
-                Chiapas
-              </div>
-            </div>
-
             {/* Órgano competente */}
             <div>
               <label
                 htmlFor="organo_competente"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
               >
-                Órgano Competente <span aria-hidden="true" className="text-destructive">*</span>
+                Órgano Competente que realiza la determinación <span aria-hidden="true" className="text-destructive">*</span>
               </label>
               <Select
                 value={values.organo_competente}
                 onValueChange={(v) => {
                   setFieldValue('organo_competente', v);
-                  if (v !== 'Otro') setFieldValue('otro_organo_competente', '');
+                  if (v !== 'Otro') {
+                    setFieldValue('otro_organo_competente', '');
+                  }
                 }}
-                disabled={isPending}
+                disabled={isPending || readOnly}
+                indicatorVisibility={false}
               >
                 <SelectTrigger id="organo_competente" className="w-full">
                   <SelectValue placeholder="Selecciona órgano competente" />
@@ -563,64 +565,65 @@ function FormularioInner({
               <FieldError name="organo_competente" />
             </div>
 
-            {/* Otro órgano competente */}
+            {/* Otro órgano competente (ancho completo, condicional) */}
             {values.organo_competente === 'Otro' && (
               <div>
                 <label
                   htmlFor="otro_organo_competente"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
                 >
-                  Especifica el órgano{' '}
-                  <span aria-hidden="true" className="text-destructive">*</span>
+                  En caso de "Otro" órgano competente, especifique su función
                 </label>
                 <Field
                   as={Input}
                   id="otro_organo_competente"
                   name="otro_organo_competente"
-                  placeholder="Nombre del órgano competente"
-                  disabled={isPending}
-                  aria-required="true"
+                  placeholder="Sin captura"
+                  disabled={isPending || readOnly}
                 />
                 <FieldError name="otro_organo_competente" />
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* ── 2. Características ────────────────────────────────────────────── */}
-        <Card>
-          <CardHeader className="pb-2">
-            <h2 className="text-sm font-semibold text-foreground">Características de la Bodega</h2>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            {/* ¿Ubicada en un inmueble? */}
+            <div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                ¿Se ubica dentro del inmueble del Órgano Competente?
+              </p>
+              <SiNoToggle
+                id="ubicada_en_inmueble"
+                value={values.ubicada_en_inmueble}
+                onChange={(v) => setFieldValue('ubicada_en_inmueble', v)}
+                disabled={readOnly}
+              />
+              {values.ubicada_en_inmueble === false && (
+                <div className="mt-2">
+                  <label
+                    htmlFor="espacio_no_inmueble"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                  >
+                    En caso de que no se ubique dentro del inmueble, ¿en qué espacio se prevé instalar?
+                  </label>
+                  <Field
+                    as={Input}
+                    id="espacio_no_inmueble"
+                    name="espacio_no_inmueble"
+                    placeholder="Sin captura"
+                    disabled={isPending || readOnly}
+                  />
+                  <FieldError name="espacio_no_inmueble" />
+                </div>
+              )}
+            </div>
 
-            {/* Grid: paquetes + superficie */}
+             {/* Grid: Superficie + Paquetes */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="num_paquetes_estimados"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
-                >
-                  Paquetes estimados
-                </label>
-                <Field
-                  as={Input}
-                  id="num_paquetes_estimados"
-                  name="num_paquetes_estimados"
-                  type="number"
-                  min={0}
-                  placeholder="Ej: 500"
-                  disabled={isPending}
-                  inputMode="numeric"
-                />
-                <FieldError name="num_paquetes_estimados" />
-              </div>
               <div>
                 <label
                   htmlFor="superficie_m2"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
                 >
-                  Superficie (m²)
+                  Superficie en metros cuadrados (m²) <span aria-hidden="true" className="text-destructive">*</span>
                 </label>
                 <div className="relative">
                   <Field
@@ -630,7 +633,7 @@ function FormularioInner({
                     type="number"
                     min={1}
                     placeholder="Ej: 200"
-                    disabled={isPending}
+                    disabled={isPending || readOnly}
                     className="pr-10"
                     inputMode="numeric"
                     aria-describedby="superficie-unit"
@@ -644,90 +647,74 @@ function FormularioInner({
                 </div>
                 <FieldError name="superficie_m2" />
               </div>
-            </div>
-
-            {/* Ubicada en inmueble */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                ¿Ubicada en un inmueble?
-              </p>
-              <SiNoToggle
-                id="ubicada_en_inmueble"
-                value={values.ubicada_en_inmueble}
-                onChange={(v) => setFieldValue('ubicada_en_inmueble', v)}
-              />
-            </div>
-
-            {values.ubicada_en_inmueble === false && (
               <div>
                 <label
-                  htmlFor="espacio_no_inmueble"
+                  htmlFor="num_paquetes_estimados"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
                 >
-                  Descripción del espacio (no inmueble)
+                  Número estimado de paquetes a resguardar <span aria-hidden="true" className="text-destructive">*</span>
                 </label>
                 <Field
                   as={Input}
-                  id="espacio_no_inmueble"
-                  name="espacio_no_inmueble"
-                  placeholder="Describe el tipo de espacio"
-                  disabled={isPending}
+                  id="num_paquetes_estimados"
+                  name="num_paquetes_estimados"
+                  type="number"
+                  min={0}
+                  placeholder="Ej: 500"
+                  disabled={isPending || readOnly}
+                  inputMode="numeric"
                 />
-                <FieldError name="espacio_no_inmueble" />
+                <FieldError name="num_paquetes_estimados" />
               </div>
-            )}
+            </div>
 
-            {/* Espacio materiales */}
+            {/* ¿Cuenta con espacio para materiales? */}
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                ¿Cuenta con espacio para materiales?
+                ¿Cuenta con espacio para el resguardo de los materiales electorales?
               </p>
               <SiNoToggle
                 id="espacio_materiales"
                 value={values.espacio_materiales}
                 onChange={(v) => setFieldValue('espacio_materiales', v)}
+                disabled={readOnly}
               />
+              {values.espacio_materiales === false && (
+                <div className="mt-2">
+                  <label
+                    htmlFor="medidas_no_espacio"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                  >
+                    En caso de no contar con espacio para el resguardo de materiales, ¿qué medidas se tomarán?
+                  </label>
+                  <Field
+                    as={Input}
+                    id="medidas_no_espacio"
+                    name="medidas_no_espacio"
+                    placeholder="Sin captura"
+                    disabled={isPending || readOnly}
+                  />
+                  <FieldError name="medidas_no_espacio" />
+                </div>
+              )}
             </div>
 
-            {values.espacio_materiales === false && (
-              <div>
-                <label
-                  htmlFor="medidas_no_espacio"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
-                >
-                  Medidas ante falta de espacio
-                </label>
-                <Field
-                  as={Input}
-                  id="medidas_no_espacio"
-                  name="medidas_no_espacio"
-                  placeholder="Describe las medidas a implementar"
-                  disabled={isPending}
-                />
-                <FieldError name="medidas_no_espacio" />
-              </div>
-            )}
           </CardContent>
         </Card>
 
         {/* ── 3. Observaciones ──────────────────────────────────────────────── */}
         <Card>
           <CardHeader className="pb-2">
-            <h2 className="text-sm font-semibold text-foreground">Observaciones</h2>
+            <h2 className="text-sm font-semibold text-foreground">Observaciones excepcionales o diferentes a las referidas en los campos previamente requisitado</h2>
           </CardHeader>
           <CardContent>
-            <label
-              htmlFor="observaciones"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
-            >
-              Observaciones generales
-            </label>
+
             <textarea
               id="observaciones"
               name="observaciones"
               value={values.observaciones}
               onChange={(e) => setFieldValue('observaciones', e.target.value)}
-              disabled={isPending}
+              disabled={isPending || readOnly}
               rows={4}
               placeholder="Agrega observaciones relevantes sobre la bodega…"
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground placeholder:text-muted-foreground resize-y focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shadow-sm disabled:opacity-50"
@@ -739,29 +726,43 @@ function FormularioInner({
 
         {/* ── Acciones ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-3 pb-4">
-          <Button
-            type="button"
-            variant="secondary"
-            className="gap-1.5"
-            onClick={onCancel}
-            disabled={isPending}
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            className="gap-1.5"
-            disabled={isPending || isSubmitting}
-            aria-busy={isPending}
-          >
-            {isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Save className="h-4 w-4" aria-hidden="true" />
-            )}
-            {modo === 'crear' ? 'Registrar Bodega' : 'Guardar Cambios'}
-          </Button>
+          {readOnly ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="gap-1.5"
+              onClick={onCancel}
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Volver
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                className="gap-1.5"
+                onClick={onCancel}
+                disabled={isPending}
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="gap-1.5"
+                disabled={isPending || isSubmitting}
+                aria-busy={isPending}
+              >
+                {isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Save className="h-4 w-4" aria-hidden="true" />
+                )}
+                {modo === 'crear' ? 'Registrar Bodega' : 'Guardar Cambios'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </Form>

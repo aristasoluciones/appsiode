@@ -1,70 +1,36 @@
-import { Metadata } from 'next';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
+'use client';
+
 import { Container } from '@/components/common/container';
-import {
-  Toolbar,
-  ToolbarActions,
-  ToolbarHeading,
-  ToolbarTitle,
-} from '@/components/common/toolbar';
-import { EditarBodegaClient } from './components/editar-bodega-client';
+import { EditarBodegaClient } from '../../_components/editar-bodega-client';
+import { useAuth } from '@/providers/auth-provider';
+import { use } from 'react';
+import { ShieldOff } from 'lucide-react';
 
 interface EditarBodegaPageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: EditarBodegaPageProps): Promise<Metadata> {
-  const { id } = await params;
-  return {
-    title: `Editar Bodega #${id} | Bodegas Electorales | SIODE`,
-  };
-}
+export default function EditarBodegaPage({ params }: EditarBodegaPageProps) {
+  const { id } = use(params);
+  const { hasPermission } = useAuth();
+  const canEditar = hasPermission('bodegas.be.actualizar');
 
-export default async function EditarBodegaPage({ params }: EditarBodegaPageProps) {
-  const { id } = await params;
+  if (!canEditar) {
+    return (
+      <Container>
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-12 text-center space-y-3">
+          <ShieldOff className="h-10 w-10 text-destructive mx-auto" />
+          <p className="text-sm font-medium text-destructive">
+            No tienes permiso para editar bodegas.
+          </p>
+        </div>
+      </Container>
+    );
+  }
 
   return (
-    <>
-      <Container>
-        <Toolbar>
-          <ToolbarHeading>
-            <ToolbarTitle>Editar Bodega</ToolbarTitle>
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Inicio</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink href={`/bodegas/${id}`}>Bodega #{id}</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Editar</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </ToolbarHeading>
-          <ToolbarActions />
-        </Toolbar>
-      </Container>
-
-      <Container>
-        <EditarBodegaClient id={id} />
-      </Container>
-    </>
+    <Container>
+      <EditarBodegaClient id={id} />
+    </Container>
   );
 }

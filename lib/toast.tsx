@@ -79,9 +79,20 @@ export function toastInfo(message: string) {
   );
 }
 
+const HTTP_ERROR_MESSAGES: Record<number, string> = {
+  403: 'No tienes permiso para realizar esta acción.',
+  404: 'El recurso solicitado no fue encontrado.',
+  409: 'El recurso ya existe o hay un conflicto.',
+  500: 'Error interno del servidor. Intenta más tarde.',
+};
+
 export function toastAxiosError(error: unknown) {
   if (axios.isAxiosError(error)) {
-    const message: string = error.response?.data?.message ?? error.message ?? 'Error en la solicitud.';
+    const status = error.response?.status;
+    const message = error.response?.data?.message
+      ?? (status ? HTTP_ERROR_MESSAGES[status] : undefined)
+      ?? error.message
+      ?? 'Error en la solicitud.';
     toastError(message);
   } else if (error instanceof Error) {
     toastError(error.message);

@@ -12,8 +12,6 @@ import {
 } from 'lucide-react';
 import type { IBodegaDashboard } from '@/types/bodegas';
 
-// ─── Configuración de estados ──────────────────────────────────────────────────
-
 const STATS_CONFIG = [
   {
     key: 'total' as const,
@@ -75,8 +73,6 @@ const STATS_CONFIG = [
 
 type StatKey = (typeof STATS_CONFIG)[number]['key'];
 
-// ─── Tarjeta individual ───────────────────────────────────────────────────────
-
 interface StatCardProps {
   label: string;
   value: number | undefined;
@@ -89,11 +85,7 @@ interface StatCardProps {
 
 function StatCard({ label, value, Icon, colorIcon, colorBg, colorValue, isLoading }: StatCardProps) {
   return (
-    <div
-      className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
-      role="region"
-      aria-label={label}
-    >
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3" role="region" aria-label={label}>
       <div className={`shrink-0 rounded-md p-2 ${colorBg}`} aria-hidden="true">
         <Icon className={`h-4 w-4 ${colorIcon}`} />
       </div>
@@ -102,16 +94,12 @@ function StatCard({ label, value, Icon, colorIcon, colorBg, colorValue, isLoadin
         {isLoading ? (
           <Skeleton className="h-5 w-8 mt-0.5 animate-pulse motion-reduce:animate-none" />
         ) : (
-          <p className={`text-lg font-semibold leading-tight ${colorValue}`}>
-            {value ?? 0}
-          </p>
+          <p className={`text-lg font-semibold leading-tight ${colorValue}`}>{value ?? 0}</p>
         )}
       </div>
     </div>
   );
 }
-
-// ─── Grid de estadísticas ─────────────────────────────────────────────────────
 
 interface EstadisticasDashboardProps {
   data: IBodegaDashboard | undefined;

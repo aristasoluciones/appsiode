@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { ImageIcon, Loader2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useFotografiasBodega, useSubirFotografias } from '../../components/bodegas-data';
+import { useFotografiasBodega, useSubirFotografias } from '../_hooks/use-bodegas';
 import type { TComponenteFoto } from '@/types/bodegas';
 
 interface UploadFotografiasProps {
