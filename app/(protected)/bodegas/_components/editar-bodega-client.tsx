@@ -187,7 +187,7 @@ export function EditarBodegaClient({ id }: EditarBodegaClientProps) {
         </ToolbarActions>
       </Toolbar>
 
-      <FormularioBodega modo="editar" bodega={bodega} readOnly={bodega.status === 'Validada'} />
+      <FormularioBodega modo="editar" bodega={bodega} readOnly={bodega.status === 'Determinada'} />
     </div>
   );
 }

@@ -7,7 +7,6 @@ import {
   Loader2,
   MessageSquare,
   Send,
-  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,43 +26,42 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useValidarBodega, useEnviarObservacionesBodega } from '../_hooks/use-bodegas';
+import { useDeterminarBodega, useEnviarObservacionesBodega } from '../_hooks/use-bodegas';
 import type { IObservacionBodega, IFotografiaConfig } from '@/types/bodegas';
 
 interface BodegaValidacionActionsProps {
   idBodega: number;
-  /** true cuando todas las fotografías están en status 'Validada' */
-  allPhotosValidada: boolean;
-  /** Todas las observaciones de la bodega (pendientes y solventadas) */
+  /** Todas las observaciones de la bodega */
   observaciones: IObservacionBodega[];
-  /** Indica si hay un acuerdo cargado */
-  hasAcuerdo: boolean;
   /** Configs de fotografías para resolver títulos de categorías */
   fotografiaConfigs?: IFotografiaConfig[];
+  /** Control externo del diálogo de confirmación de determinar */
+  determinarOpen?: boolean;
+  onDeterminarOpenChange?: (open: boolean) => void;
+  /** Control externo del diálogo de resumen de observaciones */
+  requerirOpen?: boolean;
+  onRequerirOpenChange?: (open: boolean) => void;
 }
 
 export function BodegaValidacionActions({
   idBodega,
-  allPhotosValidada,
   observaciones,
-  hasAcuerdo,
   fotografiaConfigs = [],
+  determinarOpen,
+  onDeterminarOpenChange,
+  requerirOpen,
+  onRequerirOpenChange,
 }: BodegaValidacionActionsProps) {
-  const [confirmValidarOpen, setConfirmValidarOpen] = useState(false);
   const [confirmEnviarOpen, setConfirmEnviarOpen] = useState(false);
-  const [resumenOpen, setResumenOpen] = useState(false);
 
-  const { mutate: validar, isPending: validando } = useValidarBodega();
+  const { mutate: determinar, isPending: determinando } = useDeterminarBodega();
   const { mutate: enviarObservaciones, isPending: enviando } = useEnviarObservacionesBodega();
 
   const observacionesPendientes = observaciones.filter((o) => o.status === 'Pendiente');
 
-  const puedeValidar = allPhotosValidada && hasAcuerdo && observacionesPendientes.length === 0;
-  const puedeEnviar = observacionesPendientes.length > 0;
-
-  function handleValidar() {
-    validar(idBodega, {
-      onSuccess: () => setConfirmValidarOpen(false),
+  function handleDeterminar() {
+    determinar(idBodega, {
+      onSuccess: () => onDeterminarOpenChange?.(false),
     });
   }
 
@@ -71,14 +69,13 @@ export function BodegaValidacionActions({
     enviarObservaciones(idBodega, {
       onSuccess: () => {
         setConfirmEnviarOpen(false);
-        setResumenOpen(false);
+        onRequerirOpenChange?.(false);
       },
     });
   }
 
-  function abrirResumen() {
-    setResumenOpen(true);
-  }
+  const resumenOpen = requerirOpen ?? false;
+  const setResumenOpen = onRequerirOpenChange ?? (() => {});
 
   const seccionLabel: Record<string, string> = {
     Fotografias: 'Fotografía',
@@ -101,39 +98,6 @@ export function BodegaValidacionActions({
 
   return (
     <>
-      {puedeValidar && (
-        <Button
-          size="sm"
-          className="gap-1.5"
-          disabled={validando}
-          onClick={() => setConfirmValidarOpen(true)}
-        >
-          {validando ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ShieldCheck className="h-4 w-4" />
-          )}
-          Validar bodega
-        </Button>
-      )}
-
-      {puedeEnviar && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/30"
-          disabled={enviando}
-          onClick={abrirResumen}
-        >
-          {enviando ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-          Requerir
-        </Button>
-      )}
-
       {/* Dialog de resumen de observaciones */}
       <Dialog open={resumenOpen} onOpenChange={setResumenOpen}>
         <DialogContent className="sm:max-w-2xl">
@@ -186,27 +150,27 @@ export function BodegaValidacionActions({
         </DialogContent>
       </Dialog>
 
-      {/* Confirmación validar bodega */}
-      <AlertDialog open={confirmValidarOpen} onOpenChange={setConfirmValidarOpen}>
+      {/* Confirmación determinar bodega */}
+      <AlertDialog open={determinarOpen ?? false} onOpenChange={onDeterminarOpenChange ?? (() => {})}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-              ¿Validar bodega?
+              ¿Determinar bodega?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción validará la bodega y cambiará su estatus a <strong>Validada</strong>. Asegúrate de que todas las fotografías y el acuerdo han sido revisados.
+              Esta acción determinará la bodega y cambiará su estatus a <strong>Determinada</strong>. Asegúrate de que todas las fotografías y el acuerdo han sido revisados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={validando}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={determinando}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              disabled={validando}
-              onClick={handleValidar}
+              disabled={determinando}
+              onClick={handleDeterminar}
               className="bg-emerald-600 text-white hover:bg-emerald-700"
             >
-              {validando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-              Sí, validar
+              {determinando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              Sí, determinar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

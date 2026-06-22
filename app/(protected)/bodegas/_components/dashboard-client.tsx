@@ -1,33 +1,23 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Building2, Building, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Building2, Building, MapPin } from 'lucide-react';
 import { useProceso } from '@/hooks/use-proceso';
 import { useAuth } from '@/providers/auth-provider';
 import { useBodegasDashboard } from '../_hooks/use-bodegas';
 import { EstadisticasDashboard } from './estadisticas-dashboard';
 import { ConsejosDashboard } from './consejos-dashboard';
-
-// ─── Opciones de pills ──────────────────────────────────────────────────────────
+import { descargarXLSX } from '@/lib/export-xlsx';
+import type { TStatusBodega, IBodegaDashboardConsejo } from '@/types/bodegas';
 
 type TPillValue = 'oc' | 'c-d' | 'c-m';
 
-interface PillOption {
-  value: TPillValue;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const PILLS: PillOption[] = [
-  { value: 'oc', label: 'Oficina Central', icon: Building2 },
-  { value: 'c-d', label: 'Distritales', icon: Building },
-  { value: 'c-m', label: 'Municipales', icon: MapPin },
+const PILLS = [
+  { value: 'oc' as TPillValue, label: 'Oficina Central', icon: Building2 },
+  { value: 'c-d' as TPillValue, label: 'Distritales', icon: Building },
+  { value: 'c-m' as TPillValue, label: 'Municipales', icon: MapPin },
 ];
-
-// ─── Selector de pills ────────────────────────────────────────────────────────
 
 function BodegaPills({
   value,
@@ -70,15 +60,11 @@ function BodegaPills({
   );
 }
 
-// ─── Helpers para mapear pills a parámetros de API ────────────────────────────
-
 function parsePill(value: TPillValue): { tipo: 'OC' | 'C'; tipoConsejo?: string } {
   if (value === 'oc') return { tipo: 'OC' };
   if (value === 'c-d') return { tipo: 'C', tipoConsejo: 'D' };
   return { tipo: 'C', tipoConsejo: 'M' };
 }
-
-// ─── Componente principal ─────────────────────────────────────────────────────
 
 export function BodegasDashboardClient() {
   const { data: proceso, isLoading: isLoadingProceso } = useProceso();
@@ -87,10 +73,11 @@ export function BodegasDashboardClient() {
 
   const canCrear = hasPermission('bodegas.be.registrar');
 
-  // Usuario con consejo asignado (idConsejo > 0) solo puede ver su consejo
+  const [activeFilters, setActiveFilters] = useState<TStatusBodega[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
+
   const isCapturista = parseInt(user?.idConsejo ?? '0') > 0;
 
-  // Redirección automática para usuarios con consejo asignado
   useEffect(() => {
     if (isCapturista && user?.tipoConsejo && user?.idConsejo) {
       const tipo = user.tipoConsejo.toUpperCase() === 'D' ? 'distritales' : 'municipales';
@@ -98,7 +85,6 @@ export function BodegasDashboardClient() {
     }
   }, [isCapturista, user?.tipoConsejo, user?.idConsejo, router]);
 
-  // Si es capturista, no mostrar dashboard (se redirige)
   if (isCapturista) {
     return (
       <div className="space-y-4 animate-pulse motion-reduce:animate-none" aria-busy="true" aria-label="Redirigiendo...">
@@ -109,7 +95,6 @@ export function BodegasDashboardClient() {
     );
   }
 
-  // Determinar pill inicial según elecciones del proceso
   const defaultPill: TPillValue | null = useMemo(() => {
     if (!proceso?.elecciones?.length) return null;
     const firstTipo = proceso.elecciones[0].consejo_tipo as 'D' | 'M' | undefined;
@@ -120,20 +105,52 @@ export function BodegasDashboardClient() {
   const [pill, setPill] = useState<TPillValue | null>(defaultPill);
 
   const { tipo, tipoConsejo } = pill ? parsePill(pill) : { tipo: 'OC' as const, tipoConsejo: undefined };
-  const esConsejo = tipo === 'C';
-
   const queryEnabled = pill != null;
 
   const {
     data: dashboard,
     isLoading: isLoadingDashboard,
-    isError: isErrorDashboard,
-    refetch: refetchDashboard,
   } = useBodegasDashboard(tipo, tipoConsejo, queryEnabled);
 
-  function handleRetry() {
-    refetchDashboard();
+  function handleExportar() {
+    setIsExporting(true);
+    try {
+      const consejos = dashboard?.consejos ?? [];
+      const rows = consejos.map((c: IBodegaDashboardConsejo) => ({
+        Clave: c.id_consejo ?? '—',
+        Consejo: c.nombre_consejo,
+        Tipo: c.tipo_consejo === 'D' ? 'Distrital' : c.tipo_consejo ? 'Municipal' : 'Oficina Central',
+        Total: c.total,
+        'En captura': c.captura,
+        Capturada: c.capturada,
+        Observada: c.observada,
+        Determinada: c.determinada,
+        Verificada: c.verificada,
+        Aceptada: c.aceptada,
+        Rechazada: c.rechazada,
+      }));
+      descargarXLSX(rows, 'dashboard-bodegas');
+    } catch {
+      console.error('Error al exportar');
+    } finally {
+      setIsExporting(false);
+    }
   }
+
+  function handleNueva() {
+    router.push('/bodegas/nueva');
+  }
+
+  const handleFilterToggle = useCallback((status: TStatusBodega) => {
+    setActiveFilters((prev) => {
+      if (prev.includes(status)) return prev.filter((s) => s !== status);
+      return [...prev, status];
+    });
+  }, []);
+
+  const handleRestoreAll = useCallback(() => {
+    setActiveFilters([]);
+  }, []);
 
   if (isLoadingProceso) {
     return (
@@ -145,36 +162,37 @@ export function BodegasDashboardClient() {
     );
   }
 
+  function handlePillChange(v: TPillValue) {
+    setPill(v);
+    setActiveFilters([]);
+  }
+
   return (
     <div className="space-y-4">
-      {/* Selector de pills + acción */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <BodegaPills
-          value={pill}
-          onChange={setPill}
-          disabled={isLoadingProceso}
-        />
+      <BodegaPills
+        value={pill}
+        onChange={handlePillChange}
+        disabled={isLoadingProceso}
+      />
 
-        {canCrear && (
-          <Button
-            variant="primary"
-            size="sm"
-            className="gap-1.5 self-start sm:self-auto"
-            onClick={() => router.push('/bodegas/nueva')}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Nueva Bodega
-          </Button>
-        )}
-      </div>
-
-      {/* Estadísticas */}
-      <EstadisticasDashboard data={dashboard} isLoading={isLoadingDashboard} />
+      <EstadisticasDashboard
+        data={dashboard}
+        isLoading={isLoadingDashboard}
+        activeFilters={activeFilters}
+        onFilterToggle={handleFilterToggle}
+        onRestoreAll={handleRestoreAll}
+      />
 
       <ConsejosDashboard
         consejos={dashboard?.consejos ?? []}
         isLoading={isLoadingDashboard}
         tipoConsejo={tipoConsejo}
+        activeFilters={activeFilters}
+        onExport={handleExportar}
+        isExporting={isExporting}
+        canCrear={canCrear}
+        onNueva={handleNueva}
+        onRestoreAll={handleRestoreAll}
       />
     </div>
   );

@@ -113,7 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasPermission = useCallback(
     (modulo: string | string[]): boolean => {
       if (!state.user) return false;
-      if (state.user.rol === 'ADMINISTRADOR') return true;
+      //Todos los roles se evaluan por módulo, no por rol. Si se quisiera evaluar por rol, se haría aquí.
+      //if (state.user.rol === 'ADMINISTRADOR') return true;
       const claves = Array.isArray(modulo) ? modulo : [modulo];
       return claves.some((c) => state.user!.modulos?.includes(c) ?? false);
     },

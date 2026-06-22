@@ -12,7 +12,7 @@ import {
   Maximize2,
   MessageSquare,
   CheckCircle2,
-  RotateCcw,
+  Info,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -79,7 +79,7 @@ interface ObservarAcuerdoDialogProps {
   canEliminarObservacion?: boolean;
 }
 
-function ObservarAcuerdoDialog({ open, acuerdoId, onClose, idBodega, onObservacionCreada, observaciones, soloLecturaObservaciones = false, bodegaStatus = 'Registrada', canValidarObservacion = true, canEliminarObservacion = true }: ObservarAcuerdoDialogProps) {
+function ObservarAcuerdoDialog({ open, acuerdoId, onClose, idBodega, onObservacionCreada, observaciones, soloLecturaObservaciones = false, bodegaStatus = 'Capturada', canValidarObservacion = true, canEliminarObservacion = true }: ObservarAcuerdoDialogProps) {
   const [texto, setTexto] = useState('');
   const { mutate: observar, isPending } = useCrearObservacionBodega(idBodega);
   const { mutate: eliminarObs, isPending: eliminandoObs } = useEliminarObservacionBodega(idBodega);
@@ -87,7 +87,7 @@ function ObservarAcuerdoDialog({ open, acuerdoId, onClose, idBodega, onObservaci
 
   const obsAcuerdo = observaciones?.filter((o) => o.seccion === 'Acuerdos') ?? [];
 
-  const modoSolventar = bodegaStatus === 'Observada' || bodegaStatus === 'Registrada';
+  const modoSolventar = bodegaStatus === 'Observada' || bodegaStatus === 'Capturada';
   const isReadOnly = soloLecturaObservaciones;
 
   function handleSubmit() {
@@ -139,33 +139,40 @@ function ObservarAcuerdoDialog({ open, acuerdoId, onClose, idBodega, onObservaci
                   >
                     <p className="text-sm text-foreground">{obs.observacion}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground">
-                        {new Date(obs.created_at).toLocaleDateString('es-MX')}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                            obs.status === 'Pendiente'
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                              : obs.status === 'Atendida'
+                              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          }`}
+                        >
+                          {obs.status}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(obs.created_at).toLocaleDateString('es-MX')}
+                        </span>
+                      </div>
                       <div className="flex items-center gap-1">
-                        {canValidarObservacion && bodegaStatus === 'Registrada' && (
+                        {canValidarObservacion && bodegaStatus === 'Capturada' && obs.status !== 'Validada' && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={`h-6 w-6 p-0 ${
-                              obs.status === 'Pendiente'
-                                ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
-                                : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                            }`}
+                            className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                             onClick={() => toggleStatusObs(obs.id)}
                             disabled={togglingStatus}
-                            aria-label={obs.status === 'Pendiente' ? 'Marcar como solventada' : 'Marcar como pendiente'}
+                            aria-label={obs.status === 'Pendiente' ? 'Marcar como atendida' : 'Validar'}
                           >
                             {togglingStatus ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : obs.status === 'Pendiente' ? (
-                              <CheckCircle2 className="h-3 w-3" />
                             ) : (
-                              <RotateCcw className="h-3 w-3" />
+                              <CheckCircle2 className="h-3 w-3" />
                             )}
                           </Button>
                         )}
-                        {canEliminarObservacion && bodegaStatus === 'Registrada' && obs.status !== 'Solventada' && (
+                        {canEliminarObservacion && bodegaStatus === 'Capturada' && obs.status !== 'Validada' && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -189,7 +196,7 @@ function ObservarAcuerdoDialog({ open, acuerdoId, onClose, idBodega, onObservaci
             </div>
           )}
 
-          {bodegaStatus === 'Registrada' && (
+          {bodegaStatus === 'Capturada' && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="observacion-acuerdo-txt">Nueva observación</Label>
@@ -214,7 +221,7 @@ function ObservarAcuerdoDialog({ open, acuerdoId, onClose, idBodega, onObservaci
           <Button variant="outline" size="sm" onClick={onClose} disabled={isPending || togglingStatus}>
             Cerrar
           </Button>
-          {bodegaStatus === 'Registrada' && (
+          {bodegaStatus === 'Capturada' && (
             <Button size="sm" onClick={handleSubmit} disabled={!texto.trim() || isPending}>
               {isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
               Guardar
@@ -301,7 +308,7 @@ function AcuerdoPreviewPanel({ ruta, nombre, onClose }: AcuerdoPreviewPanelProps
 
 // ─── Componente principal ───────────────────────────────────────────────────
 
-export function UploadAcuerdo({ idBodega, mode = 'upload', onObservacionCreada, observaciones, soloLecturaObservaciones = false, bodegaStatus = 'Registrada', canAcuerdos = true, canEliminarAcuerdo = true, canObservaciones = true, canValidarObservacion = true, canEliminarObservacion = true }: UploadAcuerdoProps) {
+export function UploadAcuerdo({ idBodega, mode = 'upload', onObservacionCreada, observaciones, soloLecturaObservaciones = false, bodegaStatus = 'Capturada', canAcuerdos = true, canEliminarAcuerdo = true, canObservaciones = true, canValidarObservacion = true, canEliminarObservacion = true }: UploadAcuerdoProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { data: acuerdo, isLoading } = useAcuerdoBodega(idBodega);
   const subirMutation = useSubirAcuerdo(idBodega);
@@ -312,6 +319,8 @@ export function UploadAcuerdo({ idBodega, mode = 'upload', onObservacionCreada, 
   const [observarOpen, setObservarOpen] = useState(false);
   const [verObsOpen, setVerObsOpen] = useState(false);
 
+  const terminalStatuses = ['Determinada', 'Verificada', 'Aceptada', 'Rechazada'];
+  const esTerminal = terminalStatuses.includes(bodegaStatus ?? '');
   const obsAcuerdo = observaciones?.filter((o) => o.seccion === 'Acuerdos') ?? [];
   const obsAcuerdoPendientes = obsAcuerdo.filter((o) => o.status === 'Pendiente').length;
 
@@ -398,6 +407,14 @@ export function UploadAcuerdo({ idBodega, mode = 'upload', onObservacionCreada, 
             </Button>
           )}
         </CardHeader>
+        {!isLoading && !acuerdo && (
+          <div className="flex items-start gap-2 border-b border-border bg-amber-50 dark:bg-amber-950/30 px-5 py-2 text-xs text-amber-800 dark:text-amber-300">
+            <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+            <p>
+              Debe adjuntar de manera obligatoria el acuerdo para poder concluir la captura de información de la bodega.
+            </p>
+          </div>
+        )}
         <CardContent className="p-0">
           {/* Split layout */}
           <div className={`flex flex-col ${hasPreview ? 'lg:flex-row' : ''}`}>
@@ -466,7 +483,7 @@ export function UploadAcuerdo({ idBodega, mode = 'upload', onObservacionCreada, 
                       <FileText className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
                     </div>
                     <p className="text-sm font-medium text-foreground">Sin acuerdo cargado</p>
-                    {bodegaStatus !== 'Validada' && (
+                    {!esTerminal && (
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Arrastra un PDF o haz clic para cargar
                       </p>
@@ -475,7 +492,7 @@ export function UploadAcuerdo({ idBodega, mode = 'upload', onObservacionCreada, 
                 )}
 
                 {/* Zona de arrastre (solo modo upload o cuando no hay acuerdo, y no Validada) */}
-                {canAcuerdos && (mode === 'upload' || !acuerdo) && bodegaStatus !== 'Validada' && (
+                {canAcuerdos && (mode === 'upload' || !acuerdo) && !esTerminal && (
                   <div
                     role="button"
                     tabIndex={0}
@@ -625,14 +642,14 @@ interface VerObservacionesAcuerdoDialogProps {
   canEliminarObservacion?: boolean;
 }
 
-function VerObservacionesAcuerdoDialog({ open, acuerdoId, idBodega, observaciones, onClose, soloLecturaObservaciones = false, bodegaStatus = 'Registrada', canValidarObservacion = true, canEliminarObservacion = true }: VerObservacionesAcuerdoDialogProps) {
+function VerObservacionesAcuerdoDialog({ open, acuerdoId, idBodega, observaciones, onClose, soloLecturaObservaciones = false, bodegaStatus = 'Capturada', canValidarObservacion = true, canEliminarObservacion = true }: VerObservacionesAcuerdoDialogProps) {
   const { mutate: eliminar, isPending } = useEliminarObservacionBodega(idBodega);
   const { mutate: toggleStatusObs, isPending: togglingStatus } = useToggleStatusObservacionBodega(idBodega);
   const obsAcuerdo = observaciones?.filter(
     (o) => o.seccion === 'Acuerdos',
   ) ?? [];
 
-  const modoSolventar = bodegaStatus === 'Observada' || bodegaStatus === 'Registrada';
+  const modoSolventar = bodegaStatus === 'Observada' || bodegaStatus === 'Capturada';
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -652,33 +669,40 @@ function VerObservacionesAcuerdoDialog({ open, acuerdoId, idBodega, observacione
               >
                 <p className="text-sm text-foreground">{obs.observacion}</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">
-                    {new Date(obs.created_at).toLocaleDateString('es-MX')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                        obs.status === 'Pendiente'
+                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          : obs.status === 'Atendida'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      }`}
+                    >
+                      {obs.status}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(obs.created_at).toLocaleDateString('es-MX')}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1">
-                    {canValidarObservacion && bodegaStatus === 'Registrada' && (
+                    {canValidarObservacion && bodegaStatus === 'Capturada' && obs.status !== 'Validada' && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-7 w-7 p-0 ${
-                          obs.status === 'Pendiente'
-                            ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
-                            : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                        }`}
+                        className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                         onClick={() => toggleStatusObs(obs.id)}
                         disabled={togglingStatus}
-                        aria-label={obs.status === 'Pendiente' ? 'Marcar como solventada' : 'Marcar como pendiente'}
+                        aria-label={obs.status === 'Pendiente' ? 'Marcar como atendida' : 'Validar'}
                       >
                         {togglingStatus ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : obs.status === 'Pendiente' ? (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
                         ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
+                          <CheckCircle2 className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     )}
-                    {canEliminarObservacion && bodegaStatus === 'Registrada' && obs.status !== 'Solventada' && (
+                    {canEliminarObservacion && bodegaStatus === 'Capturada' && obs.status !== 'Validada' && (
                       <Button
                         variant="ghost"
                         size="sm"

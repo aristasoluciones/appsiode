@@ -4,13 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Eye,
   ImageIcon,
+  Info,
   Loader2,
   Maximize2,
   MessageSquare,
   PanelRightClose,
-  RotateCcw,
   ShieldCheck,
   Trash2,
   Upload,
@@ -58,13 +60,36 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ACCEPTED_TYPES      = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ACCEPTED_ACCEPT     = 'image/jpeg,image/png,image/webp';
 
-const MOMENTOS_REQUERIDOS = new Set(['Antes']);
-
 const ETAPA_LABEL: Record<string, string> = {
-  Antes:   'Antes',
-  Durante: 'Durante',
-  Despues: 'Después',
+  Antes:     'Antes',
+  Durante:   'Durante',
+  Posterior: 'Posterior',
 };
+
+export interface FotografiasFiltro {
+  etapa?: string[];
+  categorias?: IFotografiaConfig['categoria'][];
+  momentos?: IFotografiaConfig['momento'][];
+}
+
+const FILTRO_DEFAULT: Required<FotografiasFiltro> = {
+  etapa: ['Registro'],
+  categorias: ['Acondicionamiento'],
+  momentos: ['Antes'],
+};
+
+function configsVisibles(
+  configs: IFotografiaConfig[],
+  filtro: FotografiasFiltro,
+): IFotografiaConfig[] {
+  const { etapa, categorias, momentos } = { ...FILTRO_DEFAULT, ...filtro };
+  return configs.filter(
+    (c) =>
+      etapa.includes(c.etapa) &&
+      categorias.includes(c.categoria) &&
+      momentos.includes(c.momento),
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -107,22 +132,37 @@ function FotoStatusBadge({ status }: { status: IFotografia['status_foto'] }) {
 
 interface FotoPreviewPanelProps {
   foto:    IFotografia;
+  config:  IFotografiaConfig | null;
   onClose: () => void;
 }
 
-function FotoPreviewPanel({ foto, onClose }: FotoPreviewPanelProps) {
+function FotoPreviewPanel({ foto, config, onClose }: FotoPreviewPanelProps) {
   const [fullscreen, setFullscreen] = useState(false);
 
   return (
     <>
-    <div className="flex-1 flex flex-col border-t border-border lg:border-t-0 lg:border-l min-h-[360px]">
+    <div className="w-full lg:w-1/2 flex flex-col border-t border-border lg:border-t-0 lg:border-l lg:sticky lg:top-4 min-h-[420px] lg:min-h-[520px] h-[60vh] lg:h-[calc(100vh-2rem)] shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border bg-muted/30 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span className="text-sm font-medium text-foreground truncate">
-            {formatFecha(foto.created_at)}
-          </span>
+          <div className="flex flex-col min-w-0">
+            {config?.subcategoria && (
+              <span className="text-sm font-semibold text-foreground truncate flex items-center gap-1.5">
+                {config.subcategoria}
+                {config.momento && (
+                  <Badge variant="secondary" appearance="light" size="sm">
+                    {ETAPA_LABEL[config.momento] ?? config.momento}
+                  </Badge>
+                )}
+              </span>
+            )}
+            {config?.descripcion && (
+              <span className="text-[11px] italic text-muted-foreground truncate">
+                {config.descripcion}
+              </span>
+            )}
+          </div>
           <FotoStatusBadge status={foto.status_foto} />
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -146,17 +186,15 @@ function FotoPreviewPanel({ foto, onClose }: FotoPreviewPanelProps) {
       </div>
 
       {/* Imagen */}
-      <div className="flex-1 flex items-center justify-center bg-muted/20 p-4 min-h-[300px]">
+      <div className="flex-1 flex items-center justify-center bg-muted/20 p-2 min-h-0 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={foto.url}
           alt="Vista previa"
-          className="max-w-full max-h-full object-contain rounded-lg cursor-zoom-in"
-          style={{ maxHeight: '480px' }}
+          className="max-h-full max-w-full h-full w-full object-contain rounded-lg cursor-zoom-in"
           onClick={() => setFullscreen(true)}
         />
       </div>
-
 
     </div>
 
@@ -199,7 +237,7 @@ interface ObservarDialogProps {
   canEliminarObservacion?: boolean;
 }
 
-function ObservarDialog({ config, onClose, idBodega, observaciones, soloLecturaObservaciones = false, bodegaStatus = 'Registrada', canValidarObservacion = true, canEliminarObservacion = true }: ObservarDialogProps) {
+function ObservarDialog({ config, onClose, idBodega, observaciones, soloLecturaObservaciones = false, bodegaStatus = 'Capturada', canValidarObservacion = true, canEliminarObservacion = true }: ObservarDialogProps) {
   const [texto, setTexto] = useState('');
   const { mutate: observar, isPending } = useCrearObservacionBodega(idBodega);
   const { mutate: eliminarObs, isPending: eliminandoObs } = useEliminarObservacionBodega(idBodega);
@@ -209,7 +247,7 @@ function ObservarDialog({ config, onClose, idBodega, observaciones, soloLecturaO
     ? (observaciones?.filter((o) => o.seccion === 'Fotografias' && o.id_referencia === config.id) ?? [])
     : [];
 
-  const modoSolventar = bodegaStatus === 'Observada' || bodegaStatus === 'Registrada';
+  const modoSolventar = bodegaStatus === 'Observada' || bodegaStatus === 'Capturada';
   const isReadOnly = soloLecturaObservaciones;
 
   function handleSubmit() {
@@ -260,33 +298,40 @@ function ObservarDialog({ config, onClose, idBodega, observaciones, soloLecturaO
                     >
                       <p className="text-sm text-foreground">{obs.observacion}</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground">
-                          {new Date(obs.created_at).toLocaleDateString('es-MX')}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                              obs.status === 'Pendiente'
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                : obs.status === 'Atendida'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            }`}
+                          >
+                            {obs.status}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(obs.created_at).toLocaleDateString('es-MX')}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-1">
-                          {canValidarObservacion && bodegaStatus === 'Registrada' && (
+                          {canValidarObservacion && bodegaStatus === 'Capturada' && obs.status !== 'Validada' && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className={`h-6 w-6 p-0 ${
-                                obs.status === 'Pendiente'
-                                  ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
-                                  : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                              }`}
+                              className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                               onClick={() => toggleStatusObs(obs.id)}
                               disabled={togglingStatus}
-                              aria-label={obs.status === 'Pendiente' ? 'Marcar como solventada' : 'Marcar como pendiente'}
+                              aria-label={obs.status === 'Pendiente' ? 'Marcar como atendida' : 'Validar'}
                             >
                               {togglingStatus ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : obs.status === 'Pendiente' ? (
-                                <CheckCircle2 className="h-3 w-3" />
                               ) : (
-                                <RotateCcw className="h-3 w-3" />
+                                <CheckCircle2 className="h-3 w-3" />
                               )}
                             </Button>
                           )}
-                          {canEliminarObservacion && bodegaStatus === 'Registrada' && obs.status !== 'Solventada' && (
+                          {canEliminarObservacion && bodegaStatus === 'Capturada' && obs.status !== 'Validada' && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -310,7 +355,7 @@ function ObservarDialog({ config, onClose, idBodega, observaciones, soloLecturaO
               </div>
             )}
 
-            {bodegaStatus === 'Registrada' && (
+            {bodegaStatus === 'Capturada' && (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="observacion-txt">Nueva observación</Label>
@@ -336,7 +381,7 @@ function ObservarDialog({ config, onClose, idBodega, observaciones, soloLecturaO
           <Button variant="outline" size="sm" onClick={onClose} disabled={isPending || togglingStatus}>
             Cerrar
           </Button>
-          {bodegaStatus === 'Registrada' && (
+          {bodegaStatus === 'Capturada' && (
             <Button size="sm" onClick={handleSubmit} disabled={!texto.trim() || isPending}>
               {isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
               Guardar
@@ -365,7 +410,7 @@ interface FotoRowProps {
   canEliminarFotografia?: boolean;
 }
 
-function FotoRow({ foto, idBodega, mode, isPreviewing, onPreview, onEliminar, soloLecturaObservaciones = false, bodegaStatus = 'Registrada', canValidarFotografia = true, canEliminarFotografia = true }: FotoRowProps) {
+function FotoRow({ foto, idBodega, mode, isPreviewing, onPreview, onEliminar, soloLecturaObservaciones = false, bodegaStatus = 'Capturada', canValidarFotografia = true, canEliminarFotografia = true }: FotoRowProps) {
   const { mutate: toggleStatus, isPending: toggleando } = useToggleStatusFotografia(idBodega);
 
   return (
@@ -418,7 +463,10 @@ function FotoRow({ foto, idBodega, mode, isPreviewing, onPreview, onEliminar, so
         <Eye className="h-3.5 w-3.5" />
       </button>
 
-      {canEliminarFotografia && (bodegaStatus === 'En captura' || bodegaStatus === 'Observada') && (
+      {canEliminarFotografia && (
+        bodegaStatus === 'En captura' ||
+        (bodegaStatus === 'Observada' && foto.status_foto !== 'Validada')
+      ) && (
         <button
           type="button"
           onClick={() => onEliminar(foto)}
@@ -500,11 +548,10 @@ function ConfigSection({
   const [isDragging, setIsDragging]   = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const isRequired = MOMENTOS_REQUERIDOS.has(config.momento);
+  const isRequired = true;
   const count      = fotos.length;
-  const isFull     = count >= config.max_fotos;
-  const slots      = config.max_fotos - count;
-  const showUpload = canFotografias && !isFull && ((mode === 'upload' && bodegaStatus !== 'Validada') || bodegaStatus === 'Observada');
+  const hasMin     = count >= config.min_fotos;
+  const showUpload = canFotografias && ((mode === 'upload' && bodegaStatus !== 'Determinada') || bodegaStatus === 'Observada');
 
   const obsConfig = observaciones?.filter(
     (o) => o.seccion === 'Fotografias' && o.id_referencia === config.id,
@@ -519,10 +566,7 @@ function ConfigSection({
     const { valid, error: err } = validateFiles(incoming);
     if (err) { setUploadError(err); return; }
     if (valid.length === 0) return;
-    const toUpload = valid.slice(0, slots);
-    if (valid.length > slots)
-      setUploadError(`Solo puedes agregar ${slots} foto${slots !== 1 ? 's' : ''} más (máx. ${config.max_fotos}).`);
-    subir({ files: toUpload, id_config: config.id }, {
+    subir({ files: valid, id_config: config.id }, {
       onSuccess: () => setUploadError(null),
       onError:   () => setUploadError('Error al subir las fotografías. Intenta de nuevo.'),
     });
@@ -572,10 +616,12 @@ function ConfigSection({
               )}
             </Button>
           )}
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {count}/{config.max_fotos}
-          </span>
-          {isFull && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
+          {!hasMin && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {count}/{config.min_fotos} <span className="opacity-70">mín.</span>
+            </span>
+          )}
+          {hasMin && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
         </div>
       </div>
 
@@ -634,7 +680,9 @@ function ConfigSection({
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 JPG, PNG, WEBP · máx. {MAX_FILE_SIZE_MB} MB
-                {slots > 0 && ` · ${slots} espacio${slots !== 1 ? 's' : ''} libre${slots !== 1 ? 's' : ''}`}
+                {hasMin
+                  ? ` · mínimo alcanzado`
+                  : ` · ${config.min_fotos - count} foto${config.min_fotos - count !== 1 ? 's' : ''} más para alcanzar el mínimo`}
               </p>
             </div>
           </div>
@@ -642,7 +690,7 @@ function ConfigSection({
             ref={inputRef}
             type="file"
             accept={ACCEPTED_ACCEPT}
-            multiple={slots > 1}
+            multiple
             className="sr-only"
             onChange={handleFileChange}
           />
@@ -654,6 +702,257 @@ function ConfigSection({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Miniatura de foto (para vista agrupada por descripción) ──────────────────
+
+function FotoMiniatura({
+  foto,
+  onPreview,
+  onEliminar,
+  showStatus,
+  canEliminar = true,
+}: {
+  foto: IFotografia;
+  onPreview: (foto: IFotografia) => void;
+  onEliminar: (foto: IFotografia) => void;
+  showStatus: boolean;
+  canEliminar?: boolean;
+}) {
+  return (
+    <div className="group relative w-16 h-16 rounded-md overflow-hidden border border-border shrink-0">
+      <button
+        type="button"
+        onClick={() => onPreview(foto)}
+        aria-label="Ver imagen"
+        className="absolute inset-0 w-full h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={foto.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+      </button>
+      {showStatus && (
+        <div className="absolute top-0.5 left-0.5">
+          <FotoStatusBadge status={foto.status_foto} />
+        </div>
+      )}
+      {canEliminar && (
+        <button
+          type="button"
+          onClick={() => onEliminar(foto)}
+          title="Eliminar fotografía"
+          aria-label="Eliminar fotografía"
+          className="absolute top-0.5 right-0.5 inline-flex items-center justify-center h-5 w-5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Zona de carga + galería por momento (etapa Verificación) ─────────────────
+
+interface MomentoUploaderProps {
+  config:        IFotografiaConfig;
+  fotos:         IFotografia[];
+  idBodega:      number;
+  canFotografias: boolean;
+  canEliminar:   boolean;
+  showStatus:    boolean;
+  onPreview:     (foto: IFotografia) => void;
+  onEliminar:    (foto: IFotografia) => void;
+}
+
+function MomentoUploader({
+  config,
+  fotos,
+  idBodega,
+  canFotografias,
+  canEliminar,
+  showStatus,
+  onPreview,
+  onEliminar,
+}: MomentoUploaderProps) {
+  const inputRef                      = useRef<HTMLInputElement>(null);
+  const { mutate: subir, isPending }  = useSubirFotografias(idBodega);
+  const [isDragging, setIsDragging]   = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const count  = fotos.length;
+  const hasMin = count >= config.min_fotos;
+
+  function handleFiles(incoming: File[]) {
+    setUploadError(null);
+    const { valid, error: err } = validateFiles(incoming);
+    if (err) { setUploadError(err); return; }
+    if (valid.length === 0) return;
+    subir({ files: valid, id_config: config.id }, {
+      onSuccess: () => setUploadError(null),
+      onError:   () => setUploadError('Error al subir las fotografías. Intenta de nuevo.'),
+    });
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    handleFiles(Array.from(e.target.files ?? []));
+    e.target.value = '';
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFiles(Array.from(e.dataTransfer.files));
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-3 space-y-2.5">
+      {/* Encabezado del momento */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-foreground">
+          {ETAPA_LABEL[config.momento] ?? config.momento}
+        </span>
+        {!hasMin ? (
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            {count}/{config.min_fotos} <span className="opacity-70">mín.</span>
+          </span>
+        ) : (
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+        )}
+      </div>
+
+      {/* Descripción: aparece antes de la zona de carga */}
+      {config.descripcion && (
+        <p className="text-[11px] italic text-muted-foreground leading-snug">
+          {config.descripcion}
+        </p>
+      )}
+
+      {/* Drag & drop */}
+      {canFotografias && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={`Subir fotos ${ETAPA_LABEL[config.momento] ?? config.momento}`}
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+          onDrop={handleDrop}
+          className={[
+            'flex flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed py-3 px-2 text-center transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            isDragging
+              ? 'border-primary bg-primary/5 cursor-copy'
+              : 'border-border hover:border-primary/50 hover:bg-muted/20 cursor-pointer',
+          ].join(' ')}
+        >
+          {isPending
+            ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            : <Upload className={`h-4 w-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+          }
+          <p className="text-[11px] font-medium text-foreground leading-none">
+            {isDragging ? 'Suelta para agregar' : isPending ? 'Subiendo…' : 'Arrastra o haz clic para subir'}
+          </p>
+          <p className="text-[10px] text-muted-foreground leading-none">
+            JPG, PNG, WEBP · máx. {MAX_FILE_SIZE_MB} MB
+          </p>
+        </div>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPTED_ACCEPT}
+        multiple
+        className="sr-only"
+        onChange={handleFileChange}
+      />
+      {uploadError && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5">
+          <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+          <p className="text-[11px] text-destructive">{uploadError}</p>
+        </div>
+      )}
+
+      {/* Galería de miniaturas */}
+      {fotos.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {fotos.map((foto) => (
+            <FotoMiniatura
+              key={foto.id}
+              foto={foto}
+              onPreview={onPreview}
+              onEliminar={onEliminar}
+              showStatus={showStatus}
+              canEliminar={canEliminar}
+            />
+          ))}
+          {!canEliminar && null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Grupo por subcategoría (etapa Verificación / wizard) ───────────────────
+
+interface GrupoSubcategoriaCardProps {
+  /** Configs que comparten (categoria, subcategoria) */
+  configs:        IFotografiaConfig[];
+  fotos:          IFotografia[];
+  idBodega:       number;
+  canFotografias: boolean;
+  canEliminar:    boolean;
+  /** Si es true, muestra la insignia de status de cada foto (etapa=Registro) */
+  showStatus:     boolean;
+  onPreview:      (foto: IFotografia) => void;
+  onEliminar:     (foto: IFotografia) => void;
+}
+
+function GrupoSubcategoriaCard({
+  configs,
+  fotos,
+  idBodega,
+  canFotografias,
+  canEliminar,
+  showStatus,
+  onPreview,
+  onEliminar,
+}: GrupoSubcategoriaCardProps) {
+  const subcategoria = configs[0]?.subcategoria ?? '';
+
+  // Orden estable de momentos: Antes, Durante, Posterior
+  const ordenMomento: Record<string, number> = { Antes: 0, Durante: 1, Posterior: 2 };
+  const configsOrdenados = [...configs].sort(
+    (a, b) => (ordenMomento[a.momento] ?? 99) - (ordenMomento[b.momento] ?? 99),
+  );
+
+  return (
+    <div className="px-5 py-3 border-b border-border last:border-0">
+      <div className="flex items-center gap-2 mb-2.5">
+        <h4 className="text-sm font-semibold text-foreground">{subcategoria}</h4>
+      </div>
+      <div className={`grid gap-3 ${
+        configsOrdenados.length === 1
+          ? 'grid-cols-1'
+          : configsOrdenados.length === 2
+            ? 'grid-cols-1 md:grid-cols-2'
+            : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+      }`}>
+        {configsOrdenados.map((cfg) => (
+          <MomentoUploader
+            key={cfg.id}
+            config={cfg}
+            fotos={fotos.filter((f) => f.id_config === cfg.id)}
+            idBodega={idBodega}
+            canFotografias={canFotografias}
+            canEliminar={canEliminar}
+            showStatus={showStatus}
+            onPreview={onPreview}
+            onEliminar={onEliminar}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -671,6 +970,12 @@ interface FotografiasCardProps {
   idBodega: number;
   /** 'upload' muestra zona de carga; 'validar' muestra botones Validar/Observar. Default: 'upload' */
   mode?: FotografiasMode;
+  /** Filtra configuraciones a mostrar. Default: etapa=Registro + Acondicionamiento/Antes */
+  filtro?: FotografiasFiltro;
+  /** Agrupa las configs del mismo (categoria, subcategoria) en un solo bloque con un MomentoUploader por cada momento (Antes/Durante/Posterior) */
+  agruparPorSubcategoria?: boolean;
+  /** Personaliza el texto de la leyenda que se muestra bajo el header del card mientras no se cumple el mínimo de fotos. */
+  leyendaCaptura?: string;
   /** Callback opcional cuando se crea una observación */
   onObservacionCreada?: () => void;
   /** Callback con el estado actual de las fotos */
@@ -693,11 +998,17 @@ interface FotografiasCardProps {
   canEliminarObservacion?: boolean;
   /** Permiso para eliminar fotografías */
   canEliminarFotografia?: boolean;
+  /**
+   * Indica que el componente se está renderizando desde el wizard de verificación.
+   * Cuando es true, se bloquea la eliminación de fotografías (mismo patrón que
+   * la cédula cuando la verificación está en modo read-only).
+   */
+  modoWizard?: boolean;
 }
 
 // ─── FotografiasCard ──────────────────────────────────────────────────────────
 
-export function FotografiasCard({ idBodega, mode = 'upload', onObservacionCreada, onFotosStateChange, observaciones, soloLecturaObservaciones = false, bodegaStatus = 'Registrada', canFotografias = true, canValidarFotografia = true, canObservaciones = true, canValidarObservacion = true, canEliminarObservacion = true, canEliminarFotografia = true }: FotografiasCardProps) {
+export function FotografiasCard({ idBodega, mode = 'upload', filtro, agruparPorSubcategoria = false, leyendaCaptura, onObservacionCreada, onFotosStateChange, observaciones, soloLecturaObservaciones = false, bodegaStatus = 'Capturada', canFotografias = true, canValidarFotografia = true, canObservaciones = true, canValidarObservacion = true, canEliminarObservacion = true, canEliminarFotografia = true, modoWizard = false }: FotografiasCardProps) {
   const { data: configs = [], isLoading: loadingConfig } = useFotografiasConfig();
   const { data: fotos = [], isLoading: loadingFotos, isError } = useFotografiasConConfig(idBodega);
 
@@ -705,8 +1016,23 @@ export function FotografiasCard({ idBodega, mode = 'upload', onObservacionCreada
   const [configAVerObs, setConfigAVerObs]     = useState<{ config: IFotografiaConfig; readOnly: boolean } | null>(null);
   const [fotoAEliminar, setFotoAEliminar]     = useState<IFotografia | null>(null);
   const [previewFoto, setPreviewFoto]         = useState<IFotografia | null>(null);
+  /** Conjunto de categorías colapsadas. Vacío = todas expandidas (default). */
+  const [collapsedCategorias, setCollapsedCategorias] = useState<Set<string>>(new Set());
+
+  function toggleCategoria(cat: string) {
+    setCollapsedCategorias((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }
 
   const { mutate: eliminar, isPending: eliminando } = useEliminarFotografia(idBodega);
+
+  // Cuando el componente se renderiza desde el wizard de verificación, se
+  // bloquea la eliminación de fotografías sin importar el permiso del usuario.
+  const canEliminarEfectivo = modoWizard ? false : canEliminarFotografia;
 
   const handleObservarClose = () => {
     setConfigAObservar(null);
@@ -714,11 +1040,13 @@ export function FotografiasCard({ idBodega, mode = 'upload', onObservacionCreada
   };
 
   const isLoading  = loadingConfig || loadingFotos;
-  const categorias = Array.from(new Set(configs.map((c) => c.categoria)));
+  const filtroAplicado: FotografiasFiltro = { ...FILTRO_DEFAULT, ...filtro };
+  const configsFiltrados = configsVisibles(configs, filtroAplicado);
+  const categorias = Array.from(new Set(configsFiltrados.map((c) => c.categoria)));
 
-  const required  = configs.filter((c) => MOMENTOS_REQUERIDOS.has(c.momento));
+  const required  = configsFiltrados;
   const completed = required.filter(
-    (c) => fotos.filter((f) => f.id_config === c.id).length >= c.max_fotos,
+    (c) => fotos.filter((f) => f.id_config === c.id).length >= c.min_fotos,
   );
   const allDone = required.length > 0 && completed.length === required.length;
 
@@ -750,20 +1078,16 @@ export function FotografiasCard({ idBodega, mode = 'upload', onObservacionCreada
         <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
           <div className="flex items-center gap-2 flex-wrap">
             <CardTitle>Fotografías</CardTitle>
-            {!isLoading && required.length > 0 && (
-              allDone ? (
-                <Badge variant="success" appearance="light" size="sm">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Requeridas completas
-                </Badge>
-              ) : (
-                <Badge variant="destructive" appearance="light" size="sm">
-                  {completed.length}/{required.length} requeridas
-                </Badge>
-              )
-            )}
           </div>
         </CardHeader>
+        {!isLoading && !allDone && (
+          <div className="flex items-start gap-2 border-b border-border bg-amber-50 dark:bg-amber-950/30 px-5 py-2 text-xs text-amber-800 dark:text-amber-300">
+            <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+            <p>
+              {leyendaCaptura ?? 'Debe adjuntar las fotografías de manera obligatoria para poder concluir la captura de información de la bodega.'}
+            </p>
+          </div>
+        )}
 
         <CardContent className="p-0">
           {isLoading ? (
@@ -787,49 +1111,161 @@ export function FotografiasCard({ idBodega, mode = 'upload', onObservacionCreada
             </div>
           ) : (
             /* ── Split layout ────────────────────────────────────────── */
-            <div className={`flex flex-col ${hasPreview ? 'lg:flex-row' : ''}`}>
+            <div className={`flex flex-col ${hasPreview ? 'lg:flex-row lg:items-start' : ''}`}>
 
               {/* ── Lista ──────────────────────────────────────────────── */}
-              <div className={hasPreview ? 'lg:w-1/2' : 'w-full'}>
+              <div className={hasPreview ? 'lg:w-1/2 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1' : 'w-full'}>
                 <div className="divide-y divide-border">
                   {categorias.map((categoria) => {
-                    const slots = configs.filter(
-                      (c) => c.categoria === categoria && MOMENTOS_REQUERIDOS.has(c.momento),
+                    const slots = configsFiltrados.filter(
+                      (c) => c.categoria === categoria,
                     );
                     if (slots.length === 0) return null;
+
+                    // Cuando se solicita agrupación por subcategoría (wizard), se agrupan
+                    // las configs que comparten (categoria, subcategoria) en un solo bloque
+                    // con un MomentoUploader por cada momento (Antes/Durante/Posterior).
+                    if (agruparPorSubcategoria) {
+                      const gruposMap = new Map<string, IFotografiaConfig[]>();
+                      for (const cfg of slots) {
+                        const key = cfg.subcategoria ?? `__sin_subcat_${cfg.id}`;
+                        if (!gruposMap.has(key)) gruposMap.set(key, []);
+                        gruposMap.get(key)!.push(cfg);
+                      }
+                      const isCollapsed = collapsedCategorias.has(categoria);
+                      return (
+                        <div key={categoria}>
+                          {/* Encabezado categoría (colapsable) */}
+                          <button
+                            type="button"
+                            onClick={() => toggleCategoria(categoria)}
+                            aria-expanded={!isCollapsed}
+                            aria-controls={`cat-${categoria}`}
+                            className="w-full px-5 py-3 flex items-center gap-2 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          >
+                            {isCollapsed
+                              ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            }
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                              {categoria}
+                            </h3>
+                          </button>
+                          {!isCollapsed && (
+                            <div id={`cat-${categoria}`}>
+                          {Array.from(gruposMap.entries()).map(([key, configsGrupo]) => {
+                            if (key.startsWith('__sin_subcat_')) {
+                              // Fallback: render normal por config si no hay subcategoria
+                              return (
+                                <div key={key}>
+                                  {configsGrupo.map((cfg) => (
+                                    <ConfigSection
+                                      key={cfg.id}
+                                      config={cfg}
+                                      fotos={fotos.filter((f) => f.id_config === cfg.id)}
+                                      idBodega={idBodega}
+                                      mode={mode}
+                                      previewFotoId={previewFoto?.id ?? null}
+                                      onPreview={handlePreview}
+                                      onEliminar={setFotoAEliminar}
+                                      onObservar={setConfigAObservar}
+                                      onVerObservaciones={(cfg, ro) => setConfigAVerObs({ config: cfg, readOnly: ro })}
+                                      observaciones={observaciones}
+                                      soloLecturaObservaciones={soloLecturaObservaciones}
+                                      bodegaStatus={bodegaStatus}
+                                      canValidarFotografia={canValidarFotografia}
+canObservaciones={canObservaciones}
+                                       canValidarObservacion={canValidarObservacion}
+                                       canEliminarObservacion={canEliminarObservacion}
+                                       canEliminarFotografia={canEliminarEfectivo}
+                                     />
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return (
+                              <GrupoSubcategoriaCard
+                                key={key}
+                                configs={configsGrupo}
+                                fotos={fotos}
+                                idBodega={idBodega}
+                                canFotografias={canFotografias}
+                                canEliminar={canEliminarEfectivo}
+                                showStatus={false}
+                                onPreview={handlePreview}
+                                onEliminar={setFotoAEliminar}
+                              />
+                            );
+                          })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Renderizado por etapa Registro (comportamiento previo)
+                    const momentos = Array.from(new Set(slots.map((s) => s.momento)));
+                    const isCollapsed = collapsedCategorias.has(categoria);
                     return (
                       <div key={categoria}>
-                        {/* Encabezado categoría */}
-                        <div className="px-5 py-3 flex items-center gap-2 border-b border-border">
+                        {/* Encabezado categoría (colapsable) */}
+                        <button
+                          type="button"
+                          onClick={() => toggleCategoria(categoria)}
+                          aria-expanded={!isCollapsed}
+                          aria-controls={`cat-${categoria}`}
+                          className="w-full px-5 py-3 flex items-center gap-2 border-b border-border bg-muted/30 hover:bg-muted/50 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                          {isCollapsed
+                            ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          }
                           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                             {categoria}
                           </h3>
-                        </div>
-                        {/* Configs */}
-                        <div className="divide-y divide-border">
-                          {slots.map((cfg) => (
-                            <ConfigSection
-                              key={cfg.id}
-                              config={cfg}
-                              fotos={fotos.filter((f) => f.id_config === cfg.id)}
-                              idBodega={idBodega}
-                              mode={mode}
-                              previewFotoId={previewFoto?.id ?? null}
-                              onPreview={handlePreview}
-                              onEliminar={setFotoAEliminar}
-                              onObservar={setConfigAObservar}
-                              onVerObservaciones={(cfg, ro) => setConfigAVerObs({ config: cfg, readOnly: ro })}
-                              observaciones={observaciones}
-                              soloLecturaObservaciones={soloLecturaObservaciones}
-                              bodegaStatus={bodegaStatus}
-                              canValidarFotografia={canValidarFotografia}
-                              canObservaciones={canObservaciones}
-                              canValidarObservacion={canValidarObservacion}
-                              canEliminarObservacion={canEliminarObservacion}
-                              canEliminarFotografia={canEliminarFotografia}
-                            />
-                          ))}
-                        </div>
+                        </button>
+                        {!isCollapsed && (
+                          <div id={`cat-${categoria}`}>
+                        {/* Sub-encabezados por momento */}
+                        {momentos.map((momento) => {
+                          const slotsMomento = slots.filter((s) => s.momento === momento);
+                          if (slotsMomento.length === 0) return null;
+                          return (
+                            <div key={`${categoria}-${momento}`}>
+                              <div className="px-5 py-2 flex items-center gap-2 border-b border-border bg-muted/20">
+                                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  {ETAPA_LABEL[momento] ?? momento}
+                                </h4>
+                              </div>
+                              <div className="divide-y divide-border">
+                                {slotsMomento.map((cfg) => (
+                                  <ConfigSection
+                                    key={cfg.id}
+                                    config={cfg}
+                                    fotos={fotos.filter((f) => f.id_config === cfg.id)}
+                                    idBodega={idBodega}
+                                    mode={mode}
+                                    previewFotoId={previewFoto?.id ?? null}
+                                    onPreview={handlePreview}
+                                    onEliminar={setFotoAEliminar}
+                                    onObservar={setConfigAObservar}
+                                    onVerObservaciones={(cfg, ro) => setConfigAVerObs({ config: cfg, readOnly: ro })}
+                                    observaciones={observaciones}
+                                    soloLecturaObservaciones={soloLecturaObservaciones}
+                                    bodegaStatus={bodegaStatus}
+                                    canValidarFotografia={canValidarFotografia}
+                                    canObservaciones={canObservaciones}
+                                    canValidarObservacion={canValidarObservacion}
+                                    canEliminarObservacion={canEliminarObservacion}
+                                    canEliminarFotografia={canEliminarEfectivo}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -840,6 +1276,7 @@ export function FotografiasCard({ idBodega, mode = 'upload', onObservacionCreada
               {hasPreview && (
                 <FotoPreviewPanel
                   foto={previewFoto}
+                  config={configsFiltrados.find((c) => c.id === previewFoto.id_config) ?? null}
                   onClose={() => setPreviewFoto(null)}
                 />
               )}
@@ -925,14 +1362,14 @@ interface VerObservacionesFotoDialogProps {
   canEliminarObservacion?: boolean;
 }
 
-function VerObservacionesFotoDialog({ config, idBodega, observaciones, onClose, readOnly = false, bodegaStatus = 'Registrada', canValidarObservacion = true, canEliminarObservacion = true }: VerObservacionesFotoDialogProps) {
+function VerObservacionesFotoDialog({ config, idBodega, observaciones, onClose, readOnly = false, bodegaStatus = 'Capturada', canValidarObservacion = true, canEliminarObservacion = true }: VerObservacionesFotoDialogProps) {
   const { mutate: eliminar, isPending } = useEliminarObservacionBodega(idBodega);
   const { mutate: toggleStatusObs, isPending: togglingStatus } = useToggleStatusObservacionBodega(idBodega);
   const obsConfig = observaciones?.filter(
     (o) => o.seccion === 'Fotografias' && o.id_referencia === config.id,
   ) ?? [];
 
-  const modoSolventar = bodegaStatus === 'Observada' || bodegaStatus === 'Registrada';
+  const modoSolventar = bodegaStatus === 'Observada' || bodegaStatus === 'Capturada';
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -955,33 +1392,40 @@ function VerObservacionesFotoDialog({ config, idBodega, observaciones, onClose, 
               >
                 <p className="text-sm text-foreground">{obs.observacion}</p>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">
-                    {new Date(obs.created_at).toLocaleDateString('es-MX')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                        obs.status === 'Pendiente'
+                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                          : obs.status === 'Atendida'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      }`}
+                    >
+                      {obs.status}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(obs.created_at).toLocaleDateString('es-MX')}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1">
-                    {canValidarObservacion && bodegaStatus === 'Registrada' && (
+                    {canValidarObservacion && bodegaStatus === 'Capturada' && obs.status !== 'Validada' && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className={`h-7 w-7 p-0 ${
-                          obs.status === 'Pendiente'
-                            ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
-                            : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                        }`}
+                        className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                         onClick={() => toggleStatusObs(obs.id)}
                         disabled={togglingStatus}
-                        aria-label={obs.status === 'Pendiente' ? 'Marcar como solventada' : 'Marcar como pendiente'}
+                        aria-label={obs.status === 'Pendiente' ? 'Marcar como atendida' : 'Validar'}
                       >
                         {togglingStatus ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : obs.status === 'Pendiente' ? (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
                         ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
+                          <CheckCircle2 className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     )}
-                    {canEliminarObservacion && bodegaStatus === 'Registrada' && obs.status !== 'Solventada' && (
+                    {canEliminarObservacion && bodegaStatus === 'Capturada' && obs.status !== 'Validada' && (
                       <Button
                         variant="ghost"
                         size="sm"

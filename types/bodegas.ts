@@ -4,11 +4,12 @@ export type TTipoBodega = 'Oficina central' | 'Consejo';
 
 export type TStatusBodega =
   | 'En captura'
-  | 'Registrada'
+  | 'Capturada'
   | 'Observada'
-  | 'Validada'
+  | 'Determinada'
   | 'Verificada'
-  | 'Informada';
+  | 'Aceptada'
+  | 'Rechazada';
 
 export type TOrganoCompetente =
   | 'Órgano Central'
@@ -81,11 +82,12 @@ export interface IBodegaUpdatePayload extends IBodegaCreatePayload {
 export interface IBodegaDashboardProgreso {
   total: number;
   captura: number;
-  registrada: number;
+  capturada: number;
   observada: number;
-  validada: number;
+  determinada: number;
   verificada: number;
-  informada: number;
+  aceptada: number;
+  rechazada: number;
 }
 
 export interface IBodegaDashboardConsejo {
@@ -94,11 +96,12 @@ export interface IBodegaDashboardConsejo {
   nombre_consejo: string;
   total: number;
   captura: number;
-  registrada: number;
+  capturada: number;
   observada: number;
-  validada: number;
+  determinada: number;
   verificada: number;
-  informada: number;
+  aceptada: number;
+  rechazada: number;
 }
 
 export interface IBodegaDashboard {
@@ -136,8 +139,10 @@ export interface IAcuerdo {
 export interface IFotografiaConfig {
   id: number;
   categoria: 'Acondicionamiento' | 'Equipamiento';
-  momento: 'Antes' | 'Durante' | 'Despues';
-  max_fotos: number;
+  subcategoria: string | null;
+  momento: 'Antes' | 'Durante' | 'Posterior';
+  etapa: 'Registro' | 'Verificacion' | 'Comprobacion' | string;
+  min_fotos: number;
   descripcion: string | null;
 }
 
@@ -189,7 +194,7 @@ export interface IBodegaDetalleResult {
 // ─── Observaciones a nivel bodega ─────────────────────────────────────────────
 
 export type TSeccionObservacion = 'General' | 'Acuerdos' | 'Fotografias';
-export type TStatusObservacion = 'Pendiente' | 'Solventada';
+export type TStatusObservacion = 'Pendiente' | 'Atendida' | 'Validada';
 
 export interface IObservacionBodega {
   id: number;

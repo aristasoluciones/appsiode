@@ -6,13 +6,18 @@ import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Camera,
   CheckCircle2,
+  ClipboardCheck,
   FileText,
   Info,
   Loader2,
   MessageSquare,
   Pencil,
+  Plus,
+  Send,
+  ShieldCheck,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,7 +48,9 @@ import {
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import { useAuth } from '@/providers/auth-provider';
+import { formatDateOnly } from '@/lib/helpers';
 import { useBodegaDetalle, useObservacionesBodega, useAcuerdoBodega, useEliminarBodega, useFotografiasConfig, useSolicitarValidacionBodega } from '../_hooks/use-bodegas';
+import { useVerificaciones } from '../_hooks/use-verificaciones';
 import { UploadAcuerdo } from './upload-acuerdo';
 import { FotografiasCard, type FotosState } from './fotografias-card';
 import { BodegaValidacionActions } from './bodega-validacion-actions';
@@ -55,11 +62,12 @@ import { ErrorState } from '@/components/common/error-state';
 
 const STATUS_STYLES: Record<TStatusBodega, string> = {
   'En captura':    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  Registrada:      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  Capturada:      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   Observada:       'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
-  Validada:        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  Determinada:        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   Verificada:      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  Informada:       'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+  Aceptada:       'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  Rechazada:     'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
 function StatusBadge({ status }: { status: TStatusBodega }) {
@@ -78,7 +86,7 @@ function DataRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 py-2.5 border-b border-border last:border-0">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="text-sm text-foreground">{value ?? '—'}</dd>
+      <dd className="text-sm text-foreground text-justify">{value ?? '—'}</dd>
     </div>
   );
 }
@@ -96,6 +104,8 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
   const { user, hasPermission } = useAuth();
   const canEditar = hasPermission('bodegas.be.actualizar');
   const canEliminar = hasPermission('bodegas.be.eliminar');
+  const canVerificar = hasPermission('bodegas.be.verificaciones');
+  const canRegistrarVerificacion = hasPermission('bodegas.be.registrarverificacion');
   const canFotografias = hasPermission('bodegas.be.fotografias');
   const canValidarFotografia = hasPermission('bodegas.be.validarfotografia');
   const canEliminarFotografia = hasPermission('bodegas.be.eliminarfotografia');
@@ -103,6 +113,7 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
   const canValidarObservacion = hasPermission('bodegas.be.validarobservacion');
   const canEliminarObservacion = hasPermission('bodegas.be.eliminarobservacion');
   const canObservaciones = hasPermission('bodegas.be.observaciones');
+  const canDeterminar = hasPermission('bodegas.be.determinar');
 
   const idBodega = Number(id);
 
@@ -122,10 +133,14 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
   const queriesEnabled = !!bodega && hasAccess;
 
   const esEnCaptura   = bodega?.status === 'En captura';
-  const esRegistrada  = bodega?.status === 'Registrada';
+  const esCapturada  = bodega?.status === 'Capturada';
   const esObservada   = bodega?.status === 'Observada';
-  const esValidada    = bodega?.status === 'Validada';
-  const modoValidacion = esRegistrada || esObservada;
+  const esDeterminada    = bodega?.status === 'Determinada';
+  const esTerminal = ['Determinada', 'Verificada', 'Aceptada', 'Rechazada'].includes(bodega?.status ?? '');
+  const modoValidacion = esCapturada || esObservada;
+  // La bodega puede eliminarse únicamente hasta el estatus "Determinada".
+  // Después de eso (Verificada, Aceptada, Rechazada) ya no es eliminable.
+  const puedeEliminarBodega = canEliminar && (esEnCaptura || esCapturada || esObservada || esDeterminada);
 
   const [fotosState, setFotosState] = useState<FotosState>({
     allRequiredFilled: false,
@@ -137,10 +152,13 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
   const { data: acuerdo } = useAcuerdoBodega(idBodega, queriesEnabled);
   const { data: observaciones = [] } = useObservacionesBodega(idBodega, queriesEnabled);
   const { data: fotografiaConfigs = [] } = useFotografiasConfig(queriesEnabled);
+  const { data: verificaciones = [] } = useVerificaciones(idBodega, queriesEnabled);
   const { mutate: eliminarBodega, isPending: eliminando } = useEliminarBodega();
   const { mutate: solicitarValidacion, isPending: solicitandoValidacion } = useSolicitarValidacionBodega();
   const [confirmDeleteBodega, setConfirmDeleteBodega] = useState(false);
   const [confirmTerminar, setConfirmTerminar] = useState(false);
+  const [determinarOpen, setDeterminarOpen] = useState(false);
+  const [requerirOpen, setRequerirOpen] = useState(false);
 
   const allPhotosValidada =
     fotosState.allRequiredFilled &&
@@ -155,15 +173,23 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
     () => observaciones.filter(o => o.seccion === 'Acuerdos' && o.status === 'Pendiente').length,
     [observaciones],
   );
+  const obsFotosNoValidadas = useMemo(
+    () => observaciones.filter(o => o.seccion === 'Fotografias' && o.status !== 'Validada').length,
+    [observaciones],
+  );
+  const obsAcuerdoNoValidadas = useMemo(
+    () => observaciones.filter(o => o.seccion === 'Acuerdos' && o.status !== 'Validada').length,
+    [observaciones],
+  );
 
   // Solo se puede eliminar fotos/acuerdo en "En captura" u "Observada"
   const puedeEliminarFotos = (esEnCaptura || esObservada) && canEliminarFotografia;
   const puedeEliminarAcuerdo = (esEnCaptura || esObservada) && hasPermission('bodegas.be.eliminaracuerdo');
-  // Observaciones solo lectura en "Observada" y "Validada"
-  const soloLecturaObservaciones = esObservada || esValidada;
-  // Modo validar solo en "Registrada"
-  const modoFotos = esRegistrada ? 'validar' : 'upload';
-  const modoAcuerdo = esRegistrada ? 'validar' : 'upload';
+  // Observaciones solo lectura en "Observada" y "Determinada"
+  const soloLecturaObservaciones = esObservada || esTerminal;
+  // Modo validar solo en "Capturada"
+  const modoFotos = esCapturada ? 'validar' : 'upload';
+  const modoAcuerdo = esCapturada ? 'validar' : 'upload';
 
   const backHref = useMemo(() => {
     if (!bodega) return '/bodegas';
@@ -374,7 +400,7 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Volver
           </Button>
-          {canEditar && !esValidada && bodega.status !== 'Observada' && (
+          {canEditar && !esTerminal && bodega.status !== 'Observada' && (
             <Link href={`/bodegas/${bodega.id}/editar`}>
               <Button size="sm" className="gap-1.5">
                 <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -382,7 +408,7 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               </Button>
             </Link>
           )}
-          {canEliminar && !esValidada && bodega.status !== 'Observada' && (
+          {puedeEliminarBodega && (
             <Button
               size="sm"
               variant="outline"
@@ -393,29 +419,15 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               Eliminar
             </Button>
           )}
-          {((bodega.status === 'En captura' && fotosState.allRequiredFilled && hasAcuerdo) ||
-            (bodega.status === 'Observada' && fotosState.allRequiredFilled)) && (
-            <Button
-              size="sm"
-              className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
-              disabled={solicitandoValidacion}
-              onClick={() => setConfirmTerminar(true)}
-            >
-              {solicitandoValidacion ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-              Terminar y enviar
-            </Button>
-          )}
-          {canValidarFotografia && bodega.status === 'Registrada' && (
+          {canValidarFotografia && bodega.status === 'Capturada' && (
             <BodegaValidacionActions
               idBodega={bodega.id}
-              allPhotosValidada={allPhotosValidada}
               observaciones={observaciones}
-              hasAcuerdo={hasAcuerdo}
               fotografiaConfigs={fotografiaConfigs}
+              determinarOpen={determinarOpen}
+              onDeterminarOpenChange={setDeterminarOpen}
+              requerirOpen={requerirOpen}
+              onRequerirOpenChange={setRequerirOpen}
             />
           )}
         </ToolbarActions>
@@ -424,8 +436,36 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
       {/* ── Encabezado ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
 
-        {/* Izquierda: mensaje de observaciones (solo cuando está Observada) */}
-        {esObservada ? (
+        {/* Izquierda: mensaje de observaciones */}
+        {esCapturada && canValidarFotografia && (obsFotosNoValidadas > 0 || obsAcuerdoNoValidadas > 0) ? (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800/40 text-sky-700 dark:text-sky-300 text-sm">
+            <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="leading-snug">
+              Hay observaciones por validar en:{' '}
+              <span className="inline-flex items-center gap-1 font-medium">
+                <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                Fotografías
+                {obsFotosNoValidadas > 0 && (
+                  <sup className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-sky-600 dark:bg-sky-500 text-white text-[10px] font-bold leading-none">
+                    {obsFotosNoValidadas}
+                  </sup>
+                )}
+              </span>
+              {obsAcuerdoNoValidadas > 0 && (
+                <>
+                  {' y '}
+                  <span className="inline-flex items-center gap-1 font-medium">
+                    <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+                    Acuerdo
+                    <sup className="ml-0.5 inline-flex items-center justify-center h-4 min-w-[1rem] px-1 rounded-full bg-sky-600 dark:bg-sky-500 text-white text-[10px] font-bold leading-none">
+                      {obsAcuerdoNoValidadas}
+                    </sup>
+                  </span>
+                </>
+              )}
+            </span>
+          </div>
+        ) : esObservada ? (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-300 text-sm">
             <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="leading-snug">
@@ -559,6 +599,57 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               </dl>
             </CardContent>
           </Card>
+
+          {/* ── Card de Verificaciones ─────────────────────────────────────────── */}
+          {(canVerificar && (bodega.status === 'Determinada' || bodega.status === 'Verificada' || bodega.status === 'Informada' || verificaciones.length > 0)) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Verificaciones
+                </h2>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Total</span>
+                    <span className="text-sm font-semibold text-foreground">{verificaciones.length}</span>
+                  </div>
+                  {verificaciones.length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Última</span>
+                      <span className="text-sm text-foreground">
+                        {verificaciones[0].fechaVerificacion
+                          ? formatDateOnly(verificaciones[0].fechaVerificacion, 'es-MX')
+                          : '—'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="pt-2 space-y-2">
+                    {canRegistrarVerificacion && !esTerminal && (
+                      <Button
+                        size="sm"
+                        className="w-full gap-1.5"
+                        onClick={() => router.push(`/bodegas/${idBodega}/verificaciones/nueva`)}
+                      >
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Nueva verificación
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-1.5"
+                      onClick={() => router.push(`/bodegas/${idBodega}/verificaciones`)}
+                    >
+                      Ver verificaciones
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* ── Contenido principal (móvil segundo, md: izquierda) ──────────────── */}
@@ -592,6 +683,57 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
         </div>
       </div>
 
+      {/* Sticky footer: Terminar y enviar */}
+      {hasAccess && (
+        (bodega.status === 'En captura' && fotosState.allRequiredFilled && hasAcuerdo) ||
+        (bodega.status === 'Observada' && fotosState.allRequiredFilled && observaciones.filter(o => o.status === 'Pendiente').length === 0)
+      ) && (
+        <div className="sticky bottom-0 z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 bg-background border-t border-border mt-6 flex justify-end gap-2">
+          <Button
+            size="sm"
+            className="gap-1.5 bg-pink-600 text-white hover:bg-pink-700"
+            disabled={solicitandoValidacion}
+            onClick={() => setConfirmTerminar(true)}
+          >
+            {solicitandoValidacion ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
+            Terminar y enviar
+          </Button>
+        </div>
+      )}
+
+      {/* Sticky footer: Determinar bodega */}
+      {canDeterminar && bodega.status === 'Capturada' && allPhotosValidada && hasAcuerdo && observaciones.filter(o => o.status !== 'Validada').length === 0 && (
+        <div className="sticky bottom-0 z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 bg-background border-t border-border mt-6 flex justify-end">
+          <Button
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setDeterminarOpen(true)}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Determinar bodega
+          </Button>
+        </div>
+      )}
+
+      {/* Sticky footer: Requerir */}
+      {canValidarFotografia && bodega.status === 'Capturada' && observaciones.filter(o => o.status === 'Pendiente').length > 0 && (
+        <div className="sticky bottom-0 z-10 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 bg-background border-t border-border mt-6 flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900 dark:hover:bg-rose-950/30"
+            onClick={() => setRequerirOpen(true)}
+          >
+            <Send className="h-4 w-4" />
+            Requerir
+          </Button>
+        </div>
+      )}
+
       {/* Confirmación eliminar bodega */}
       <AlertDialog open={confirmDeleteBodega} onOpenChange={setConfirmDeleteBodega}>
         <AlertDialogContent>
@@ -623,11 +765,11 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-blue-500" />
+              <CheckCircle2 className="h-5 w-5 text-pink-500" />
               ¿Terminar y enviar?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Se cambiará el estatus de la bodega a <strong>Registrada</strong> para su validación.
+              Se cambiará el estatus de la bodega a <strong>Capturada</strong> para su determinación.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -638,7 +780,7 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
                 setConfirmTerminar(false);
               }}
               disabled={solicitandoValidacion}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-pink-600 text-white hover:bg-pink-700"
             >
               {solicitandoValidacion && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" aria-hidden="true" />}
               Terminar y enviar

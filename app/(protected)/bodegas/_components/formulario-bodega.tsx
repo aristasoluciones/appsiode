@@ -33,6 +33,7 @@ import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { useAuth } from '@/providers/auth-provider';
 import { useCrearBodega, useActualizarBodega } from '../_hooks/use-bodegas';
+import { toastError } from '@/lib/toast';
 import type {
   IBodega,
   IBodegaFormValues,
@@ -106,6 +107,14 @@ const validationSchema = Yup.object({
     then: (s) => s.optional(),
     otherwise: (s) => s.optional(),
   }),
+  ubicada_en_inmueble: Yup.boolean()
+    .nullable()
+    .required('Indica si la bodega se ubica dentro del inmueble')
+    .test('not-null', 'Indica si la bodega se ubica dentro del inmueble', (v) => v !== null && v !== undefined),
+  espacio_materiales: Yup.boolean()
+    .nullable()
+    .required('Indica si cuenta con espacio para materiales')
+    .test('not-null', 'Indica si cuenta con espacio para materiales', (v) => v !== null && v !== undefined),
 });
 
 // ─── Valores iniciales ────────────────────────────────────────────────────────
@@ -269,11 +278,42 @@ export function FormularioBodega({ modo, bodega, readOnly = false }: FormularioB
         values.espacio_materiales === false ? (values.medidas_no_espacio || '') : '',
       observaciones: values.observaciones || '',
     };
-    if (modo === 'crear') {
-      await crearMutation.mutateAsync(payload);
-    } else if (bodega) {
-      await actualizarMutation.mutateAsync({ id: bodega.id, ...payload });
+    try {
+      if (modo === 'crear') {
+        await crearMutation.mutateAsync(payload);
+      } else if (bodega) {
+        await actualizarMutation.mutateAsync({ id: bodega.id, ...payload });
+      }
+    } catch (err: unknown) {
+      const firstError = extractFirstBackendError(err);
+      if (firstError) {
+        toastError(firstError);
+      } else {
+        toastError('Ocurrió un error al guardar la bodega.');
+      }
     }
+  }
+
+  /**
+   * Extrae el primer mensaje de error de un response 400 del backend.
+   * El backend responde con `{ errors: { CampoPascalCase: [string, ...] } }`.
+   */
+  function extractFirstBackendError(err: unknown): string | null {
+    const axiosErr = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string }; status?: number } };
+    const data = axiosErr?.response?.data;
+    if (!data) return null;
+    if (data.errors && typeof data.errors === 'object') {
+      for (const key of Object.keys(data.errors)) {
+        const msgs = data.errors[key];
+        if (Array.isArray(msgs) && msgs.length > 0 && typeof msgs[0] === 'string') {
+          return msgs[0];
+        }
+      }
+    }
+    if (typeof data.message === 'string' && data.message.trim() !== '') {
+      return data.message;
+    }
+    return null;
   }
 
   return (
@@ -588,7 +628,7 @@ function FormularioInner({
             {/* ¿Ubicada en un inmueble? */}
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                ¿Se ubica dentro del inmueble del Órgano Competente?
+                ¿Se ubica dentro del inmueble del Órgano Competente? <span className="text-destructive">*</span>
               </p>
               <SiNoToggle
                 id="ubicada_en_inmueble"
@@ -671,7 +711,7 @@ function FormularioInner({
             {/* ¿Cuenta con espacio para materiales? */}
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                ¿Cuenta con espacio para el resguardo de los materiales electorales?
+                ¿Cuenta con espacio para el resguardo de los materiales electorales? <span className="text-destructive">*</span>
               </p>
               <SiNoToggle
                 id="espacio_materiales"
@@ -751,7 +791,12 @@ function FormularioInner({
               <Button
                 type="submit"
                 className="gap-1.5"
-                disabled={isPending || isSubmitting}
+                disabled={
+                  isPending ||
+                  isSubmitting ||
+                  values.ubicada_en_inmueble == null ||
+                  values.espacio_materiales == null
+                }
                 aria-busy={isPending}
               >
                 {isPending ? (

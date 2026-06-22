@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { toastSuccess, toastError } from '@/lib/toast';
@@ -73,24 +74,31 @@ export function useBodegasLista(
 }
 
 export function useBodegaDetalle(id: string | number) {
-  return useQuery<IBodegaDetalleResult>({
+  return useQuery<IBodegaDetalleResult | null>({
     queryKey: BODEGAS_KEYS.detalle(id),
     queryFn: async () => {
-      const response = await apiClient.get<IBodega | { data: IBodega; meta: any }>(
-        API_ENDPOINTS.BODEGAS.BY_ID(id),
-      );
-      const result = response.data;
-      if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
-        const envelope = result as { data: IBodega; meta: any };
+      try {
+        const response = await apiClient.get<IBodega | { data: IBodega; meta: any }>(
+          API_ENDPOINTS.BODEGAS.BY_ID(id),
+        );
+        const result = response.data;
+        if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
+          const envelope = result as { data: IBodega; meta: any };
+          return {
+            bodega: envelope.data,
+            meta: envelope.meta ?? null,
+          };
+        }
         return {
-          bodega: envelope.data,
-          meta: envelope.meta ?? null,
+          bodega: result as IBodega,
+          meta: null,
         };
+      } catch (error: unknown) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          return null;
+        }
+        throw error;
       }
-      return {
-        bodega: result as IBodega,
-        meta: null,
-      };
     },
     enabled: !!id,
     staleTime: 30_000,
@@ -116,15 +124,16 @@ export function useBodegasDashboard(
         dashboard = result;
       }
       return dashboard ?? {
-        progreso: {
-          total: 0,
-          captura: 0,
-          registrada: 0,
-          observada: 0,
-          validada: 0,
-          verificada: 0,
-          informada: 0,
-        },
+          progreso: {
+            total: 0,
+            captura: 0,
+            capturada: 0,
+            observada: 0,
+            determinada: 0,
+            verificada: 0,
+            aceptada: 0,
+            rechazada: 0,
+          },
         consejos: [],
       };
     },
@@ -258,6 +267,8 @@ export function useSubirAcuerdo(idBodega: number) {
       toastSuccess('Acuerdo cargado correctamente.');
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.acuerdo(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
     },
   });
 }
@@ -273,6 +284,8 @@ export function useEliminarAcuerdo(idBodega: number) {
       toastSuccess('Acuerdo eliminado correctamente.');
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.acuerdo(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
     },
     onError: () => {
       toastError('No se pudo eliminar el acuerdo.');
@@ -304,6 +317,9 @@ export function useSubirFotografias(idBodega: number) {
       queryClient.invalidateQueries({
         queryKey: ['bodegas', 'fotografias', idBodega],
       });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
     },
   });
 }
@@ -390,6 +406,9 @@ export function useEliminarFotografia(idBodega: string | number) {
       queryClient.invalidateQueries({
         queryKey: ['bodegas', 'fotografias', idBodega],
       });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
     },
     onError: () => {
       toastError('No se pudo eliminar la fotografía.');
@@ -463,13 +482,13 @@ export function useCrearObservacionBodega(idBodega: string | number) {
   });
 }
 
-export function useValidarBodega() {
+export function useDeterminarBodega() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (idBodega: string | number) => {
       const response = await apiClient.put<IBodega | { data: IBodega; meta: any }>(
-        API_ENDPOINTS.BODEGAS.VALIDAR(idBodega),
+        API_ENDPOINTS.BODEGAS.DETERMINAR(idBodega),
       );
       const result = response.data;
       if (result && typeof result === 'object' && 'data' in result && 'meta' in result) {
@@ -478,14 +497,11 @@ export function useValidarBodega() {
       return result;
     },
     onSuccess: (_, idBodega) => {
-      toastSuccess('Bodega validada correctamente.');
+      toastSuccess('Bodega determinada correctamente.');
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
       queryClient.invalidateQueries({ queryKey: ['bodegas', 'lista'] });
       queryClient.invalidateQueries({ queryKey: ['bodegas', 'dashboard'] });
-    },
-    onError: () => {
-      toastError('No se pudo validar la bodega.');
-    },
+    }
   });
 }
 
@@ -604,9 +620,6 @@ export function useEliminarBodega() {
       queryClient.invalidateQueries({ queryKey: ['bodegas', 'lista'] });
       queryClient.invalidateQueries({ queryKey: ['bodegas', 'dashboard'] });
       router.push('/bodegas');
-    },
-    onError: () => {
-      toastError('No se pudo eliminar la bodega.');
     },
   });
 }

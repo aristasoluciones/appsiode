@@ -115,3 +115,56 @@ export function formatDateTime(input: Date | string | number): string {
     hour12: true,
   });
 }
+
+/**
+ * Formatea una fecha ISO a formato legible SIN aplicar conversión de zona horaria.
+ * La API devuelve fechas en formato 'YYYY-MM-DDTHH:mm:ssZ' (UTC). Si las mostramos
+ * con `new Date()` y `toLocaleDateString()`, el navegador las convierte a la zona
+ * local y puede mostrar un día anterior (p. ej. '2025-12-15T00:00:00Z' en UTC-5
+ * se renderiza como 14/12/2025). Esta función extrae directamente la porción
+ * 'YYYY-MM-DD' para evitar ese desfase.
+ *
+ * Acepta tanto fechas con hora ('YYYY-MM-DDTHH:mm:ssZ') como fechas simples
+ * ('YYYY-MM-DD'). Para objetos Date, usa los métodos locales (que ya están en
+ * la zona horaria del usuario y no presentan el desfase).
+ */
+export function formatDateOnly(input: Date | string | number | null | undefined, locale: string = 'es-MX'): string {
+  if (input == null) return '';
+  if (input instanceof Date) {
+    return input.toLocaleDateString(locale);
+  }
+  const str = String(input);
+  // Si es una fecha simple YYYY-MM-DD o empieza con YYYY-MM-DDTHH:mm:ssZ,
+  // extraemos la porción de fecha directamente para evitar el desfase de zona horaria.
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, y, m, d] = match;
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    return date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  // Fallback: intentar con Date (puede tener desfase, pero es la mejor opción)
+  const date = new Date(str);
+  return date.toLocaleDateString(locale);
+}
+
+/**
+ * Devuelve la porción 'YYYY-MM-DD' de una fecha ISO sin aplicar conversión de zona
+ * horaria. Útil para pasar a inputs de tipo 'date' o a APIs que esperan solo fecha.
+ */
+export function toIsoDateOnly(input: Date | string | number | null | undefined): string {
+  if (input == null) return '';
+  if (input instanceof Date) {
+    const y = input.getFullYear();
+    const m = String(input.getMonth() + 1).padStart(2, '0');
+    const d = String(input.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const str = String(input);
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return match[0];
+  const date = new Date(str);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}

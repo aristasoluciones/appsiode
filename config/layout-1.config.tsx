@@ -78,7 +78,15 @@ export const MENU_SIDEBAR: MenuConfig = [
       permission: 'bodegas.be.ver',
   },
   { 
-      title: 'Bitacora de Aperturas', 
+      title: 'Aperturas', 
+      icon: Logs,
+      path: '/coming-soon', 
+      badge: 'New',
+      disabled: false,
+      permission: 'bodegas.aperturas.ver',
+  },
+  { 
+      title: 'Bitacora de aperturas', 
       icon: Logs,
       path: '/coming-soon', 
       badge: 'New',

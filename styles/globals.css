@@ -157,7 +157,7 @@ html {
 @utility container {
   @apply mx-auto max-w-none px-4 lg:px-5;
 
-  @media (width >= --theme(--breakpoint-xl)) {
+  @media (width >= theme(--breakpoint-xl)) {
     @apply max-w-(--breakpoint-xl);
   }
 }

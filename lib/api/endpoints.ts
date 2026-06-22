@@ -113,7 +113,7 @@ export const API_ENDPOINTS = {
       return `/bodegas/${idBodega}/observaciones${query ? `?${query}` : ''}`;
     },
     CREAR_OBSERVACION: (idBodega: string | number) => `/bodegas/${idBodega}/observaciones`,
-    VALIDAR: (idBodega: string | number) => `/bodegas/${idBodega}/validar`,
+    DETERMINAR: (idBodega: string | number) => `/bodegas/${idBodega}/determinar`,
     ENVIAR_OBSERVACIONES: (idBodega: string | number) => `/bodegas/${idBodega}/enviar-observaciones`,
     OBSERVACION_DELETE: (idBodega: string | number, idObservacion: string | number) =>
       `/bodegas/${idBodega}/observaciones/${idObservacion}`,
@@ -121,5 +121,18 @@ export const API_ENDPOINTS = {
       `/bodegas/${idBodega}/observaciones/${idObservacion}/toggle-status`,
     SOLICITAR_VALIDACION: (idBodega: string | number) => `/bodegas/${idBodega}/solicitar-validacion`,
     DELETE: (id: string | number) => `/bodegas/${id}`,
+    VERIFICACIONES_LIST: (idBodega: string | number) => `/bodegas/${idBodega}/verificaciones`,
+    VERIFICACION_ULTIMA: (idBodega: string | number) => `/bodegas/${idBodega}/verificaciones/ultima-verificacion`,
+    VERIFICACION_DETAIL: (idBodega: string | number, idVerificacion: string | number) =>
+      `/bodegas/${idBodega}/verificaciones/${idVerificacion}`,
+    VERIFICACION_CREATE: (idBodega: string | number) => `/bodegas/${idBodega}/verificaciones`,
+    VERIFICACION_UPDATE: (idBodega: string | number, idVerificacion: string | number) =>
+      `/bodegas/${idBodega}/verificaciones/${idVerificacion}`,
+    VERIFICACION_FINALIZAR: (idBodega: string | number, idVerificacion: string | number) =>
+      `/bodegas/${idBodega}/verificaciones/${idVerificacion}/finalizar`,
+    VERIFICACION_DELETE: (idBodega: string | number, idVerificacion: string | number) =>
+      `/bodegas/${idBodega}/verificaciones/${idVerificacion}`,
+    VERIFICACION_REVISAR: (idBodega: string | number, idVerificacion: string | number) =>
+      `/bodegas/${idBodega}/verificaciones/${idVerificacion}/revisar`,
   },
 } as const;
