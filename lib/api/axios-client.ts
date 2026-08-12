@@ -11,7 +11,11 @@ function processQueue(success: boolean) {
 async function redirectToLogin(reason?: string) {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/Auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: csrfHeaders(),
+    });
   } catch { /* continuar aunque falle */ }
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
   if (reason) {
@@ -105,7 +109,11 @@ apiClient.interceptors.response.use((response) => {
   isRefreshing = true;
 
   try {
-    const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+    const refreshRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/Auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: csrfHeaders(),
+    });
     if (!refreshRes.ok) throw new Error('Refresh failed');
     processQueue(true);
     return apiClient(originalRequest);
@@ -118,10 +126,15 @@ apiClient.interceptors.response.use((response) => {
   }
 });
 
-function getCsrfToken(): string | null {
+export function getCsrfToken(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(/(?:^|;\s*)X-CSRF-TOKEN=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+function csrfHeaders(): Record<string, string> {
+  const token = getCsrfToken();
+  return token ? { 'X-CSRF-TOKEN': token } : {};
 }
 
 /**

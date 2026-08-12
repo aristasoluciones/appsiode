@@ -1,10 +1,22 @@
 import axios from 'axios';
-import { BFF_ENDPOINTS } from './endpoints';
+import { API_ENDPOINTS } from './endpoints';
+import { getCsrfToken } from './axios-client';
 
+// Cliente de autenticación: browser → API .NET directo (sin proxy BFF).
+// Las cookies HttpOnly (AccessToken/RefreshToken) viajan con withCredentials;
+// la API debe tener CORS con credenciales habilitado para el origen del frontend.
 const authClient = axios.create({
-  baseURL: '',
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
+});
+
+authClient.interceptors.request.use((config) => {
+  if (['post', 'put', 'delete', 'patch'].includes(config.method ?? '')) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) config.headers['X-CSRF-TOKEN'] = csrfToken;
+  }
+  return config;
 });
 
 let isRefreshing = false;
@@ -24,8 +36,8 @@ authClient.interceptors.response.use(
     if (
       error?.response?.status !== 401 ||
       originalRequest._retry ||
-      originalRequest.url === BFF_ENDPOINTS.AUTH.REFRESH ||
-      originalRequest.url === BFF_ENDPOINTS.AUTH.PERFIL
+      originalRequest.url === API_ENDPOINTS.AUTH.REFRESH ||
+      originalRequest.url === API_ENDPOINTS.AUTH.PERFIL
     ) {
       return Promise.reject(error);
     }
@@ -44,7 +56,7 @@ authClient.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      await authClient.post(BFF_ENDPOINTS.AUTH.REFRESH);
+      await authClient.post(API_ENDPOINTS.AUTH.REFRESH);
       processQueue(true);
       return authClient(originalRequest);
     } catch {

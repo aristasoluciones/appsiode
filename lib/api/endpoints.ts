@@ -1,15 +1,4 @@
-// Endpoints del BFF (browser → Next.js API routes, solo auth)
-export const BFF_ENDPOINTS = {
-  AUTH: {
-    LOGIN: '/api/auth/login',
-    LOGOUT: '/api/auth/logout',
-    ME: '/api/auth/me',
-    PERFIL: '/api/auth/perfil',
-    REFRESH: '/api/auth/refresh',
-  },
-} as const;
-
-// Endpoints del API .NET — usados con apiClient (browser directo) y serverApi (server-side)
+// Endpoints del API .NET — usados con apiClient y authClient (browser directo)
 export const API_ENDPOINTS = {
   CATALOGOS: {
     PROCESO: (idProceso: string | number) => `/Catalogos/proceso/${idProceso}`,
