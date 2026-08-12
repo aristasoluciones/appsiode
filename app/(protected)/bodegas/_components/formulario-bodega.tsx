@@ -31,6 +31,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { CATALOGOS_KEYS } from '@/lib/query-keys';
 import { useAuth } from '@/providers/auth-provider';
 import { useCrearBodega, useActualizarBodega } from '../_hooks/use-bodegas';
 import { toastError } from '@/lib/toast';
@@ -214,7 +215,7 @@ function SiNoToggle({
 
 function useCatalogosConsejos() {
   return useQuery<ICatalogosData>({
-    queryKey: ['catalogos', 'sesiones'],
+    queryKey: CATALOGOS_KEYS.sesiones(),
     queryFn: async () => {
       const { data } = await apiClient.get<ICatalogosData>(API_ENDPOINTS.CATALOGOS.SESIONES);
       return data;

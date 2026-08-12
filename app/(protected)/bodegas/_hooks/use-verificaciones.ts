@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { BODEGAS_KEYS } from './use-bodegas';
+import { BODEGAS_KEYS, VERIFICACIONES_KEYS } from '@/lib/query-keys';
 import { toastSuccess, toastError } from '@/lib/toast';
 import type {
   IVerificacion,
@@ -40,14 +40,6 @@ function toSnakeCase(obj: unknown): unknown {
   }
   return result;
 }
-
-// ─── Query keys ───────────────────────────────────────────────────────────────
-
-export const VERIFICACIONES_KEYS = {
-  lista: (idBodega: string | number) => ['bodegas', idBodega, 'verificaciones'] as const,
-  detalle: (idBodega: string | number, idVerificacion: string | number) =>
-    ['bodegas', idBodega, 'verificaciones', idVerificacion] as const,
-};
 
 // ─── Hooks de lectura ─────────────────────────────────────────────────────────
 
@@ -99,7 +91,7 @@ export function useUltimaVerificacion(idBodega: string | number, enabled = true)
   return useQuery<{ data: IVerificacion | null; meta: any }>({
     // Query key independiente (no es subconjunto de la lista) para que
     // no se invalide al crear/actualizar una verificación.
-    queryKey: ['bodegas', idBodega, 'ultima-verificacion'] as const,
+    queryKey: VERIFICACIONES_KEYS.ultima(idBodega),
     queryFn: async () => {
       const response = await apiClient.get<IVerificacion | { data: IVerificacion; meta?: any } | null>(
         API_ENDPOINTS.BODEGAS.VERIFICACION_ULTIMA(idBodega),

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { getDataAuditoria } from '@/lib/auditoria';
+import { ROLES_KEYS } from '@/lib/query-keys';
 import { toastSuccess } from '@/lib/toast';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,16 +44,11 @@ export interface IPermisosResponse {
   acciones: IAccionCatalogo[];
 }
 
-// ── Query Keys ────────────────────────────────────────────────────────────────
-
-const QK_ROLES    = 'roles'         as const;
-const QK_PERMISOS = 'roles-permisos' as const;
-
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export function useRolesData() {
   return useQuery({
-    queryKey: [QK_ROLES],
+    queryKey: ROLES_KEYS.lista(),
     queryFn: async () => {
       const { data } = await apiClient.get<IRol[]>(API_ENDPOINTS.ROLES.LIST);
       return data;
@@ -62,7 +58,7 @@ export function useRolesData() {
 
 export function usePermisosByRol(idRol: number) {
   return useQuery({
-    queryKey: [QK_PERMISOS, idRol],
+    queryKey: ROLES_KEYS.permisos(idRol),
     queryFn: async () => {
       const { data } = await apiClient.get<IPermisosResponse>(
         API_ENDPOINTS.ROLES.PERMISOS(idRol),
@@ -88,7 +84,7 @@ export function useCreateRol() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_ROLES] });
+      queryClient.invalidateQueries({ queryKey: ROLES_KEYS.lista() });
       toastSuccess('Rol creado correctamente.');
     },
   });
@@ -106,7 +102,7 @@ export function useUpdateRol() {
       return updated;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_ROLES] });
+      queryClient.invalidateQueries({ queryKey: ROLES_KEYS.lista() });
       toastSuccess('Rol actualizado correctamente.');
     },
   });
@@ -123,7 +119,7 @@ export function useDeleteRol() {
       return idRol;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_ROLES] });
+      queryClient.invalidateQueries({ queryKey: ROLES_KEYS.lista() });
       toastSuccess('Rol eliminado correctamente.');
     },
   });
@@ -140,11 +136,11 @@ export function useTogglePermiso() {
 
     // Optimistic update — el switch cambia al instante sin esperar al servidor
     onMutate: async ({ idRol, idAccion }) => {
-      await queryClient.cancelQueries({ queryKey: [QK_PERMISOS, idRol] });
+      await queryClient.cancelQueries({ queryKey: ROLES_KEYS.permisos(idRol) });
 
-      const previous = queryClient.getQueryData<IPermisosResponse>([QK_PERMISOS, idRol]);
+      const previous = queryClient.getQueryData<IPermisosResponse>(ROLES_KEYS.permisos(idRol));
 
-      queryClient.setQueryData<IPermisosResponse>([QK_PERMISOS, idRol], (old) => {
+      queryClient.setQueryData<IPermisosResponse>(ROLES_KEYS.permisos(idRol), (old) => {
         if (!old) return old;
         const tiene = old.permisos?.includes(idAccion);
         return {
@@ -161,13 +157,13 @@ export function useTogglePermiso() {
     // Revertir si el servidor falla
     onError: (_error, { idRol }, context: { previous: unknown } | undefined) => {
       if (context?.previous) {
-        queryClient.setQueryData([QK_PERMISOS, idRol], context.previous);
+        queryClient.setQueryData(ROLES_KEYS.permisos(idRol), context.previous);
       }
     },
 
     // Sincronizar con el servidor al terminar (éxito o error)
     onSettled: (_data, _error, { idRol }) => {
-      queryClient.invalidateQueries({ queryKey: [QK_PERMISOS, idRol] });
+      queryClient.invalidateQueries({ queryKey: ROLES_KEYS.permisos(idRol) });
     },
   });
 }

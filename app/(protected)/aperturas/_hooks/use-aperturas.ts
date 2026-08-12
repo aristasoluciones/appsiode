@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { APERTURAS_KEYS } from '@/lib/query-keys';
 import { toastSuccess } from '@/lib/toast';
 import type {
   IAperturaBodega,
@@ -17,15 +18,6 @@ import type {
   IAperturaHistorialPayload,
   TTipoEleccion,
 } from '@/types/aperturas-bodegas';
-
-// ─── Query keys ───────────────────────────────────────────────────────────────
-
-export const APERTURAS_KEYS = {
-  lista: (tipoConsejo: string, idConsejo: string | number, tipoEleccion: string) =>
-    ['aperturas-bodegas', 'lista', tipoConsejo, idConsejo, tipoEleccion] as const,
-  detalle: (id: string | number) => ['aperturas-bodegas', 'detalle', id] as const,
-  historial: (id: string | number) => ['aperturas-bodegas', 'historial', id] as const,
-};
 
 // ─── Lista ────────────────────────────────────────────────────────────────────
 
@@ -130,7 +122,7 @@ export function useCrearApertura() {
     },
     onSuccess: (apertura) => {
       toastSuccess('Apertura registrada correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['aperturas-bodegas', 'lista'] });
+      queryClient.invalidateQueries({ queryKey: APERTURAS_KEYS.listas() });
       router.push(`/aperturas/${apertura.id}`);
     },
   });
@@ -151,7 +143,7 @@ export function useActualizarApertura() {
     onSuccess: (apertura) => {
       toastSuccess('Apertura actualizada correctamente.');
       queryClient.invalidateQueries({ queryKey: APERTURAS_KEYS.detalle(apertura.id) });
-      queryClient.invalidateQueries({ queryKey: ['aperturas-bodegas', 'lista'] });
+      queryClient.invalidateQueries({ queryKey: APERTURAS_KEYS.listas() });
       router.push(`/aperturas/${apertura.id}`);
     },
   });
@@ -177,7 +169,7 @@ export function useCerrarApertura() {
     onSuccess: (_, { id }) => {
       toastSuccess('Apertura cerrada correctamente.');
       queryClient.invalidateQueries({ queryKey: APERTURAS_KEYS.detalle(id) });
-      queryClient.invalidateQueries({ queryKey: ['aperturas-bodegas', 'lista'] });
+      queryClient.invalidateQueries({ queryKey: APERTURAS_KEYS.listas() });
     },
   });
 }
@@ -192,7 +184,7 @@ export function useEliminarApertura() {
     },
     onSuccess: () => {
       toastSuccess('Apertura eliminada correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['aperturas-bodegas', 'lista'] });
+      queryClient.invalidateQueries({ queryKey: APERTURAS_KEYS.listas() });
       router.push('/aperturas');
     },
   });

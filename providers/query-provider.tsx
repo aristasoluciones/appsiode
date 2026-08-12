@@ -28,14 +28,20 @@ const QueryProvider = ({ children }: { children: ReactNode }) => {
             retry: false,
           },
         },
+        // `meta: { silenciarToast: true }` desactiva el toast global en las
+        // pantallas que ya muestran el error en su propia interfaz.
         queryCache: new QueryCache({
-          onError: (error) => {
+          onError: (error, query) => {
+            if (query.meta?.silenciarToast) return;
             if (axios.isAxiosError(error) && error.response?.status === 403) return;
             toastAxiosError(error);
           },
         }),
         mutationCache: new MutationCache({
-          onError: (error) => toastAxiosError(error),
+          onError: (error, _variables, _context, mutation) => {
+            if (mutation.meta?.silenciarToast) return;
+            toastAxiosError(error);
+          },
         }),
       }),
   );

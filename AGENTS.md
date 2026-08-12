@@ -14,7 +14,7 @@ Arquitectura separada en dos repos:
 ## Entorno local
 
 - **Stack:** Next.js 15 (App Router) · React 19 · TypeScript · Tailwind 4 + **plantilla Metronic** (componentes Radix/shadcn en `components/ui/`) · TanStack Query · react-hook-form + Zod · axios · i18next · ApexCharts/Recharts.
-- **Comunicación con la API:** `lib/api/axios-client.ts` (`apiClient`, datos) y `lib/api/axios-auth.ts` (`authClient`, auth) — ambos van del navegador directo al API .NET con `NEXT_PUBLIC_API_URL` y `withCredentials`. **Todas las rutas del backend se declaran en `lib/api/endpoints.ts`** (`API_ENDPOINTS`) — nunca escribas URLs literales en componentes o hooks.
+- **Comunicación con la API:** `lib/api/axios-client.ts` (`apiClient`, datos) y `lib/api/axios-auth.ts` (`authClient`, auth) — ambos van del navegador directo al API .NET con `NEXT_PUBLIC_API_URL` y `withCredentials`. **Todas las rutas del backend se declaran en `lib/api/endpoints/`** (`API_ENDPOINTS`) — nunca escribas URLs literales en componentes o hooks. Es **un archivo por módulo** (`bodegas.ts`, `sesiones.ts`…) que exporta su objeto `as const`, más `index.ts` que los agrupa en `API_ENDPOINTS` y `_shared.ts` con el tipo `Id` y el helper `qs()` para query strings opcionales. Al crear un módulo nuevo: agrega su archivo y regístralo en el barrel; los consumidores siguen importando `@/lib/api/endpoints`.
 - El interceptor de respuesta **desenvuelve el sobre** `{ status, message, data }` de la API: en el código `response.data` ya es el payload. El interceptor de petición añade el header `X-CSRF-TOKEN` y los campos `dispositivo`/`mac` a toda mutación, y gestiona el refresh de sesión con reintento en cola.
 - **Autenticación:** cookies HttpOnly emitidas por el API (`AccessToken`, `RefreshToken`) + cookie CSRF. `middleware.ts` protege las rutas leyendo y verificando la expiración del JWT; el login/logout/refresh/perfil se llaman directo al API .NET desde el navegador con `authClient` (`lib/api/axios-auth.ts`); el API emite y limpia las cookies vía Set-Cookie y debe tener CORS con credenciales para el origen del frontend. El contexto de usuario y permisos vive en `providers/auth-provider.tsx`.
 - **Configuración:** `.env` local (plantilla en `.env.example`); `.env.staging` para `npm run build:staging`. Variables clave: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_BASE_PATH`.
@@ -32,7 +32,8 @@ siode/
 │   └── api/             # route handlers (solo proxys necesarios: device, pdf, sice)
 ├── components/          # ui/ (Metronic/shadcn), common/, layouts/ — transversales
 ├── hooks/               # hooks globales (use-proceso, use-menu…)
-├── lib/api/             # axios-client, server-axios, endpoints, auth
+├── lib/api/             # axios-client, axios-auth, endpoints/ (uno por módulo)
+├── lib/query-keys/      # llaves de caché de TanStack Query (uno por dominio)
 ├── lib/                 # helpers, toast, export-xlsx, auditoria
 ├── providers/           # auth, query, i18n, theme, settings
 ├── types/               # interfaces por dominio (bodegas.ts, sesiones.ts…)
@@ -42,7 +43,9 @@ siode/
 ### Convenciones de código
 
 - **Colocación por módulo:** lo que solo usa un módulo vive en su carpeta `_components/` y `_hooks/`; solo se sube a `components/` o `hooks/` lo realmente transversal. Carpetas con guion bajo (`_components`) no generan rutas.
-- **Datos con TanStack Query:** un hook por dominio en `_hooks/use-<dominio>.ts` que exporta un objeto de **query keys** (`BODEGAS_KEYS`) y los hooks de lectura/mutación. Las mutaciones invalidan las keys afectadas y notifican con `toastSuccess` / `toastError` de `lib/toast`.
+- **Datos con TanStack Query:** **toda lectura al servidor pasa por `useQuery` y toda escritura por `useMutation`** — nunca un `apiClient.get/post` suelto dentro de un componente o de un `useEffect`. Un hook por dominio en `_hooks/use-<dominio>.ts` (o `<modulo>-data.ts`) con los hooks de lectura/mutación; las mutaciones invalidan las llaves afectadas y notifican con `toastSuccess` / `toastError` de `lib/toast`.
+- **Llaves de caché centralizadas:** viven en `lib/query-keys/` (`BODEGAS_KEYS`, `SESIONES_KEYS`…), **un archivo por dominio** más `index.ts` que los agrupa en `QUERY_KEYS`. Ninguna llave se escribe a mano en un hook o componente: queries e invalidaciones toman la misma función, así no pueden desalinearse. Las funciones sin argumentos (`listas()`, `dashboards()`) devuelven prefijos para invalidar un grupo completo.
+- **Errores en pantalla:** el cliente de queries ya muestra un toast con el mensaje del API ante cualquier fallo. Si una pantalla muestra el error en su propia alerta, declara `meta: { silenciarToast: true }` en la query o mutación para no duplicar el aviso.
 - **Tipos:** interfaces con prefijo `I` (`IBodega`) y tipos con `T` (`TComponenteFoto`) en `types/<dominio>.ts`; los payloads llevan sufijo `Payload`. Nada de `any` en las respuestas del API.
 - **Componentes:** `'use client'` solo donde hace falta interactividad; las páginas (`page.tsx`) se mantienen como server components que montan el cliente del módulo.
 - **Archivos y nombres:** archivos en `kebab-case.tsx`, componentes en `PascalCase`, hooks `useAlgo`. Formularios con react-hook-form + esquema Zod.
@@ -72,7 +75,7 @@ SIODE reescribe dos sistemas anteriores que siguen siendo la referencia funciona
 
 ## Reglas duras
 
-1. **Toda llamada al API pasa por `apiClient` / `authClient` con una ruta de `lib/api/endpoints.ts`.** Nada de `fetch` suelto ni URLs literales.
+1. **Toda llamada al API pasa por `apiClient` / `authClient` con una ruta de `lib/api/endpoints/`, envuelta en `useQuery` o `useMutation`, y con una llave de `lib/query-keys/`.** Nada de `fetch` suelto, URLs literales ni llaves escritas a mano.
 2. **No dupliques lógica de negocio del backend**: la validación de reglas y permisos es autoritativa en el API; en el front es solo experiencia de usuario.
 3. **Errores**: muestra el `message` que devuelve el API con toast; nunca expongas trazas técnicas ni el objeto de error crudo al usuario.
 4. **Nunca** tokens, contraseñas ni secretos en el repo ni en la bóveda: `.env` no se versiona, usa `.env.example` como plantilla. Los tokens de sesión viven en cookies HttpOnly, nunca en `localStorage`.

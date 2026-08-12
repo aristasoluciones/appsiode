@@ -62,6 +62,12 @@ function mapToAuthUser(d: Record<string, any>): AuthUser {
   };
 }
 
+/**
+ * El perfil NO se consulta con TanStack Query a propósito: este provider envuelve
+ * al QueryProvider y es el arranque de la sesión (login/logout escriben el estado
+ * directamente y de ahí depende el ruteo). El resto de las lecturas del sistema sí
+ * pasan por useQuery.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { SESIONES_KEYS } from '@/lib/query-keys';
 import { ThumbsUp, ThumbsDown, Minus, Vote, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -100,8 +101,8 @@ export function VotacionDialog({ open, onOpenChange, punto, consejeros, idSesion
   }, [votosExistentes, punto.id_punto, punto.id_subpunto, idSesion]);
 
   const handleCerrar = () => {
-    queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
-    queryClient.invalidateQueries({ queryKey: ['votos', idSesion] });
+    queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+    queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.votos(idSesion) });
     onOpenChange(false);
   };
 

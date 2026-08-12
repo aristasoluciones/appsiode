@@ -4,17 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toastSuccess } from '@/lib/toast';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { CATALOGOS_KEYS, SESIONES_KEYS } from '@/lib/query-keys';
 import type { ICatalogosData, ICrearSesionInput } from '@/types/sesiones';
-
-// ─── Query keys ───────────────────────────────────────────────────────────────
-
-export const CATALOGOS_SESIONES_KEY = ['catalogos', 'sesiones'] as const;
 
 // ─── Catalog hook ─────────────────────────────────────────────────────────────
 
 export function useCatalogosSesiones() {
   return useQuery<ICatalogosData>({
-    queryKey: CATALOGOS_SESIONES_KEY,
+    queryKey: CATALOGOS_KEYS.sesiones(),
     queryFn: async () => {
       const res = await apiClient.get<ICatalogosData>(API_ENDPOINTS.CATALOGOS.SESIONES);
       return res.data;
@@ -37,8 +34,8 @@ export function useCrearSesion() {
     onSuccess: () => {
       toastSuccess('Sesión creada correctamente.');
       // Invalidar indicadores para reflejar la nueva sesión
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'indicadores'] });
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'opciones'] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.indicadoresTodos() });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.opcionesTodas() });
     },
   });
 }

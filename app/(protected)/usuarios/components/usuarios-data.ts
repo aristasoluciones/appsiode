@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { getDataAuditoria } from '@/lib/auditoria';
+import { USUARIOS_KEYS } from '@/lib/query-keys';
 import { toastSuccess, toastError } from '@/lib/toast';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -72,10 +73,6 @@ export interface ICreateUsuarioInput {
   password?: string;
 }
 
-// ── Query Keys ────────────────────────────────────────────────────────────────
-
-const QK_USUARIOS_FORM = 'usuarios-form' as const;
-
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 /**
@@ -84,7 +81,7 @@ const QK_USUARIOS_FORM = 'usuarios-form' as const;
  */
 export function useUsuariosFormData() {
   return useQuery({
-    queryKey: [QK_USUARIOS_FORM],
+    queryKey: USUARIOS_KEYS.form(),
     queryFn: async () => {
       const [{ data: formData }, { data: catalogosData }] = await Promise.all([
         apiClient.get<IFormDataRaw>(API_ENDPOINTS.USUARIOS.FORM),
@@ -116,7 +113,7 @@ export function useCreateUsuario() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_USUARIOS_FORM] });
+      queryClient.invalidateQueries({ queryKey: USUARIOS_KEYS.form() });
       toastSuccess('Usuario creado correctamente.');
     },
     onError: (error: unknown) => {
@@ -143,7 +140,7 @@ export function useUpdateUsuario() {
       return updated;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_USUARIOS_FORM] });
+      queryClient.invalidateQueries({ queryKey: USUARIOS_KEYS.form() });
       toastSuccess('Usuario actualizado correctamente.');
     },
     onError: (error: unknown) => {
@@ -163,7 +160,7 @@ export function useDeleteUsuario() {
       return idUsuario;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_USUARIOS_FORM] });
+      queryClient.invalidateQueries({ queryKey: USUARIOS_KEYS.form() });
       toastSuccess('Usuario eliminado correctamente.');
     },
     onError: (error: unknown) => {

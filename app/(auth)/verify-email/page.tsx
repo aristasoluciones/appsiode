@@ -1,59 +1,49 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/dist/client/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
-import apiClient from '@/lib/api/axios-client';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { LoaderCircleIcon } from 'lucide-react';
+import { getFirstBackendError } from '@/lib/helpers';
+import { useVerificarCorreo } from '../_hooks/use-recuperacion';
 
 export default function Page() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [message, setMessage] = useState<string | null>('Verifying...');
-  const [error, setError] = useState<string | null>(null);
+  const token = searchParams?.get('token') ?? null;
 
-  const verify = useCallback(
-    async (token: string) => {
-      try {
-        const res = await apiClient.post('/Auth/verify-email', { token });
-
-        if (res.status === 200 && res.data.status === 200) {
-          setError(null);
-          setMessage('Your email has been successfully verified!');
-          setTimeout(() => {
-            router.push('/signin');
-          }, 2000);
-        } else {
-          setMessage(null);
-          setError(res.data.message || 'Verification failed.');
-        }
-      } catch {
-        setMessage(null);
-        setError('An error occurred during verification.');
-      }
-    },
-    [router],
-  );
+  const { mutate: verificarCorreo, isPending, isSuccess, isError, error: errorApi } =
+    useVerificarCorreo();
 
   useEffect(() => {
-    const token = searchParams?.get('token');
+    if (token) verificarCorreo(token);
+  }, [token, verificarCorreo]);
 
-    if (!token) {
-      setMessage(null);
-      setError('Invalid or missing token.');
-      return;
-    }
+  useEffect(() => {
+    if (!isSuccess) return;
+    const timer = setTimeout(() => router.push('/signin'), 2000);
+    return () => clearTimeout(timer);
+  }, [isSuccess, router]);
 
-    verify(token);
-  }, [searchParams, verify]);
+  const error = !token
+    ? 'El enlace no incluye un token válido.'
+    : isError
+      ? getFirstBackendError(errorApi) || 'Ocurrió un error durante la verificación.'
+      : null;
+
+  const message = isPending
+    ? 'Verificando...'
+    : isSuccess
+      ? '¡Tu correo electrónico fue verificado correctamente!'
+      : null;
 
   return (
     <Suspense>
       <div className="w-full space-y-6">
-        <h1 className="text-2x font-semibold">Email Verification</h1>
+        <h1 className="text-2x font-semibold">Verificación de correo electrónico</h1>
         {error && (
           <>
             <Alert variant="destructive">
@@ -65,7 +55,7 @@ export default function Page() {
 
             <Button asChild>
               <Link href="/signin" className="text-primary">
-                Go back to Login
+                Volver al login
               </Link>
             </Button>
           </>

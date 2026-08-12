@@ -5,8 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import axios from 'axios';
-import apiClient from '@/lib/api/axios-client';
+import { getFirstBackendError } from '@/lib/helpers';
+import {
+  useRestablecerContrasenia,
+  useVerificarTokenReset,
+} from '../_hooks/use-recuperacion';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,11 +33,8 @@ export default function Page() {
   const searchParams = useSearchParams();
   const token = searchParams?.get('token') || null;
 
-  const [verifyingToken, setVerifyingToken] = useState(false);
-  const [isValidToken, setIsValidToken] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [passwordConfirmationVisible, setPasswordConfirmationVisible] = useState(false);
 
@@ -55,56 +55,51 @@ export default function Page() {
   const hasNumber = /\d/.test(newPasswordValue || '');
   const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(newPasswordValue || '');
 
+  const {
+    isSuccess: isValidToken,
+    isLoading: verifyingToken,
+    error: errorToken,
+  } = useVerificarTokenReset(token);
+
+  const { mutate: restablecerContrasenia, isPending: isProcessing } =
+    useRestablecerContrasenia();
+
   useEffect(() => {
-    const verifyToken = async () => {
-      try {
-        setVerifyingToken(true);
-
-        await apiClient.post('/Auth/reset-password-verify', { token });
-        setIsValidToken(true);
-      } catch (err) {
-        if (axios.isAxiosError(err) && err.response?.data) {
-        setError(err.response.data.message || 'Error al enviar el enlace');
-        } else {
-          setError('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
-        }
-      } finally {
-        setVerifyingToken(false);
-      }
-    };
-
-    if (token) {
-      verifyToken();
-    } else {
+    if (!token) {
       setError('No se proporcionó un token válido. Por favor, verifica el enlace que recibiste por correo electrónico.');
+      return;
     }
-  }, [token]);
+    if (errorToken) {
+      setError(
+        getFirstBackendError(errorToken) ||
+          'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.',
+      );
+    }
+  }, [token, errorToken]);
 
-  async function onSubmit(values: ChangePasswordSchemaType) {
-    setIsProcessing(true);
+  function onSubmit(values: ChangePasswordSchemaType) {
     setError(null);
     setSuccessMessage(null);
 
-    try {
-      await apiClient.post('/Auth/reset-password', {
+    restablecerContrasenia(
+      {
         token,
         password: values.newPassword,
         confirm_password: values.confirmPassword,
-      });
-
-        
-      setSuccessMessage('La contraseña ha sido cambiada exitosamente. Redirigiendo al login...');
-      setTimeout(() => router.push('/signin'), 3000);
-     
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.data) {
-        setError(err.response.data.message || 'Error al enviar el enlace');
-      } else {
-        setError('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
-      }
-    } finally {
-      setIsProcessing(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          setSuccessMessage('La contraseña ha sido cambiada exitosamente. Redirigiendo al login...');
+          setTimeout(() => router.push('/signin'), 3000);
+        },
+        onError: (err) => {
+          setError(
+            getFirstBackendError(err) ||
+              'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.',
+          );
+        },
+      },
+    );
   }
 
   return (

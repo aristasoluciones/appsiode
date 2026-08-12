@@ -11,7 +11,6 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table';
 import { AlertTriangle, CalendarX2, Eye, Plus, Search, SearchX, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,11 +31,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import apiClient from '@/lib/api/axios-client';
-import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { toastSuccess, toastAxiosError } from '@/lib/toast';
 import type { TEstadoIndicador } from '@/types/sesiones';
-import type { ISesionConsejo } from './sesiones-consejo-data';
+import { useEliminarSesion, type ISesionConsejo } from './sesiones-consejo-data';
 
 // ─── Status API → TEstadoIndicador ──────────────────────────────────────────
 
@@ -115,8 +111,7 @@ export function SesionesConsejoList({
   );
   const [localSessions, setLocalSessions] = useState<ISesionConsejo[]>(sessions ?? []);
   const [deletingSession, setDeletingSession] = useState<ISesionConsejo | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const router = useRouter();
+  const { mutate: eliminarSesion, isPending: isDeleting } = useEliminarSesion(type, idConsejo);
 
   useEffect(() => setLocalSessions(sessions ?? []), [sessions]);
 
@@ -412,22 +407,18 @@ export function SesionesConsejoList({
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={async () => {
+              disabled={isDeleting}
+              onClick={() => {
                 if (!deletingSession) return;
-                try {
-                  setIsDeleting(true);
-                  await apiClient.delete(API_ENDPOINTS.SESIONES.SESION_DETALLE(deletingSession.id));
-                  // Optimistic update: remove from local list immediately
-                  setLocalSessions((prev) => prev.filter((s) => s.id !== deletingSession.id));
-                  toastSuccess('Sesión eliminada correctamente.');
-                  setDeletingSession(null);
-                  // Ensure server-side data refreshed as well
-                  router.refresh();
-                } catch (err) {
-                  toastAxiosError(err);
-                } finally {
-                  setIsDeleting(false);
-                }
+                const id = deletingSession.id;
+                eliminarSesion(id, {
+                  onSuccess: () => {
+                    // La lista se refresca sola al invalidar; se quita ya para
+                    // que el cambio se vea sin esperar al servidor.
+                    setLocalSessions((prev) => prev.filter((s) => s.id !== id));
+                    setDeletingSession(null);
+                  },
+                });
               }}
             >
               Eliminar

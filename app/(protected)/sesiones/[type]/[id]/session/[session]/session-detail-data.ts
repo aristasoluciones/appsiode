@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { EXTERNOS_KEYS, SESIONES_KEYS } from '@/lib/query-keys';
 import { toastSuccess, toastError } from '@/lib/toast';
 import type {
   ISesionDetalle,
@@ -17,7 +18,7 @@ import type {
 
 export function useIntegracion(consejoTipo: string, consejoClave: number | string | null) {
   return useQuery({
-    queryKey: ['integracion-sice', consejoTipo, consejoClave],
+    queryKey: EXTERNOS_KEYS.integracionSice(consejoTipo, consejoClave),
     queryFn: async (): Promise<IConsejeroExterno[]> => {
       if (consejoClave === null) return [];
       const { data } = await axios.get<IConsejeroExterno[]>(
@@ -64,7 +65,7 @@ export interface IRepresentanteExternoAPI {
 
 export function useRepresentantesExternos(tipo: 'd' | 'm', idConsejo: string | null) {
   return useQuery({
-    queryKey: ['representantes-externos', tipo, idConsejo],
+    queryKey: EXTERNOS_KEYS.representantes(tipo, idConsejo),
     queryFn: async (): Promise<IRepresentanteExternoAPI[]> => {
       const BASE = process.env.NEXT_PUBLIC_RPP_API_BASE;
       if (!BASE || idConsejo === null) return [];
@@ -87,8 +88,8 @@ export function useGuardarAsistencia(idSesion: string) {
       apiClient.put(API_ENDPOINTS.SESIONES.SAVE_ASISTENCIA(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Asistencia guardada correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
-      queryClient.invalidateQueries({ queryKey: ['votos', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.votos(idSesion) });
     },
     onError: () => toastError('No se pudo guardar la asistencia. Intenta nuevamente.'),
   });
@@ -101,7 +102,7 @@ export function useGuardarAsistenciaPP(idSesion: string) {
       apiClient.put(API_ENDPOINTS.SESIONES.SAVE_ASISTENCIA_PP(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Asistencia de representantes guardada correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
     },
     onError: () => toastError('No se pudo guardar la asistencia de representantes. Intenta nuevamente.'),
   });
@@ -114,7 +115,7 @@ export function useIniciarSesion(idSesion: string) {
       apiClient.put(API_ENDPOINTS.SESIONES.INICIAR_SESION(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Sesión iniciada correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
     },
   });
 }
@@ -144,7 +145,7 @@ export function useTerminarSesion(idSesion: string) {
       apiClient.put(API_ENDPOINTS.SESIONES.TERMINAR_SESION(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Sesión concluida correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
     },
     onError: () => toastError('No se pudo terminar la sesión. Intenta nuevamente.'),
   });
@@ -171,7 +172,7 @@ export function useVotar(idSesion: string) {
 
 export function useObtenerVotos(idSesion: string) {
   return useQuery({
-    queryKey: ['votos', idSesion],
+    queryKey: SESIONES_KEYS.votos(idSesion),
     queryFn: () =>
       apiClient.get(API_ENDPOINTS.SESIONES.OBTENER_VOTOS(idSesion)),
     enabled: !!idSesion,
@@ -185,7 +186,7 @@ export function useAgregarAsuntoGeneral(idSesion: string) {
       apiClient.post(API_ENDPOINTS.SESIONES.AGREGAR_ASUNTO_GENERAL(idSesion), { descripcion }),
     onSuccess: () => {
       toastSuccess('Asunto general agregado correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
     },
   });
 }
@@ -205,7 +206,7 @@ export function useActualizarSesion(idSesion: string) {
     mutationFn: (payload: IActualizarSesionPayload) =>
       apiClient.patch(API_ENDPOINTS.SESIONES.UPDATE(idSesion), payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
     },
     retry: false,
   });
@@ -227,7 +228,7 @@ export function useActualizarPOD(idSesion: string) {
       apiClient.patch(API_ENDPOINTS.SESIONES.UPDATE_POD(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Punto actualizado correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
     },
     onError: () => toastError('No se pudo actualizar el punto. Intenta nuevamente.'),
     retry: false,
@@ -246,7 +247,7 @@ export function useEliminarPOD(idSesion: string) {
       apiClient.delete(API_ENDPOINTS.SESIONES.DELETE_POD(idSesion), { data: payload }),
     onSuccess: () => {
       toastSuccess('Punto eliminado correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
     },
     retry: false,
   });
@@ -266,7 +267,7 @@ export function useAgregarPOD(idSesion: string) {
       apiClient.post(API_ENDPOINTS.SESIONES.UPDATE_POD(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Punto agregado correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['sesiones', 'detalle', idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
     },
     retry: false,
   });
@@ -298,7 +299,7 @@ function mapDetalle(data: ISesionDetalleAPI): ISesionDetalle {
 
 export function useSesionDetalle(idSesion: string) {
   return useQuery({
-    queryKey: ['sesiones', 'detalle', idSesion],
+    queryKey: SESIONES_KEYS.detalle(idSesion),
     queryFn: async (): Promise<ISesionDetalleResult> => {
       try {
         const { data } = await apiClient.get<ISesionDetalleAPI | ISesionDetalleResponseEnvelope>(
@@ -326,5 +327,32 @@ export function useSesionDetalle(idSesion: string) {
       if (axios.isAxiosError(error) && error.response?.status === 404) return false;
       return failureCount < 3;
     },
+  });
+}
+
+// ─── Reporte PDF de la sesión ────────────────────────────────────────────────
+
+/**
+ * Descarga el reporte de la sesión en PDF.
+ * El error se avisa aquí con un mensaje propio, por eso se silencia el toast global.
+ */
+export function useDescargarReporteSesion(idSesion: string) {
+  return useMutation({
+    meta: { silenciarToast: true },
+    mutationFn: async () => {
+      const response = await apiClient.get(API_ENDPOINTS.SESIONES.PDF(idSesion), {
+        responseType: 'blob',
+      });
+      return response.data as Blob;
+    },
+    onSuccess: (blob) => {
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reporte-de-sesion-${idSesion}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    },
+    onError: () => toastError('No se pudo descargar el reporte. Intenta nuevamente.'),
   });
 }

@@ -6,8 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, ArrowLeft, Check } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import axios from 'axios';
-import apiClient from '@/lib/api/axios-client';
+import { getFirstBackendError } from '@/lib/helpers';
+import { useSolicitarRecuperacion } from '../_hooks/use-recuperacion';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,8 +24,9 @@ import { LoaderCircleIcon } from 'lucide-react';
 
 export default function Page() {
   const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const { mutate: solicitarRecuperacion, isPending: isProcessing } =
+    useSolicitarRecuperacion();
   // reCAPTCHA removed; no showRecaptcha state
 
   const formSchema = z.object({
@@ -45,27 +46,23 @@ export default function Page() {
     const result = await form.trigger();
     if (!result) return;
 
-    try {
-      setIsProcessing(true);
-      setError(null);
-      setSuccess(null);
+    setError(null);
+    setSuccess(null);
 
-      const values = form.getValues();
-      await apiClient.post('/Auth/recuperar-contrasenia', values);
-
-      setSuccess('Enlace enviado exitosamente');
-      form.reset();
-      // Limpiar el mensaje de éxito después de unos segundos para re-habilitar el formulario
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.data) {
-        setError(err.response.data.message || 'Error al enviar el enlace');
-      } else {
-        setError('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
-      }
-    } finally {
-      setIsProcessing(false);
-    }
+    solicitarRecuperacion(form.getValues(), {
+      onSuccess: () => {
+        setSuccess('Enlace enviado exitosamente');
+        form.reset();
+        // Limpiar el mensaje de éxito después de unos segundos para re-habilitar el formulario
+        setTimeout(() => setSuccess(null), 5000);
+      },
+      onError: (err) => {
+        setError(
+          getFirstBackendError(err) ||
+            'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.',
+        );
+      },
+    });
   };
 
   return (

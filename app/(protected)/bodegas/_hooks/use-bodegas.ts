@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { BODEGAS_KEYS } from '@/lib/query-keys';
 import { toastSuccess, toastError } from '@/lib/toast';
 import type {
   IBodega,
@@ -20,22 +21,6 @@ import type {
   IObservacionBodega,
   ICrearObservacionPayload,
 } from '@/types/bodegas';
-
-// ─── Query keys ───────────────────────────────────────────────────────────────
-
-export const BODEGAS_KEYS = {
-  lista: (tipo: string, tipoConsejo?: string, idConsejo?: number) =>
-    ['bodegas', 'lista', tipo, tipoConsejo ?? 'all', idConsejo ?? 0] as const,
-  detalle: (id: string | number) => ['bodegas', 'detalle', id] as const,
-  dashboard: (tipo: string, tipoConsejo?: string) =>
-    ['bodegas', 'dashboard', tipo, tipoConsejo ?? 'all'] as const,
-  acuerdo: (idBodega: string | number) => ['bodegas', 'acuerdo', idBodega] as const,
-  fotografias: (idBodega: string | number, componente?: TComponenteFoto, etapa?: string) =>
-    ['bodegas', 'fotografias', idBodega, componente, etapa] as const,
-  fotografiasConfig: () => ['bodegas', 'fotografias-config'] as const,
-  observaciones: (idBodega: string | number, status?: string) =>
-    ['bodegas', 'observaciones', idBodega, status ?? 'all'] as const,
-};
 
 // ─── Hooks de lectura ─────────────────────────────────────────────────────────
 
@@ -212,8 +197,8 @@ export function useCrearBodega() {
     },
     onSuccess: (bodega) => {
       toastSuccess('Bodega registrada correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'lista'] });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.listas() });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.dashboards() });
       router.push(`/bodegas/${bodega.id}`);
     },
   });
@@ -237,9 +222,9 @@ export function useActualizarBodega() {
     },
     onSuccess: (bodega) => {
       toastSuccess('Bodega actualizada correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'lista'] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.listas() });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(bodega.id) });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.dashboards() });
       router.push(`/bodegas/${bodega.id}`);
     },
   });
@@ -267,8 +252,7 @@ export function useSubirAcuerdo(idBodega: number) {
       toastSuccess('Acuerdo cargado correctamente.');
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.acuerdo(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observacionesDeBodega(idBodega) });
     },
   });
 }
@@ -284,8 +268,7 @@ export function useEliminarAcuerdo(idBodega: number) {
       toastSuccess('Acuerdo eliminado correctamente.');
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.acuerdo(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observacionesDeBodega(idBodega) });
     },
     onError: () => {
       toastError('No se pudo eliminar el acuerdo.');
@@ -314,12 +297,9 @@ export function useSubirFotografias(idBodega: number) {
     },
     onSuccess: () => {
       toastSuccess('Fotografías cargadas correctamente.');
-      queryClient.invalidateQueries({
-        queryKey: ['bodegas', 'fotografias', idBodega],
-      });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.fotografiasDeBodega(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observacionesDeBodega(idBodega) });
     },
   });
 }
@@ -350,7 +330,7 @@ export function useFotografiasConConfig(
   momento?: IFotografiaConfig['momento'],
 ) {
   return useQuery<IFotografia[]>({
-    queryKey: ['bodegas', 'fotografias', idBodega, categoria, momento],
+    queryKey: BODEGAS_KEYS.fotografias(idBodega, categoria, momento),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (categoria) params.set('categoria', categoria);
@@ -385,9 +365,7 @@ export function useToggleStatusFotografia(idBodega: string | number) {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['bodegas', 'fotografias', idBodega],
-      });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.fotografiasDeBodega(idBodega) });
     },
   });
 }
@@ -403,12 +381,9 @@ export function useEliminarFotografia(idBodega: string | number) {
     },
     onSuccess: () => {
       toastSuccess('Fotografía eliminada correctamente.');
-      queryClient.invalidateQueries({
-        queryKey: ['bodegas', 'fotografias', idBodega],
-      });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.fotografiasDeBodega(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observacionesDeBodega(idBodega) });
     },
     onError: () => {
       toastError('No se pudo eliminar la fotografía.');
@@ -470,9 +445,8 @@ export function useCrearObservacionBodega(idBodega: string | number) {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'fotografias', idBodega] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observacionesDeBodega(idBodega) });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.fotografiasDeBodega(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
       toastSuccess('Observación registrada correctamente.');
     },
@@ -499,8 +473,8 @@ export function useDeterminarBodega() {
     onSuccess: (_, idBodega) => {
       toastSuccess('Bodega determinada correctamente.');
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'lista'] });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.listas() });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.dashboards() });
     }
   });
 }
@@ -521,11 +495,10 @@ export function useEnviarObservacionesBodega() {
     },
     onSuccess: (_, idBodega) => {
       toastSuccess('Observaciones enviadas correctamente.');
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observacionesDeBodega(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'lista'] });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.listas() });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.dashboards() });
     },
     onError: () => {
       toastError('No se pudieron enviar las observaciones.');
@@ -544,9 +517,8 @@ export function useEliminarObservacionBodega(idBodega: string | number) {
     },
     onSuccess: () => {
       toastSuccess('Observación eliminada correctamente.');
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'fotografias', idBodega] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observacionesDeBodega(idBodega) });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.fotografiasDeBodega(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
     },
     onError: () => {
@@ -571,8 +543,7 @@ export function useToggleStatusObservacionBodega(idBodega: string | number) {
     },
     onSuccess: () => {
       toastSuccess('Estatus de observación actualizado correctamente.');
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'all') });
-      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observaciones(idBodega, 'Pendiente') });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.observacionesDeBodega(idBodega) });
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
     },
     onError: () => {
@@ -598,8 +569,8 @@ export function useSolicitarValidacionBodega() {
     onSuccess: (_, idBodega) => {
       toastSuccess('Solicitud de validación enviada correctamente.');
       queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.detalle(idBodega) });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'lista'] });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.listas() });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.dashboards() });
     },
     onError: () => {
       toastError('No se pudo enviar la solicitud de validación.');
@@ -617,8 +588,8 @@ export function useEliminarBodega() {
     },
     onSuccess: () => {
       toastSuccess('Bodega eliminada correctamente.');
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'lista'] });
-      queryClient.invalidateQueries({ queryKey: ['bodegas', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.listas() });
+      queryClient.invalidateQueries({ queryKey: BODEGAS_KEYS.dashboards() });
       router.push('/bodegas');
     },
   });

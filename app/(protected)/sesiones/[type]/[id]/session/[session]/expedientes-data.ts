@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { CATALOGOS_KEYS, SESIONES_KEYS } from '@/lib/query-keys';
 import { toastSuccess, toastError } from '@/lib/toast';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -32,16 +33,11 @@ export interface ISubirExpedienteInput {
   archivo: File;
 }
 
-// ─── Query keys ───────────────────────────────────────────────────────────────
-
-const QK_TIPOS_DOC = 'catalogos-tipos-documentos' as const;
-const QK_EXPEDIENTES = 'sesion-expedientes' as const;
-
 // ─── Catálogo tipos de documento ─────────────────────────────────────────────
 
 export function useTiposDocumentos() {
   return useQuery({
-    queryKey: [QK_TIPOS_DOC],
+    queryKey: CATALOGOS_KEYS.tiposDocumentos(),
     queryFn: async (): Promise<ITipoDocumento[]> => {
       const { data } = await apiClient.get<{ tipos_documentos: ITipoDocumento[] }>(
         API_ENDPOINTS.CATALOGOS.LIST('TIPOS_DOCUMENTOS'),
@@ -56,7 +52,7 @@ export function useTiposDocumentos() {
 
 export function useExpedientesSesion(idSesion: string) {
   return useQuery({
-    queryKey: [QK_EXPEDIENTES, idSesion],
+    queryKey: SESIONES_KEYS.expedientes(idSesion),
     queryFn: async (): Promise<IExpediente[]> => {
       const { data } = await apiClient.get<IExpediente[]>(
         API_ENDPOINTS.SESIONES.EXPEDIENTES(idSesion),
@@ -77,7 +73,7 @@ export function useEliminarExpediente(idSesion: string) {
       apiClient.delete(API_ENDPOINTS.SESIONES.ELIMINAR_EXPEDIENTE(idSesion, idExpediente)),
     onSuccess: () => {
       toastSuccess('Documento eliminado correctamente.');
-      queryClient.invalidateQueries({ queryKey: [QK_EXPEDIENTES, idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.expedientes(idSesion) });
     },
     onError: () => {
       toastError('No se pudo eliminar el documento. Intenta nuevamente.');
@@ -123,7 +119,7 @@ export function useSubirExpediente(idSesion: string) {
     },
     onSuccess: () => {
       toastSuccess('Documento subido correctamente.');
-      queryClient.invalidateQueries({ queryKey: [QK_EXPEDIENTES, idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.expedientes(idSesion) });
     },
     onError: () => {
       toastError('No se pudo subir el documento. Intenta nuevamente.');

@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { SESIONES_KEYS } from '@/lib/query-keys';
 import type {
   TEstadoIndicador,
   IIndicadorAPI,
@@ -89,7 +90,7 @@ export function useIndicadoresData(
   sesionId: string | null,
 ) {
   return useQuery({
-    queryKey: ['sesiones', 'indicadores', tipoConsejo, sesionId],
+    queryKey: SESIONES_KEYS.indicadores(tipoConsejo, sesionId),
     queryFn: async (): Promise<IConsejoIndicador[]> => {
       const { data } = await apiClient.get<IIndicadorAPI[]>(
         API_ENDPOINTS.SESIONES.INDICADORES(TIPO_CONSEJO_CHAR[tipoConsejo], sesionId),
@@ -102,7 +103,7 @@ export function useIndicadoresData(
 
 export function useSesionesOptions(tipoConsejo: TTipoConsejo) {
   return useQuery({
-    queryKey: ['sesiones', 'opciones', tipoConsejo],
+    queryKey: SESIONES_KEYS.opciones(tipoConsejo),
     queryFn: async () => {
       const { data } = await apiClient.get<ISesionDistinct[] | null>(
         API_ENDPOINTS.SESIONES.DISTINCT,

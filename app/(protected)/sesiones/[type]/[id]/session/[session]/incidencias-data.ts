@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { CATALOGOS_KEYS, SESIONES_KEYS } from '@/lib/query-keys';
 import { toastSuccess, toastError } from '@/lib/toast';
 
 // ─── Tipos catálogo ───────────────────────────────────────────────────────────
@@ -49,16 +50,11 @@ export interface IGuardarSeguimientoInput {
   status?: 'CERRADA';
 }
 
-// ─── Query keys ───────────────────────────────────────────────────────────────
-
-const QK_CATALOGO = 'catalogo-incidencias' as const;
-const QK_INCIDENCIAS = 'sesion-incidencias' as const;
-
 // ─── Catálogo ─────────────────────────────────────────────────────────────────
 
 export function useCatalogoIncidencias() {
   return useQuery({
-    queryKey: [QK_CATALOGO],
+    queryKey: CATALOGOS_KEYS.incidencias(),
     queryFn: async (): Promise<ICatalogoIncidenciasPorPeriodo> => {
       const { data } = await apiClient.get<{ tipos_incidencias: ICatalogoIncidencia[] }>(
         API_ENDPOINTS.CATALOGOS.LIST('INCIDENCIAS'),
@@ -78,7 +74,7 @@ export function useCatalogoIncidencias() {
 
 export function useIncidenciasSesion(idSesion: string) {
   return useQuery({
-    queryKey: [QK_INCIDENCIAS, idSesion],
+    queryKey: SESIONES_KEYS.incidencias(idSesion),
     queryFn: async (): Promise<IIncidencia[]> => {
       const { data } = await apiClient.get<IIncidencia[]>(
         API_ENDPOINTS.SESIONES.INCIDENCIAS(idSesion),
@@ -101,7 +97,7 @@ export function useCrearIncidencia(idSesion: string) {
         payload,
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_INCIDENCIAS, idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.incidencias(idSesion) });
       toastSuccess('Incidencia registrada correctamente.');
     },
     onError: () => toastError('No se pudo registrar la incidencia.'),
@@ -118,7 +114,7 @@ export function useGuardarSeguimiento(idSesion: string) {
         payload,
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_INCIDENCIAS, idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.incidencias(idSesion) });
       toastSuccess('Seguimiento guardado correctamente.');
     },
     onError: () => toastError('No se pudo guardar el seguimiento.'),
@@ -134,7 +130,7 @@ export function useEliminarIncidencia(idSesion: string) {
         API_ENDPOINTS.SESIONES.ELIMINAR_INCIDENCIA(idSesion, idIncidencia),
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_INCIDENCIAS, idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.incidencias(idSesion) });
       toastSuccess('Incidencia eliminada.');
     },
     onError: () => toastError('No se pudo eliminar la incidencia.'),
@@ -150,7 +146,7 @@ export function useEliminarSeguimiento(idSesion: string) {
         API_ENDPOINTS.SESIONES.ELIMINAR_SEGUIMIENTO(idSesion, idIncidencia, idSeguimiento),
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QK_INCIDENCIAS, idSesion] });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.incidencias(idSesion) });
       toastSuccess('Seguimiento eliminado.');
     },
     onError: () => toastError('No se pudo eliminar el seguimiento.'),

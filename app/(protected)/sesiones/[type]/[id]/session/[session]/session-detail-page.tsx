@@ -52,14 +52,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSesionesConsejo } from '../../components/sesiones-consejo-data';
 import { useSesionDetalle, useRepresentantesExternos, useIntegracion, useGuardarAsistencia, useGuardarAsistenciaPP, useIniciarSesion, 
-        useTerminarSesion, useAgregarAsuntoGeneral, useActualizarPOD, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
+        useTerminarSesion, useAgregarAsuntoGeneral, useActualizarPOD, useDescargarReporteSesion, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
 import { IncidenciasCard } from './incidencias-card';
 import { ExpedientesCard } from './expedientes-card';
 import { VotacionDialog } from './votacion-dialog';
 import { SesionEdicion } from './sesion-edicion';
 import type { ISesionDetalleAPI, IRepresentanteNorm, IConsejeroExterno } from '@/types/sesiones';
-import apiClient from '@/lib/api/axios-client';
-import { toastError } from '@/lib/toast';
 
 import { useAuth } from '@/providers/auth-provider';
 
@@ -222,23 +220,9 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   };
 
   const handleAbrirVotacion = (point: ISesionDetalleAPI['pod'][number]) => setVotacionPunto(point);
-  const [descargandoReporte, setDescargandoReporte] = useState(false);
-  const handleDescargarReporte = async () => {
-    setDescargandoReporte(true);
-    try {
-      const response = await apiClient.get(`/Sesiones/${sessionId}/pdf`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reporte-de-sesion-${sessionId}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toastError('No se pudo descargar el reporte. Intenta nuevamente.');
-    } finally {
-      setDescargandoReporte(false);
-    }
-  };
+  const { mutate: descargarReporte, isPending: descargandoReporte } =
+    useDescargarReporteSesion(sessionId);
+  const handleDescargarReporte = () => descargarReporte();
   const [editandoGeneral, setEditandoGeneral] = useState<string | null>(null);
   const [editTextoGeneral, setEditTextoGeneral] = useState('');
   const { mutate: actualizarGeneral, isPending: guardandoGeneral } = useActualizarPOD(sessionId);

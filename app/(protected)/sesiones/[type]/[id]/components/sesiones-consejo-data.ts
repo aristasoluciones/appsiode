@@ -1,9 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { SESIONES_KEYS } from '@/lib/query-keys';
+import { toastSuccess } from '@/lib/toast';
 import type {
   ISesionConsejoAPI,
   ISesionConsejo,
@@ -46,7 +48,7 @@ function mapSesion(item: ISesionConsejoAPI): ISesionConsejo {
 export function useSesionesConsejo(type: string, idConsejo: string, enabled = true) {
   const tipoChar = type.toUpperCase();
   return useQuery({
-    queryKey: ['sesiones', 'consejo', tipoChar, idConsejo],
+    queryKey: SESIONES_KEYS.consejo(tipoChar, idConsejo),
     enabled,
     queryFn: async (): Promise<ISesionesConsejoResult> => {
       try {
@@ -80,6 +82,29 @@ export function useSesionesConsejo(type: string, idConsejo: string, enabled = tr
     retry: (failureCount, error) => {
       if (axios.isAxiosError(error) && error.response?.status === 404) return false;
       return failureCount < 3;
+    },
+  });
+}
+
+/**
+ * Elimina una sesión del consejo y refresca su listado.
+ *
+ * @param type      — param de URL: 'd' | 'm'
+ * @param idConsejo — clave numérica del consejo
+ */
+export function useEliminarSesion(type: string, idConsejo: string) {
+  const queryClient = useQueryClient();
+  const tipoChar = type.toUpperCase();
+
+  return useMutation({
+    mutationFn: async (idSesion: string | number) => {
+      await apiClient.delete(API_ENDPOINTS.SESIONES.SESION_DETALLE(idSesion));
+      return idSesion;
+    },
+    onSuccess: () => {
+      toastSuccess('Sesión eliminada correctamente.');
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.consejo(tipoChar, idConsejo) });
+      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.indicadoresTodos() });
     },
   });
 }

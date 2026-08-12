@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { CATALOGOS_KEYS, EXTERNOS_KEYS } from '@/lib/query-keys';
 import type { IConsejeroExterno } from '@/types/sesiones';
 import type {
   IAperturasCatalogosData,
@@ -50,11 +51,9 @@ export interface IRepresentanteNorm {
 
 // ─── Catálogos ────────────────────────────────────────────────────────────────
 
-const APERTURAS_CATALOGOS_KEY = ['catalogos', 'aperturas-bodegas'] as const;
-
 export function useCatalogosAperturas(enabled = true) {
   return useQuery<IAperturasCatalogosData>({
-    queryKey: APERTURAS_CATALOGOS_KEY,
+    queryKey: CATALOGOS_KEYS.aperturas(),
     enabled,
     queryFn: async () => {
       const { data } = await apiClient.get<{
@@ -97,7 +96,7 @@ export function useIntegracionApertura(
   claveConsejo: string | number | null,
 ) {
   return useQuery<IConsejeroExterno[]>({
-    queryKey: ['integracion-sice', tipoConsejo, claveConsejo],
+    queryKey: EXTERNOS_KEYS.integracionSice(tipoConsejo, claveConsejo),
     queryFn: async () => {
       if (claveConsejo === null || claveConsejo === undefined) return [];
       const { data } = await axios.get<IConsejeroExterno[]>(
@@ -125,7 +124,7 @@ export function useRepresentantesExternosApertura(
   idConsejo: string | number | null,
 ) {
   return useQuery<IRepresentanteExternoAPI[]>({
-    queryKey: ['representantes-externos-apertura', tipo, idConsejo],
+    queryKey: EXTERNOS_KEYS.representantesApertura(tipo, idConsejo),
     queryFn: async () => {
       if (!tipo || idConsejo === null || idConsejo === undefined) return [];
       const param = tipo === 'd' ? 'district' : 'town';
