@@ -135,4 +135,14 @@ export const API_ENDPOINTS = {
     VERIFICACION_REVISAR: (idBodega: string | number, idVerificacion: string | number) =>
       `/bodegas/${idBodega}/verificaciones/${idVerificacion}/revisar`,
   },
+  APERTURAS_BODEGAS: {
+    LIST: (tipoConsejo: string, idConsejo: string | number, tipoEleccion: string) =>
+      `/aperturas-bodegas?tipoConsejo=${tipoConsejo}&idConsejo=${idConsejo}&tipoEleccion=${tipoEleccion}`,
+    DETALLE: (idApertura: string | number) => `/aperturas-bodegas/${idApertura}`,
+    HISTORIAL: (idApertura: string | number) => `/aperturas-bodegas/${idApertura}/historial`,
+    CREATE: '/aperturas-bodegas',
+    UPDATE: (idApertura: string | number) => `/aperturas-bodegas/${idApertura}`,
+    CERRAR: (idApertura: string | number) => `/aperturas-bodegas/${idApertura}/cerrar`,
+    DELETE: (idApertura: string | number) => `/aperturas-bodegas/${idApertura}`,
+  },
 } as const;

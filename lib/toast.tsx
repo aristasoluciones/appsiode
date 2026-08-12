@@ -6,6 +6,7 @@ import {
 } from '@remixicon/react';
 import { toast as sonner } from 'sonner';
 import { Alert, AlertContent, AlertDescription, AlertIcon, AlertTitle } from '@/components/ui/alert';
+import { getFirstBackendError } from '@/lib/helpers';
 
 type ToastPosition = 'top-right' | 'top-left' | 'top-center' | 'bottom-right' | 'bottom-left' | 'bottom-center';
 
@@ -99,4 +100,23 @@ export function toastAxiosError(error: unknown) {
   } else {
     toastError('Ocurrió un error inesperado. Intenta nuevamente.');
   }
+}
+
+/**
+ * Dispara `toastError` con el primer error del backend si existe;
+ * si no, usa `fallback` o cae a `toastAxiosError`. Útil en `onError`
+ * de mutations de React Query. La extracción del mensaje vive en
+ * `getFirstBackendError` (lib/helpers).
+ */
+export function toastFirstBackendError(error: unknown, fallback?: string) {
+  const first = getFirstBackendError(error);
+  if (first) {
+    toastError(first);
+    return;
+  }
+  if (fallback) {
+    toastError(fallback);
+    return;
+  }
+  toastAxiosError(error);
 }

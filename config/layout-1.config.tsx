@@ -77,10 +77,10 @@ export const MENU_SIDEBAR: MenuConfig = [
       badge: 'New',
       permission: 'bodegas.be.ver',
   },
-  { 
-      title: 'Aperturas', 
+  {
+      title: 'Aperturas',
       icon: Logs,
-      path: '/coming-soon', 
+      path: '/aperturas',
       badge: 'New',
       disabled: false,
       permission: 'bodegas.aperturas.ver',

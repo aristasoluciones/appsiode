@@ -47,6 +47,45 @@ export function uid(): string {
   return (Date.now() + Math.floor(Math.random() * 1000)).toString();
 }
 
+/**
+ * Extrae el primer mensaje de error de un response 400 del backend.
+ *
+ * El backend responde con `{ errors: { CampoPascalCase: [string, ...] } }`
+ * (formato estándar de ASP.NET ModelState). Si no existe, cae a `message`
+ * del response. Devuelve `null` si no hay nada legible.
+ *
+ * Pensado para mostrárselo al usuario vía `toastError(getFirstBackendError(err))`
+ * en lugar del genérico de `toastAxiosError` cuando se quiere el detalle de
+ * validación del primer campo que falló.
+ */
+export function getFirstBackendError(error: unknown): string | null {
+  const axiosErr = error as {
+    response?: {
+      data?: {
+        errors?: Record<string, string[] | string>;
+        message?: string;
+      };
+    };
+  };
+  const data = axiosErr?.response?.data;
+  if (!data) return null;
+  if (data.errors && typeof data.errors === 'object') {
+    for (const key of Object.keys(data.errors)) {
+      const msgs = data.errors[key];
+      if (Array.isArray(msgs) && msgs.length > 0 && typeof msgs[0] === 'string') {
+        return msgs[0];
+      }
+      if (typeof msgs === 'string' && msgs.trim() !== '') {
+        return msgs;
+      }
+    }
+  }
+  if (typeof data.message === 'string' && data.message.trim() !== '') {
+    return data.message;
+  }
+  return null;
+}
+
 export function getInitials(
   name: string | null | undefined,
   count?: number,
@@ -145,6 +184,22 @@ export function formatDateOnly(input: Date | string | number | null | undefined,
   // Fallback: intentar con Date (puede tener desfase, pero es la mejor opción)
   const date = new Date(str);
   return date.toLocaleDateString(locale);
+}
+
+/**
+ * Formatea una hora `HH:mm:ss` (o `HH:mm`) a `HH:mm` sin aplicar conversión de zona
+ * horaria. Si la entrada ya viene como string simple, se devuelve el prefijo
+ * de 5 caracteres. Devuelve '' para null/undefined o entrada vacía.
+ */
+export function formatTimeOnly(input: string | null | undefined): string {
+  if (input == null) return '';
+  const str = String(input).trim();
+  if (!str) return '';
+  // HH:mm:ss o HH:mm — extraer directo sin construir Date (evita drift de zona).
+  const match = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/);
+  if (!match) return '';
+  const [, hh, mm] = match;
+  return `${hh.padStart(2, '0')}:${mm}`;
 }
 
 /**

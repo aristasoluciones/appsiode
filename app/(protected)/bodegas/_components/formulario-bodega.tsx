@@ -34,6 +34,7 @@ import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { useAuth } from '@/providers/auth-provider';
 import { useCrearBodega, useActualizarBodega } from '../_hooks/use-bodegas';
 import { toastError } from '@/lib/toast';
+import { getFirstBackendError } from '@/lib/helpers';
 import type {
   IBodega,
   IBodegaFormValues,
@@ -285,35 +286,13 @@ export function FormularioBodega({ modo, bodega, readOnly = false }: FormularioB
         await actualizarMutation.mutateAsync({ id: bodega.id, ...payload });
       }
     } catch (err: unknown) {
-      const firstError = extractFirstBackendError(err);
+      const firstError = getFirstBackendError(err);
       if (firstError) {
         toastError(firstError);
       } else {
         toastError('Ocurrió un error al guardar la bodega.');
       }
     }
-  }
-
-  /**
-   * Extrae el primer mensaje de error de un response 400 del backend.
-   * El backend responde con `{ errors: { CampoPascalCase: [string, ...] } }`.
-   */
-  function extractFirstBackendError(err: unknown): string | null {
-    const axiosErr = err as { response?: { data?: { errors?: Record<string, string[]>; message?: string }; status?: number } };
-    const data = axiosErr?.response?.data;
-    if (!data) return null;
-    if (data.errors && typeof data.errors === 'object') {
-      for (const key of Object.keys(data.errors)) {
-        const msgs = data.errors[key];
-        if (Array.isArray(msgs) && msgs.length > 0 && typeof msgs[0] === 'string') {
-          return msgs[0];
-        }
-      }
-    }
-    if (typeof data.message === 'string' && data.message.trim() !== '') {
-      return data.message;
-    }
-    return null;
   }
 
   return (
