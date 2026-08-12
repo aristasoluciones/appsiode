@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - development
   workflow_dispatch:
 
 env:
@@ -12,8 +13,8 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -31,20 +32,13 @@ jobs:
           npm install
           npm run build
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_RPP_API_BASE: ${{ secrets.NEXT_PUBLIC_RPP_API_BASE }}
-          NEXT_PUBLIC_SICE_API_BASE: ${{ secrets.NEXT_PUBLIC_SICE_API_BASE }}
-
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_68FEA924AD5D4AB098AB077B0058AAAB }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_FB4561F4E0FD40CD9FA152B529451D65 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_4298F23AEB8742E6AB779878A309BA57 }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_RPP_API_BASE: ${{ vars.NEXT_PUBLIC_RPP_API_BASE }}
+          NEXT_PUBLIC_SICE_API_BASE: ${{ vars.NEXT_PUBLIC_SICE_API_BASE }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'appsiode'
-          slot-name: 'Production'
+          app-name: ${{ vars.APP_NAME }}
           package: . # Sube TODO: .next, node_modules y package.json
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
