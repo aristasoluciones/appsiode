@@ -33,8 +33,6 @@ jobs:
           npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_RPP_API_BASE: ${{ vars.NEXT_PUBLIC_RPP_API_BASE }}
-          NEXT_PUBLIC_SICE_API_BASE: ${{ vars.NEXT_PUBLIC_SICE_API_BASE }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3

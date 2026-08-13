@@ -7,9 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useEnlacesExternos } from '@/hooks/use-enlaces-externos';
 import type { IRepresentanteApertura } from '@/types/aperturas-bodegas';
-
-const RPP_API_BASE = process.env.NEXT_PUBLIC_RPP_API_BASE ?? '';
 
 export interface RepresentacionesPPAperturaCardProps {
   /**
@@ -55,6 +54,9 @@ export function RepresentacionesPPAperturaCard({
   onToggle,
   onToggleAll,
 }: RepresentacionesPPAperturaCardProps) {
+  // El enlace al sistema RPP viaja en el proceso activo, no en el build.
+  const { rppApiBase: RPP_API_BASE } = useEnlacesExternos();
+
   const presentes = useMemo(
     () => items.reduce((s, r) => s + (r.asistencia ? 1 : 0), 0),
     [items],

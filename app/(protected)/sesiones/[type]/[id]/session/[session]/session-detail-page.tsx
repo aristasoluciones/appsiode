@@ -60,6 +60,7 @@ import { SesionEdicion } from './sesion-edicion';
 import type { ISesionDetalleAPI, IRepresentanteNorm, IConsejeroExterno } from '@/types/sesiones';
 
 import { useAuth } from '@/providers/auth-provider';
+import { useEnlacesExternos } from '@/hooks/use-enlaces-externos';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -1080,7 +1081,6 @@ function ConsejerosAsistenciaCard({
 
 type AsistenciaPPItem = ISesionDetalleAPI['asistencia_pp'][number];
 
-const RPP_API_BASE = process.env.NEXT_PUBLIC_RPP_API_BASE ?? '';
 const EMPTY_REPS: IRepresentanteExternoAPI[] = [];
 
 function RepresentacionesPPCard({
@@ -1108,6 +1108,9 @@ function RepresentacionesPPCard({
   sessionId: string;
   canActualizarAsistenciaRpp: boolean;
 }) {
+
+  // El enlace al sistema RPP viaja en el proceso activo, no en el build.
+  const { rppApiBase: RPP_API_BASE } = useEnlacesExternos();
 
   const { mutate: guardarPP, isPending: guardandoPP } = useGuardarAsistenciaPP(sessionId);
 

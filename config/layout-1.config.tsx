@@ -8,6 +8,7 @@ import {
   Briefcase,
   Building,
   CalendarCheck,
+  CalendarCog,
   Captions,
   CheckCircle,
   Code,
@@ -169,7 +170,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       disabled: false,
       permission: 'paquetes.resultados.ver',
   },
-  { heading: 'Catálogos', permission: ['catalogos.roles.ver','catalogos.usuarios.ver'] },
+  { heading: 'Panel de control', permission: ['catalogos.roles.ver','catalogos.usuarios.ver','catalogos.procesos.ver'] },
   {
     title: 'Roles y Permisos',
     icon: KeySquare,
@@ -182,7 +183,13 @@ export const MENU_SIDEBAR: MenuConfig = [
     path: '/usuarios',
     permission: 'catalogos.usuarios.ver',
   },
-  
+  {
+    title: 'Procesos Electorales',
+    icon: CalendarCog,
+    path: '/procesos',
+    permission: 'catalogos.procesos.ver',
+  },
+
 ];
 
 export const MENU_MEGA: MenuConfig = [

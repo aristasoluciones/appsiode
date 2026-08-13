@@ -2,6 +2,7 @@
 
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEnlacesExternos } from '@/hooks/use-enlaces-externos';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { EXTERNOS_KEYS, SESIONES_KEYS } from '@/lib/query-keys';
@@ -64,10 +65,11 @@ export interface IRepresentanteExternoAPI {
 }
 
 export function useRepresentantesExternos(tipo: 'd' | 'm', idConsejo: string | null) {
+  const { rppApiBase: BASE } = useEnlacesExternos();
+
   return useQuery({
     queryKey: EXTERNOS_KEYS.representantes(tipo, idConsejo),
     queryFn: async (): Promise<IRepresentanteExternoAPI[]> => {
-      const BASE = process.env.NEXT_PUBLIC_RPP_API_BASE;
       if (!BASE || idConsejo === null) return [];
       const param = tipo === 'd' ? 'district' : 'town';
       const { data } = await axios.get<IRepresentanteExternoAPI[]>(
@@ -75,7 +77,7 @@ export function useRepresentantesExternos(tipo: 'd' | 'm', idConsejo: string | n
       );
       return Array.isArray(data) ? data : [];
     },
-    enabled: idConsejo !== null,
+    enabled: idConsejo !== null && !!BASE,
     staleTime: 60_000,
     retry: 1,
   });
