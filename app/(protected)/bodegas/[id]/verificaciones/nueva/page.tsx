@@ -116,7 +116,11 @@ export default function NuevaVerificacionPage({ params }: NuevaVerificacionPageP
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink>
+                  <span>Bodegas Electorales</span>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink>
                 </BreadcrumbItem>
 
                 {bodega?.tipo === 'Consejo' && meta?.consejo && (
