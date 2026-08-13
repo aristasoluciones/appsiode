@@ -5,12 +5,18 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import authClient from '@/lib/api/axios-auth';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import {
+  clearCachedUser,
+  readCachedUser,
+  writeCachedUser,
+} from '@/lib/auth-cache';
 import type { ApiResponse, AuthState, AuthUser } from '@/types/auth';
 import type { IProceso } from '@/types/proceso';
 
@@ -75,6 +81,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading: true,
   });
   const router = useRouter();
+  // true mientras la sesión provenga solo del caché local (aún sin confirmar
+  // por /Auth/perfil). Un login real la vuelve false.
+  const hydratedFromCache = useRef(false);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -99,21 +108,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        const fullUser = { ...user, proceso };
+        hydratedFromCache.current = false;
+        writeCachedUser(fullUser);
         setState({
-          user: { ...user, proceso },
+          user: fullUser,
           isAuthenticated: true,
           isLoading: false,
         });
       } else {
-        // Usar actualización funcional: si login() ya autenticó al usuario,
-        // no sobreescribir con false (evita race condition en producción).
+        // Respuesta definitiva sin sesión: descartar también la sesión
+        // optimista del caché. Solo preservar el estado si viene de un
+        // login real (evita race condition en producción).
+        if (hydratedFromCache.current) clearCachedUser();
         setState((prev) =>
-          prev.isAuthenticated
+          prev.isAuthenticated && !hydratedFromCache.current
             ? { ...prev, isLoading: false }
             : { user: null, isAuthenticated: false, isLoading: false },
         );
+        hydratedFromCache.current = false;
       }
-    } catch {
+    } catch (error) {
+      // 401/403: la sesión del caché ya no es válida — cerrarla. Otros
+      // errores (red, API caída) conservan el estado optimista para no
+      // botar al usuario por un fallo transitorio.
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const sessionRejected = status === 401 || status === 403;
+      if (hydratedFromCache.current && sessionRejected) {
+        clearCachedUser();
+        hydratedFromCache.current = false;
+        setState({ user: null, isAuthenticated: false, isLoading: false });
+        return;
+      }
       setState((prev) =>
         prev.isAuthenticated
           ? { ...prev, isLoading: false }
@@ -123,6 +149,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Hidratación optimista: pintar de inmediato con el último perfil
+    // conocido mientras /Auth/perfil revalida en segundo plano.
+    const cached = readCachedUser();
+    if (cached) {
+      hydratedFromCache.current = true;
+      setState({ user: cached, isAuthenticated: true, isLoading: false });
+    }
     refreshUser();
   }, [refreshUser]);
 
@@ -137,6 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (res.status === 200 && res.data.status === 200 && res.data.data) {
 
           // Mapear directamente los datos que ya vienen en el login
+          hydratedFromCache.current = false;
+          writeCachedUser(res.data.data);
           setState({
             user: res.data.data,   // ya trae modulos + proceso
             isAuthenticated: true,
@@ -166,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await authClient.post(API_ENDPOINTS.AUTH.LOGOUT);
     } finally {
+      clearCachedUser();
       setState({ user: null, isAuthenticated: false, isLoading: false });
       router.push('/signin');
     }

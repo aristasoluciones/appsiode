@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearCachedUser } from '@/lib/auth-cache';
 
 let isRefreshing = false;
 let refreshQueue: Array<(success: boolean) => void> = [];
@@ -10,6 +11,7 @@ function processQueue(success: boolean) {
 
 async function redirectToLogin(reason?: string) {
   if (typeof window === 'undefined') return;
+  clearCachedUser();
   try {
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/Auth/logout`, {
       method: 'POST',
