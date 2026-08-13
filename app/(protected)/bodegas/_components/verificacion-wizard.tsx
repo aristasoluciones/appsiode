@@ -737,7 +737,7 @@ function PasoDatosGenerales({ readOnly, values, setFieldValue }: { readOnly: boo
       </div>
       <div>
         <label className="block text-sm font-medium text-foreground mb-1.5">Fecha de verificación<span className="text-destructive ml-0.5">*</span></label>
-        <DateTimePicker
+        <DateTimePicker dateOnly
           value={values.fechaVerificacion}
           onChange={(v) => setFieldValue('fechaVerificacion', v)}
           disabled={readOnly}
@@ -952,7 +952,7 @@ function PasoCaracteristicasBe({ readOnly, values, setFieldValue }: { readOnly: 
           />
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">Fecha en que se contará con el espacio</label>
-            <DateTimePicker
+            <DateTimePicker dateOnly
               value={values.fechaMedidasEspacio}
               onChange={(v) => setFieldValue('fechaMedidasEspacio', v)}
               disabled={readOnly}
@@ -995,7 +995,7 @@ function PasoCaracteristicasBe({ readOnly, values, setFieldValue }: { readOnly: 
             <label className="block text-sm font-medium text-foreground mb-1.5">
               ¿En qué fecha se contará con el espacio para el resguardo de los Materiales Electorales? <span className="text-muted-foreground font-normal">(opcional)</span>
             </label>
-            <DateTimePicker
+            <DateTimePicker dateOnly
               value={values.fechaEspacioMateriales}
               onChange={(v) => setFieldValue('fechaEspacioMateriales', v)}
               disabled={readOnly}
@@ -1045,7 +1045,7 @@ function PasoUbicacion({ readOnly, values, setFieldValue }: { readOnly: boolean;
             />
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Fecha</label>
-              <DateTimePicker
+              <DateTimePicker dateOnly
                 value={values.fechaMedidasIncendios}
                 onChange={(v) => setFieldValue('fechaMedidasIncendios', v)}
                 disabled={readOnly}
@@ -1074,7 +1074,7 @@ function PasoUbicacion({ readOnly, values, setFieldValue }: { readOnly: boolean;
             />
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Fecha</label>
-              <DateTimePicker
+              <DateTimePicker dateOnly
                 value={values.fechaMedidasAgua}
                 onChange={(v) => setFieldValue('fechaMedidasAgua', v)}
                 disabled={readOnly}
@@ -1103,7 +1103,7 @@ function PasoUbicacion({ readOnly, values, setFieldValue }: { readOnly: boolean;
             />
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Fecha</label>
-              <DateTimePicker
+              <DateTimePicker dateOnly
                 value={values.fechaMedidasDrenaje}
                 onChange={(v) => setFieldValue('fechaMedidasDrenaje', v)}
                 disabled={readOnly}
@@ -1132,7 +1132,7 @@ function PasoUbicacion({ readOnly, values, setFieldValue }: { readOnly: boolean;
             />
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Fecha</label>
-              <DateTimePicker
+              <DateTimePicker dateOnly
                 value={values.fechaMedidasSuperiores}
                 onChange={(v) => setFieldValue('fechaMedidasSuperiores', v)}
                 disabled={readOnly}
@@ -1191,7 +1191,7 @@ function PasoAcondicionamiento({ readOnly, values, setFieldValue }: { readOnly: 
           />
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">Fecha</label>
-            <DateTimePicker
+            <DateTimePicker dateOnly
               value={values[fechaField as keyof WizardFormValues] as string}
               onChange={(v) => setFieldValue(fechaField, v)}
               disabled={readOnly}
@@ -1345,7 +1345,7 @@ function PasoEquipamiento({ readOnly, values, setFieldValue }: { readOnly: boole
           />
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">Fecha</label>
-            <DateTimePicker
+            <DateTimePicker dateOnly
               value={values[fechaField as keyof WizardFormValues] as string}
               onChange={(v) => setFieldValue(fechaField, v)}
               disabled={readOnly}
