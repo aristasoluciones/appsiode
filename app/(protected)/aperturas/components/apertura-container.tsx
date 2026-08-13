@@ -13,12 +13,16 @@ import {
   useCatalogosAperturas,
 } from '../_hooks/use-external';
 import { AperturasTable } from './apertura-table';
+import { AperturasAdminDashboard } from './aperturas-admin-dashboard';
+import { CerrarAperturaDialog } from './cerrar-apertura-dialog';
+import type { IAperturaBodega, IAperturasListaMeta } from '@/types/aperturas-bodegas';
 import {
   EmptyStateErrorAperturas,
   EmptyStateSinAperturas,
   EmptyStateBusquedaApertura,
 } from './empty-state';
 import type { TTipoEleccion } from '@/types/aperturas-bodegas';
+import { ELECCION_LABEL } from '@/types/aperturas-bodegas';
 
 // ─── Pills por tipoConsejo / elección ─────────────────────────────────────────
 
@@ -33,12 +37,6 @@ interface TipoEleccionPillProps {
 const PILL_POR_TIPO: Record<TTipoConsejo, TTipoEleccion[]> = {
   distrital: ['DIPU', 'GOB'],
   municipal: ['AYUN'],
-};
-
-const LABEL_POR_ELECCION: Record<TTipoEleccion, string> = {
-  DIPU: 'Diputaciones',
-  GOB: 'Gubernatura',
-  AYUN: 'Ayuntamientos',
 };
 
 export function TipoEleccionPills({
@@ -144,22 +142,46 @@ const TIPO_CHAR: Record<TTipoConsejo, 'D' | 'M'> = {
   municipal: 'M',
 };
 
-export function AperturasContainer() {
+export interface AperturasContainerProps {
+  /**
+   * Consejo a consultar cuando un administrador abre el detalle desde el
+   * resumen por consejo. Sin estas props se usa el consejo del JWT.
+   */
+  tipoConsejo?: 'D' | 'M';
+  idConsejo?: number;
+  /**
+   * Recibe los datos del consejo que el API adjunta al listado, para que la
+   * pantalla contenedora pinte el breadcrumb sin repetir la consulta.
+   */
+  onMetaChange?: (meta: IAperturasListaMeta | null) => void;
+}
+
+export function AperturasContainer({
+  tipoConsejo: tipoConsejoProp,
+  idConsejo: idConsejoProp,
+  onMetaChange,
+}: AperturasContainerProps = {}) {
   const router = useRouter();
   const { user, hasPermission } = useAuth();
 
-  const canCrear = hasPermission('bodegas.aperturas.registrar');
+  // Drill-down de administrador: el consejo viene por props (solo lectura,
+  // sin alta de aperturas desde esta vista).
+  const esVistaAdmin = tipoConsejoProp != null && idConsejoProp != null;
 
-  // El tipoConsejo del JWT determina las pills disponibles.
-  // Capturista → su tipoConsejo. Admin → permite ambos si están en el proceso.
+  const canCrear = hasPermission('bodegas.aperturas.registrar') && !esVistaAdmin;
+  const canCerrar = hasPermission('bodegas.aperturas.actualizar');
+
+  // El tipoConsejo (props en vista admin, JWT en capturista) determina las
+  // pills de elección disponibles.
   const tipoConsejoUser: TTipoConsejo | null = useMemo(() => {
-    const t = user?.tipoConsejo;
+    const t = tipoConsejoProp ?? user?.tipoConsejo;
     if (t === 'D') return 'distrital';
     if (t === 'M') return 'municipal';
     return null;
-  }, [user?.tipoConsejo]);
+  }, [tipoConsejoProp, user?.tipoConsejo]);
 
-  const idConsejo = user?.idConsejo ? parseInt(user.idConsejo, 10) : null;
+  const idConsejo =
+    idConsejoProp ?? (user?.idConsejo ? parseInt(user.idConsejo, 10) : null);
 
   const { data: catalogos } = useCatalogosAperturas(!!tipoConsejoUser);
 
@@ -171,12 +193,13 @@ export function AperturasContainer() {
     const permitidas = PILL_POR_TIPO[tipoConsejoUser];
     return catalogos.elecciones
       .filter((e) => permitidas.includes(e.clave))
-      .map((e) => ({ value: e.clave, label: LABEL_POR_ELECCION[e.clave] }));
+      .map((e) => ({ value: e.clave, label: ELECCION_LABEL[e.clave] }));
   }, [catalogos, tipoConsejoUser]);
 
   // Estado local
   const [tipoEleccion, setTipoEleccion] = useState<TTipoEleccion | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  const [aperturaACerrar, setAperturaACerrar] = useState<IAperturaBodega | null>(null);
 
   // Auto-selecciona la primera elección válida al cargar.
   useEffect(() => {
@@ -203,6 +226,13 @@ export function AperturasContainer() {
     [listaResult],
   );
 
+  // Publica los datos del consejo en cuanto llegan con el listado; mientras
+  // tanto la pantalla contenedora muestra su etiqueta de respaldo.
+  const meta = listaResult?.meta ?? null;
+  useEffect(() => {
+    onMetaChange?.(meta);
+  }, [meta, onMetaChange]);
+
   // ── Filtrado local (búsqueda por motivo) ──────────────────────────────────
   const dataFiltrada = useMemo(() => {
     const q = busqueda.toLowerCase().trim();
@@ -215,15 +245,9 @@ export function AperturasContainer() {
     setBusqueda('');
   }, [eleccionesDisponibles]);
 
-  // ── Estado de carga ──────────────────────────────────────────────────────
+  // ── Sin consejo asignado → vista de administrador (resumen por consejo) ──
   if (!tipoConsejoUser || !idConsejo) {
-    return (
-      <div className="rounded-lg border border-border bg-card p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          Tu usuario no tiene un consejo asignado. Contacta al administrador.
-        </p>
-      </div>
-    );
+    return <AperturasAdminDashboard />;
   }
 
   if (isError) {
@@ -286,8 +310,17 @@ export function AperturasContainer() {
           isLoading={isLoading}
           emptyContent={emptyContent}
           headerContent={headerContent}
+          onCerrar={canCerrar ? setAperturaACerrar : undefined}
         />
       </div>
+
+      <CerrarAperturaDialog
+        apertura={aperturaACerrar}
+        open={aperturaACerrar != null}
+        onOpenChange={(v) => {
+          if (!v) setAperturaACerrar(null);
+        }}
+      />
     </div>
   );
 }

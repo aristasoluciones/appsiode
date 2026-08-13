@@ -1,26 +1,28 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Image from 'next/image';
 import { AlertTriangle, SearchX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type {
-  IRepresentanteApertura,
-} from '@/types/aperturas-bodegas';
-import type { IRepresentanteNorm } from '../_hooks/use-external';
+import type { IRepresentanteApertura } from '@/types/aperturas-bodegas';
 
 const RPP_API_BASE = process.env.NEXT_PUBLIC_RPP_API_BASE ?? '';
 
 export interface RepresentacionesPPAperturaCardProps {
-  representantes: IRepresentanteNorm[];
+  /**
+   * Representaciones del acta con su asistencia. Al crear se siembran desde el
+   * servicio externo; al abrir una apertura existente son las guardadas, con
+   * su logotipo, de modo que el acta se lee sin depender de ese servicio.
+   */
+  items: IRepresentanteApertura[];
   loading: boolean;
   error: boolean;
-  detalle: IRepresentanteApertura[];
   readOnly: boolean;
-  onAsistenciaChange: (uid: number, value: boolean) => void;
+  onToggle: (orden: number, value: boolean) => void;
+  onToggleAll: (value: boolean) => void;
 }
 
 function LocalEmptyState({
@@ -46,61 +48,20 @@ function LocalEmptyState({
 }
 
 export function RepresentacionesPPAperturaCard({
-  representantes,
+  items,
   loading,
   error,
-  detalle,
   readOnly,
-  onAsistenciaChange,
+  onToggle,
+  onToggleAll,
 }: RepresentacionesPPAperturaCardProps) {
-  const initialAsistencia = useMemo(() => {
-    const map: Record<number, boolean> = {};
-    detalle.forEach((r) => {
-      if (r.id_representante != null) map[r.id_representante] = !!r.asistencia;
-    });
-    return map;
-  }, [detalle]);
-
-  const [asistencia, setAsistencia] =
-    useState<Record<number, boolean>>(initialAsistencia);
-
   const presentes = useMemo(
-    () =>
-      representantes.reduce(
-        (s, r) => s + (asistencia[r.id_representante] ? 1 : 0),
-        0,
-      ),
-    [representantes, asistencia],
+    () => items.reduce((s, r) => s + (r.asistencia ? 1 : 0), 0),
+    [items],
   );
 
-  function toggle(uid: number) {
-    if (readOnly) return;
-    setAsistencia((prev) => {
-      const next = { ...prev, [uid]: !prev[uid] };
-      onAsistenciaChange(uid, next[uid]);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (readOnly) return;
-    const allSelected = representantes.every(
-      (r) => asistencia[r.id_representante],
-    );
-    const nextValue = !allSelected;
-    const next: Record<number, boolean> = {};
-    representantes.forEach((r) => {
-      next[r.id_representante] = nextValue;
-      onAsistenciaChange(r.id_representante, nextValue);
-    });
-    setAsistencia(next);
-  }
-
-  const allSelected =
-    representantes.length > 0 &&
-    representantes.every((r) => asistencia[r.id_representante]);
-  const someSelected =
-    representantes.some((r) => asistencia[r.id_representante]) && !allSelected;
+  const allSelected = items.length > 0 && presentes === items.length;
+  const someSelected = presentes > 0 && !allSelected;
 
   return (
     <Card>
@@ -112,7 +73,7 @@ export function RepresentacionesPPAperturaCard({
               checked={
                 allSelected ? true : someSelected ? 'indeterminate' : false
               }
-              onCheckedChange={toggleAll}
+              onCheckedChange={() => onToggleAll(!allSelected)}
             />
           )}
           <label
@@ -123,7 +84,7 @@ export function RepresentacionesPPAperturaCard({
           </label>
         </div>
         <Badge variant="secondary" appearance="light" size="sm">
-          {presentes} / {representantes.length}
+          {presentes} / {items.length}
         </Badge>
       </CardHeader>
       <CardContent className="p-0">
@@ -137,7 +98,7 @@ export function RepresentacionesPPAperturaCard({
             title="Sin conexión con representantes"
             description="No se pudo establecer contacto con el servicio de representantes."
           />
-        ) : representantes.length === 0 ? (
+        ) : items.length === 0 ? (
           <LocalEmptyState
             icon={<SearchX className="h-7 w-7 text-gray-400" />}
             title="Sin representantes"
@@ -146,24 +107,24 @@ export function RepresentacionesPPAperturaCard({
         ) : (
           <ScrollArea className="h-[calc(100dvh-440px)] min-h-[240px]">
             <ul className="divide-y divide-border">
-              {representantes.map((rep) => {
-                const presente = !!asistencia[rep.id_representante];
+              {items.map((rep) => {
+                const presente = !!rep.asistencia;
                 return (
                   <li
-                    key={rep.id_representante}
+                    key={rep.orden}
                     className="flex items-center gap-3 px-5 py-3"
                   >
                     <Checkbox
-                      id={`ap-rep-${rep.id_representante}`}
+                      id={`ap-rep-${rep.orden}`}
                       checked={presente}
-                      onCheckedChange={() => toggle(rep.id_representante)}
+                      onCheckedChange={() => onToggle(rep.orden, !presente)}
                       disabled={readOnly}
                     />
-                    {rep.partyImagePath && RPP_API_BASE ? (
+                    {rep.imagen && RPP_API_BASE ? (
                       <div className="relative shrink-0 w-7 h-7 rounded overflow-hidden">
                         <Image
-                          src={`${RPP_API_BASE}/${rep.partyImagePath}`}
-                          alt={rep.partyName}
+                          src={`${RPP_API_BASE}/${rep.imagen}`}
+                          alt={`Partido ${rep.id_partido}`}
                           fill
                           className="object-contain"
                           unoptimized
@@ -175,16 +136,16 @@ export function RepresentacionesPPAperturaCard({
                       </div>
                     )}
                     <label
-                      htmlFor={`ap-rep-${rep.id_representante}`}
+                      htmlFor={`ap-rep-${rep.orden}`}
                       className={`flex-1 min-w-0 ${
                         readOnly ? '' : 'cursor-pointer'
                       }`}
                     >
                       <p className="text-sm font-medium text-foreground leading-tight">
-                        {rep.nombre} {rep.apellidos}
+                        {rep.nombre}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {rep.cargo} · {rep.partyName}
+                        {rep.cargo}
                       </p>
                     </label>
                     <Badge

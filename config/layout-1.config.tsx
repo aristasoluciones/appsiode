@@ -69,7 +69,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       badge: 'New',
       permission: 'sesiones.ver',
   },
-  { heading: 'Bodegas Electorales', permission: ['bodegas.be.ver','bodegas.ba.ver'] },
+  { heading: 'Bodegas Electorales', permission: ['bodegas.be.ver','bodegas.aperturas.ver'] },
   { 
       title: 'Bodegas',
       icon: Warehouse,
@@ -84,14 +84,6 @@ export const MENU_SIDEBAR: MenuConfig = [
       badge: 'New',
       disabled: false,
       permission: 'bodegas.aperturas.ver',
-  },
-  { 
-      title: 'Bitacora de aperturas', 
-      icon: Logs,
-      path: '/coming-soon', 
-      badge: 'New',
-      disabled: false,
-      permission: 'bodegas.ba.ver',
   },
   { heading: 'Mecanismos de Recolección', permission: 'mecanismos.ver'},
   { 

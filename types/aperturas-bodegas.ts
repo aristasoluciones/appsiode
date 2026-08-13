@@ -5,6 +5,13 @@ export type TSacarPaquetesFront = 'NINGUNO' | 'INGRESO' | 'SALIDA';
 
 export const TIPOS_ELECCION: TTipoEleccion[] = ['AYUN', 'DIPU', 'GOB'];
 
+/** Nombre de la bodega según la elección, para mostrar en pantalla. */
+export const ELECCION_LABEL: Record<TTipoEleccion, string> = {
+  AYUN: 'Ayuntamientos',
+  DIPU: 'Diputaciones',
+  GOB: 'Gubernatura',
+};
+
 export const SACAR_PAQUETES_OPTIONS: { value: TSacarPaquetesFront; label: string }[] = [
   { value: 'NINGUNO', label: 'Ninguno' },
   { value: 'INGRESO', label: 'Ingreso' },
@@ -80,9 +87,57 @@ export interface IAperturaBodega {
   motivo_truncado?: string;
 }
 
+/**
+ * Datos del consejo que acompañan al listado de aperturas de un consejo
+ * específico (`meta.consejo`), con el mismo patrón que sesiones: el front los
+ * usa para el breadcrumb sin consultas extra.
+ */
+export interface IAperturaConsejoMeta {
+  id: number;
+  consejo: string;
+  tipo_consejo: 'D' | 'M';
+  tipo_consejo_desc: string; // "Distritales" o "Municipales"
+  clave_consejo: string;
+}
+
+export interface IAperturasListaMeta {
+  consejo: IAperturaConsejoMeta;
+}
+
 export interface IAperturaBodegaListaPayload {
   data: IAperturaBodega[];
-  meta?: Record<string, unknown>;
+  meta?: IAperturasListaMeta;
+}
+
+export interface IAperturaBodegaDetallePayload {
+  data: IAperturaBodegaDetalleAPI;
+  meta?: IAperturasListaMeta;
+}
+
+/**
+ * Resumen por consejo para la vista de administrador.
+ * `GET /aperturas-bodegas/resumen?tipoConsejo=D|M` devuelve el progreso
+ * global y un renglón por consejo activo del proceso (aunque esté en ceros)
+ * con los conteos de aperturas abiertas y cerradas.
+ */
+export interface IAperturaResumenConsejo {
+  tipo_consejo: 'D' | 'M';
+  id_consejo: number;
+  nombre_consejo: string;
+  total: number;
+  abiertas: number;
+  cerradas: number;
+}
+
+export interface IAperturasResumenProgreso {
+  total: number;
+  abiertas: number;
+  cerradas: number;
+}
+
+export interface IAperturasResumenData {
+  progreso: IAperturasResumenProgreso;
+  consejos: IAperturaResumenConsejo[];
 }
 
 /**
@@ -92,20 +147,58 @@ export interface IAperturaBodegaListaPayload {
  * cards editables.
  */
 export interface IAperturaBodegaDetalleAPI extends IAperturaBodega {
-  consejeros_lista?: IConsejeroApertura[];
-  representantes_lista?: IRepresentanteApertura[];
-  otros_lista?: IOtraPersona[];
-  paquetes_lista?: IPaqueteApertura[];
+  consejeros_lista?: IConsejeroAperturaAPI[];
+  representantes_lista?: IRepresentanteAperturaAPI[];
+  otros_lista?: IOtraPersonaAPI[];
+  paquetes_lista?: IPaqueteAperturaAPI[];
+}
+
+// ─── Sub-colecciones tal como las guarda la base ─────────────────────────────
+// Una apertura es el acta de un momento dado: las personas quedan guardadas
+// con su nombre y cargo, sin referencia a los sistemas externos, para que el
+// registro no cambie si después relevan a alguien. Por eso estos renglones no
+// traen identificador de persona y `orden` es su llave dentro del acta.
+
+export interface IConsejeroAperturaAPI {
+  orden: number;
+  asistencia: boolean;
+  cargo: string;
+  nombre: string;
+}
+
+export interface IRepresentanteAperturaAPI {
+  orden: number;
+  asistencia: boolean;
+  cargo: string;
+  nombre: string;
+  id_partido: number;
+  imagen: string | null;
+}
+
+export interface IOtraPersonaAPI {
+  cargo: string;
+  nombre: string;
+  id_procedencia: number;
+}
+
+/** La columna en la base se llama `tipo_casilla`; el alta la recibe como `casilla`. */
+export interface IPaqueteAperturaAPI {
+  seccion: number;
+  tipo_casilla: string;
+  operacion?: string;
 }
 
 // ─── Sub-colecciones (payloads para POST/PUT) ────────────────────────────────
+
+// El acta no guarda el identificador de la persona en los sistemas externos:
+// una apertura registrada se lee de sí misma y no debe cambiar si después
+// relevan a alguien. Dentro del acta, `orden` es la llave de cada renglón.
 
 export interface IConsejeroApertura {
   orden: number;
   asistencia: boolean;
   cargo: string;
   nombre: string;
-  id_consejero?: number;
 }
 
 export interface IRepresentanteApertura {
@@ -115,7 +208,6 @@ export interface IRepresentanteApertura {
   nombre: string;
   id_partido: number;
   imagen?: string | null;
-  id_representante?: number;
 }
 
 export interface IOtraPersona {
@@ -160,6 +252,10 @@ export interface IAperturaCerrarPayload {
   fecha_cierre: string;
   hora_cierre: string;
   sellos_cierre: 'true' | 'false';
+  // La API aún no persiste este campo en el cierre (el modelo y la función
+  // de base solo reciben fecha, hora y sellos); se envía para cuando el
+  // contrato lo incorpore.
+  observaciones?: string;
 }
 
 // ─── Historial ────────────────────────────────────────────────────────────────

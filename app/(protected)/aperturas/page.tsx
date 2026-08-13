@@ -36,7 +36,7 @@ export default async function AperturasPage() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Bodegas Electorales</BreadcrumbPage>
+                  <span>Bodegas Electorales</span>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
