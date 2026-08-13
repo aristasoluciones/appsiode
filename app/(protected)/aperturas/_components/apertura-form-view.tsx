@@ -42,17 +42,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { ArrowLeft, Check, Loader2, Lock, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock, Save, Trash2 } from 'lucide-react';
 import { toastError } from '@/lib/toast';
 import { useAuth } from '@/providers/auth-provider';
 import type { TTipoConsejo } from '@/hooks/use-proceso';
 import {
   useActualizarApertura,
   useAperturaDetalle,
-  useCerrarApertura,
   useCrearApertura,
   useEliminarApertura,
 } from '../_hooks/use-aperturas';
+import { CerrarAperturaDialog } from '../components/cerrar-apertura-dialog';
 import {
   useCatalogosAperturas,
   useIntegracionApertura,
@@ -74,7 +74,7 @@ import type {
   TTipoEleccion,
   TSacarPaquetesFront,
 } from '@/types/aperturas-bodegas';
-import { SACAR_PAQUETES_OPTIONS } from '@/types/aperturas-bodegas';
+import { ELECCION_LABEL, SACAR_PAQUETES_OPTIONS } from '@/types/aperturas-bodegas';
 import type { IRepresentanteNorm } from '../_hooks/use-external';
 
 // ─── Estado del formulario ────────────────────────────────────────────────────
@@ -143,13 +143,22 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
     useCatalogosAperturas(true);
 
   // ── Catálogos externos ───────────────────────────────────────────────────
+  // Solo se consultan al crear: una apertura ya registrada es un acta y se lee
+  // de lo guardado, sin volver a preguntarle a los sistemas externos.
   const { data: consejerosExt = [], isLoading: loadingConsejeros } =
-    useIntegracionApertura(tipoChar, claveConsejoUser ? parseInt(claveConsejoUser, 10) : null);
+    useIntegracionApertura(
+      isEditing ? null : tipoChar,
+      !isEditing && claveConsejoUser ? parseInt(claveConsejoUser, 10) : null,
+    );
 
   const { data: representantesExt = [], isLoading: loadingRep, isError: errorRep } =
     useRepresentantesExternosApertura(
-      tipoConsejoUser ? (tipoConsejoUser === 'distrital' ? 'd' : 'm') : null,
-      idConsejoUser,
+      isEditing || !tipoConsejoUser
+        ? null
+        : tipoConsejoUser === 'distrital'
+          ? 'd'
+          : 'm',
+      isEditing ? null : idConsejoUser,
     );
 
   const representantesNorm: IRepresentanteNorm[] = useMemo(
@@ -164,14 +173,13 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
   // ── Mutaciones ────────────────────────────────────────────────────────────
   const crear = useCrearApertura();
   const actualizar = useActualizarApertura();
-  const cerrar = useCerrarApertura();
   const eliminar = useEliminarApertura();
 
   // ── Estado local ──────────────────────────────────────────────────────────
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [hydrated, setHydrated] = useState(!isEditing);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
-  const [confirmarCerrar, setConfirmarCerrar] = useState(false);
+  const [cierreAbierto, setCierreAbierto] = useState(false);
   const [confirmarSalida, setConfirmarSalida] = useState(false);
   const [pendingNav, setPendingNav] = useState<(() => void) | null>(null);
 
@@ -245,60 +253,80 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
     setConfirmarSalida(true);
   }
 
-  // ── Helpers de actualización de arrays ───────────────────────────────────
-  function setConsejeroAsistencia(uid: number, value: boolean) {
-    setForm((prev) => {
-      const existe = prev.consejeros.find((c) => c.id_consejero === uid);
-      if (existe) {
-        return {
-          ...prev,
-          consejeros: prev.consejeros.map((c) =>
-            c.id_consejero === uid ? { ...c, asistencia: value } : c,
-          ),
-        };
-      }
-      // Crea el registro a partir del consejero externo.
-      const ext = consejerosExt.find((c) => c.id === uid);
-      if (!ext) return prev;
-      const nuevo: IConsejeroApertura = {
-        orden: prev.consejeros.length + 1,
-        asistencia: value,
-        cargo: ext.cargo,
-        nombre: `${ext.nombre} ${ext.apellidos}`.trim(),
-        id_consejero: ext.id,
-      };
-      return { ...prev, consejeros: [...prev.consejeros, nuevo] };
-    });
+  // ── Siembra del padrón al crear ──────────────────────────────────────────
+  // El acta guarda a todas las personas convocadas con su asistencia en
+  // verdadero o falso, no solo a las presentes, para que al reabrirla se pueda
+  // corregir sin depender de los sistemas externos.
+  useEffect(() => {
+    if (isEditing || consejerosExt.length === 0) return;
+    setForm((prev) =>
+      prev.consejeros.length > 0
+        ? prev
+        : {
+            ...prev,
+            consejeros: consejerosExt.map((c, i) => ({
+              orden: i + 1,
+              asistencia: false,
+              cargo: c.cargo,
+              nombre: `${c.nombre} ${c.apellidos}`.trim(),
+            })),
+          },
+    );
+  }, [isEditing, consejerosExt]);
+
+  useEffect(() => {
+    if (isEditing || representantesNorm.length === 0) return;
+    setForm((prev) =>
+      prev.representantes.length > 0
+        ? prev
+        : {
+            ...prev,
+            representantes: representantesNorm.map((r, i) => ({
+              orden: i + 1,
+              asistencia: false,
+              cargo: r.cargo,
+              nombre: `${r.nombre} ${r.apellidos}`.trim(),
+              id_partido: r.id_partido,
+              imagen: r.partyImagePath ?? null,
+            })),
+          },
+    );
+  }, [isEditing, representantesNorm]);
+
+  // ── Asistencia (la llave es `orden`, el renglón dentro del acta) ─────────
+  function setConsejeroAsistencia(orden: number, value: boolean) {
+    setForm((prev) => ({
+      ...prev,
+      consejeros: prev.consejeros.map((c) =>
+        c.orden === orden ? { ...c, asistencia: value } : c,
+      ),
+    }));
   }
 
-  function setRepresentanteAsistencia(uid: number, value: boolean) {
-    setForm((prev) => {
-      const existe = prev.representantes.find(
-        (r) => r.id_representante === uid,
-      );
-      if (existe) {
-        return {
-          ...prev,
-          representantes: prev.representantes.map((r) =>
-            r.id_representante === uid ? { ...r, asistencia: value } : r,
-          ),
-        };
-      }
-      const ext = representantesNorm.find(
-        (r) => r.id_representante === uid,
-      );
-      if (!ext) return prev;
-      const nuevo: IRepresentanteApertura = {
-        orden: prev.representantes.length + 1,
+  function setTodosConsejeros(value: boolean) {
+    setForm((prev) => ({
+      ...prev,
+      consejeros: prev.consejeros.map((c) => ({ ...c, asistencia: value })),
+    }));
+  }
+
+  function setRepresentanteAsistencia(orden: number, value: boolean) {
+    setForm((prev) => ({
+      ...prev,
+      representantes: prev.representantes.map((r) =>
+        r.orden === orden ? { ...r, asistencia: value } : r,
+      ),
+    }));
+  }
+
+  function setTodosRepresentantes(value: boolean) {
+    setForm((prev) => ({
+      ...prev,
+      representantes: prev.representantes.map((r) => ({
+        ...r,
         asistencia: value,
-        cargo: ext.cargo,
-        nombre: `${ext.nombre} ${ext.apellidos}`.trim(),
-        id_partido: ext.id_partido,
-        imagen: ext.partyImagePath ?? null,
-        id_representante: ext.id_representante,
-      };
-      return { ...prev, representantes: [...prev.representantes, nuevo] };
-    });
+      })),
+    }));
   }
 
   // ── Validez del formulario ─────────────────────────────────────────────────
@@ -310,15 +338,29 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
   //  - si sacar_paquetes ≠ NINGUNO: al menos 1 paquete
   const requierePaquetes = form.sacar_paquetes !== 'NINGUNO';
 
-  // Filtra las elecciones del catálogo según el tipoConsejo del JWT:
-  //  - D → solo DIPU/GOB (nunca AYUN)
-  //  - M → solo AYUN
+  // El catálogo ya llega filtrado por el tipo de consejo del usuario (los
+  // administradores reciben todas), así que se consume tal cual. Si la
+  // elección del acta no viniera en él —por ejemplo, al consultar la apertura
+  // de otro consejo— se agrega para que el campo siempre muestre lo guardado.
   const eleccionesPermitidas = useMemo(() => {
-    if (!catalogos?.elecciones?.length || !tipoConsejoUser) return [];
-    const permitidas: TTipoEleccion[] =
-      tipoConsejoUser === 'distrital' ? ['DIPU', 'GOB'] : ['AYUN'];
-    return catalogos.elecciones.filter((e) => permitidas.includes(e.clave));
-  }, [catalogos, tipoConsejoUser]);
+    const items = catalogos?.elecciones ?? [];
+    if (form.bodega && !items.some((e) => e.clave === form.bodega)) {
+      return [
+        ...items,
+        {
+          id: -1,
+          clave: form.bodega as TTipoEleccion,
+          descripcion: ELECCION_LABEL[form.bodega as TTipoEleccion] ?? form.bodega,
+        },
+      ];
+    }
+    return items;
+  }, [catalogos, form.bodega]);
+  const algunConsejeroAsistio = useMemo(
+    () => form.consejeros.some((c) => c.asistencia === true),
+    [form.consejeros],
+  );
+
   const esValido = useMemo(() => {
     if (!form.bodega) return false;
     if (!form.fecha_apertura) return false;
@@ -326,9 +368,6 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
     if (form.motivo.trim() === '') return false;
     if (form.motivo.length > 2000) return false;
     if (form.observaciones.length > 2000) return false;
-    const algunConsejeroAsistio = form.consejeros.some(
-      (c) => c.asistencia === true,
-    );
     if (!algunConsejeroAsistio) return false;
     if (requierePaquetes && form.paquetes.length === 0) return false;
     return true;
@@ -338,7 +377,7 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
     form.hora_apertura,
     form.motivo,
     form.observaciones,
-    form.consejeros,
+    algunConsejeroAsistio,
     form.paquetes,
     requierePaquetes,
   ]);
@@ -394,19 +433,6 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
     }
   }
 
-  // ── Cerrar apertura ──────────────────────────────────────────────────────
-  async function handleCerrar() {
-    if (!idApertura) return;
-    const hoy = new Date();
-    const fecha = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-    const hora = `${String(hoy.getHours()).padStart(2, '0')}:${String(hoy.getMinutes()).padStart(2, '0')}`;
-    await cerrar.mutateAsync({
-      id: idApertura,
-      payload: { fecha_cierre: fecha, hora_cierre: hora, sellos_cierre: 'true' },
-    });
-    setConfirmarCerrar(false);
-  }
-
   function handleEliminar() {
     if (!idApertura) return;
     eliminar.mutate(idApertura);
@@ -419,8 +445,30 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
   const cabecera: IAperturaBodega | null = detalleResult?.cabecera ?? null;
   const estaAbierta = cabecera ? cabecera.abierta : true;
 
+  // ── Ruta de navegación ───────────────────────────────────────────────────
+  // En edición/consulta el consejo viene en el `meta` del detalle; al crear
+  // todavía no hay registro, así que se toma del consejo del usuario.
+  const consejoMeta = detalleResult?.meta?.consejo ?? null;
+  const tipoPlural =
+    consejoMeta?.tipo_consejo_desc ??
+    (tipoConsejoUser === 'distrital'
+      ? 'Distritales'
+      : tipoConsejoUser === 'municipal'
+        ? 'Municipales'
+        : null);
+  const consejoLabel = consejoMeta
+    ? `${consejoMeta.clave_consejo}. ${consejoMeta.consejo}`
+    : user?.consejo
+      ? `${user.claveConsejo}. ${user.consejo}`
+      : null;
+  const paginaActual = isEditing
+    ? readOnly
+      ? `Apertura #${idApertura}`
+      : `Editar apertura #${idApertura}`
+    : 'Nueva apertura';
+
   const isPending =
-    crear.isPending || actualizar.isPending || cerrar.isPending || eliminar.isPending;
+    crear.isPending || actualizar.isPending || eliminar.isPending;
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (isEditing && isLoadingDetalle) {
@@ -442,19 +490,37 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
+                  <BreadcrumbLink href="/">Inicio</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <span>Bodegas Electorales</span>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
                   <BreadcrumbLink asChild>
                     <Link href="/aperturas">Aperturas</Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>
+                {tipoPlural && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <span>{tipoPlural}</span>
+                    </BreadcrumbItem>
+                  </>
+                )}
+                {consejoLabel && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <span>{consejoLabel}</span>
+                    </BreadcrumbItem>
+                  </>
+                )}
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>
-                    {isEditing
-                      ? readOnly
-                        ? `Apertura #${idApertura}`
-                        : `Editar apertura #${idApertura}`
-                      : 'Nueva apertura'}
-                  </BreadcrumbPage>
+                  <BreadcrumbPage>{paginaActual}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -469,11 +535,11 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
               <ArrowLeft className="h-4 w-4" />
               Volver
             </Button>
-            {isEditing && !readOnly && canActualizar && estaAbierta && (
+            {isEditing && canActualizar && estaAbierta && (
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setConfirmarCerrar(true)}
+                onClick={() => setCierreAbierto(true)}
                 disabled={isPending}
               >
                 <Lock className="h-4 w-4" />
@@ -542,6 +608,7 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
                         Fecha de apertura <span className="text-destructive">*</span>
                       </Label>
                       <DateTimePicker
+                        dateOnly
                         value={form.fecha_apertura}
                         onChange={(v) =>
                           setForm((p) => ({
@@ -677,20 +744,20 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
             </Card>
 
             <ConsejerosAsistenciaAperturaCard
-              consejeros={consejerosExt}
-              loading={loadingConsejeros}
-              detalle={form.consejeros}
+              items={form.consejeros}
+              loading={!isEditing && loadingConsejeros}
               readOnly={readOnly}
-              onAsistenciaChange={setConsejeroAsistencia}
+              onToggle={setConsejeroAsistencia}
+              onToggleAll={setTodosConsejeros}
             />
 
             <RepresentacionesPPAperturaCard
-              representantes={representantesNorm}
-              loading={loadingRep}
-              error={errorRep}
-              detalle={form.representantes}
+              items={form.representantes}
+              loading={!isEditing && loadingRep}
+              error={!isEditing && errorRep}
               readOnly={readOnly}
-              onAsistenciaChange={setRepresentanteAsistencia}
+              onToggle={setRepresentanteAsistencia}
+              onToggleAll={setTodosRepresentantes}
             />
           </div>
 
@@ -726,6 +793,15 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
         {/* ── Footer con Guardar ──────────────────────────────────────── */}
         {!readOnly && (
           <div className="sticky bottom-0 z-10 -mx-5 mt-4 border-t border-border bg-card/95 backdrop-blur px-5 py-3 flex items-center justify-end gap-2">
+            {hydrated && !algunConsejeroAsistio && (
+              <p
+                className="mr-auto text-xs font-medium text-amber-600 dark:text-amber-500"
+                role="alert"
+              >
+                Registra la asistencia de al menos una consejería para poder
+                guardar.
+              </p>
+            )}
             <Button
               type="button"
               onClick={handleGuardar}
@@ -743,28 +819,11 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
       </Container>
 
       {/* ── Diálogos ──────────────────────────────────────────────────── */}
-      <AlertDialog open={confirmarCerrar} onOpenChange={setConfirmarCerrar}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Cerrar la apertura?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Una vez cerrada no se podrá modificar. Esta acción puede revertirse
-              solo por un administrador.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCerrar} disabled={isPending}>
-              {cerrar.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              Cerrar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CerrarAperturaDialog
+        apertura={cabecera}
+        open={cierreAbierto}
+        onOpenChange={setCierreAbierto}
+      />
 
       <AlertDialog open={confirmarEliminar} onOpenChange={setConfirmarEliminar}>
         <AlertDialogContent>
@@ -833,10 +892,28 @@ function formToInitial(detalle: IAperturaBodegaDetalleAPI): FormState {
     motivo: detalle.motivo ?? '',
     observaciones: detalle.observaciones ?? '',
     sellos_apertura: !!detalle.sellos_apertura,
+    // El alta maneja tres opciones; la base además marca REINGRESO cuando el
+    // paquete ya había salido, que para el formulario sigue siendo un ingreso.
     sacar_paquetes:
-      detalle.sacar_paquetes === 'SALIDA' ? 'SALIDA' : 'INGRESO',
-    consejeros: detalle.consejeros_lista ?? [],
-    representantes: detalle.representantes_lista ?? [],
+      detalle.sacar_paquetes === 'SALIDA'
+        ? 'SALIDA'
+        : detalle.sacar_paquetes === 'NINGUNO'
+          ? 'NINGUNO'
+          : 'INGRESO',
+    consejeros: (detalle.consejeros_lista ?? []).map((c, i) => ({
+      orden: c.orden ?? i + 1,
+      asistencia: !!c.asistencia,
+      cargo: c.cargo,
+      nombre: c.nombre,
+    })),
+    representantes: (detalle.representantes_lista ?? []).map((r, i) => ({
+      orden: r.orden ?? i + 1,
+      asistencia: !!r.asistencia,
+      cargo: r.cargo,
+      nombre: r.nombre,
+      id_partido: r.id_partido,
+      imagen: r.imagen ?? null,
+    })),
     otros: (detalle.otros_lista ?? []).map((o) => ({
       uid: uid(),
       cargo: o.cargo,
@@ -846,7 +923,9 @@ function formToInitial(detalle: IAperturaBodegaDetalleAPI): FormState {
     paquetes: (detalle.paquetes_lista ?? []).map((p) => ({
       uid: uid(),
       seccion: p.seccion,
-      casilla: p.casilla,
+      // La base guarda la casilla en `tipo_casilla`; el alta la envía como
+      // `casilla`, así que aquí se traduce al nombre que usa el formulario.
+      casilla: p.tipo_casilla,
       casilla_desc: '',
     })),
   };

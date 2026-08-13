@@ -9,7 +9,7 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table';
 import Link from 'next/link';
-import { Eye } from 'lucide-react';
+import { Eye, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -18,8 +18,14 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { formatDateOnly, formatTimeOnly } from '@/lib/helpers';
-import type { IAperturaBodega, TTipoEleccion } from '@/types/aperturas-bodegas';
+import type { IAperturaBodega } from '@/types/aperturas-bodegas';
+import { ELECCION_LABEL } from '@/types/aperturas-bodegas';
 
 // ─── Cálculo de estatus a partir de `abierta` ────────────────────────────────
 // El backend NO devuelve un campo `status` discreto; el soft-delete se filtra
@@ -44,12 +50,6 @@ function estatusVariant(e: TEstatus): TVariant {
   return ESTATUS_VARIANT[e];
 }
 
-const ELECCION_LABEL: Record<TTipoEleccion, string> = {
-  AYUN: 'Ayuntamientos',
-  DIPU: 'Diputaciones',
-  GOB: 'Gubernatura',
-};
-
 // ─── Tabla ────────────────────────────────────────────────────────────────────
 
 interface AperturasTableProps {
@@ -57,6 +57,8 @@ interface AperturasTableProps {
   isLoading: boolean;
   emptyContent: React.ReactNode;
   headerContent: React.ReactNode;
+  /** Abre el registro de cierre para una apertura abierta; ausente = sin permiso. */
+  onCerrar?: (apertura: IAperturaBodega) => void;
 }
 
 export function AperturasTable({
@@ -64,6 +66,7 @@ export function AperturasTable({
   isLoading,
   emptyContent,
   headerContent,
+  onCerrar,
 }: AperturasTableProps) {
   const columns = useMemo<ColumnDef<IAperturaBodega>[]>(
     () => [
@@ -243,24 +246,44 @@ export function AperturasTable({
         header: '',
         size: 110,
         cell: ({ row }) => (
-          <div className="flex justify-end">
-            <Link href={`/aperturas/${row.original.id}?mode=read`}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="min-h-[40px] gap-1.5 text-primary hover:text-primary/80"
-              >
-                <Eye className="h-4 w-4" aria-hidden="true" />
-                <span>Ver</span>
-              </Button>
-            </Link>
+          <div className="flex items-center justify-end gap-1">
+            {onCerrar && row.original.abierta && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Registrar cierre de la apertura"
+                    onClick={() => onCerrar(row.original)}
+                  >
+                    <Lock className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Registrar cierre</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href={`/aperturas/${row.original.id}?mode=read`}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-primary"
+                    aria-label="Ver detalle de la apertura"
+                  >
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>Ver detalle</TooltipContent>
+            </Tooltip>
           </div>
         ),
         enableSorting: false,
         enableHiding: false,
       },
     ],
-    [],
+    [onCerrar],
   );
 
   const table = useReactTable({
@@ -283,7 +306,9 @@ export function AperturasTable({
         ) : data.length === 0 ? (
           emptyContent
         ) : (
-          data.map((row) => <MobileCard key={row.id} row={row} />)
+          data.map((row) => (
+            <MobileCard key={row.id} row={row} onCerrar={onCerrar} />
+          ))
         )}
       </div>
 
@@ -319,7 +344,13 @@ export function AperturasTable({
 
 // ─── Tarjeta móvil ────────────────────────────────────────────────────────────
 
-function MobileCard({ row }: { row: IAperturaBodega }) {
+function MobileCard({
+  row,
+  onCerrar,
+}: {
+  row: IAperturaBodega;
+  onCerrar?: (apertura: IAperturaBodega) => void;
+}) {
   const fA = formatDateOnly(row.fecha_apertura);
   const hA = formatTimeOnly(row.hora_apertura);
   const fC = row.fecha_cierre ? formatDateOnly(row.fecha_cierre) : null;
@@ -344,12 +375,25 @@ function MobileCard({ row }: { row: IAperturaBodega }) {
             {ELECCION_LABEL[row.bodega] ?? row.bodega}
           </p>
         </div>
-        <Link href={`/aperturas/${row.id}?mode=read`}>
-          <Button variant="outline" size="sm" className="min-h-[40px] gap-1.5">
-            <Eye className="h-4 w-4" aria-hidden="true" />
-            <span>Ver</span>
-          </Button>
-        </Link>
+        <div className="flex items-center gap-1.5">
+          {onCerrar && row.abierta && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-[40px] gap-1.5"
+              onClick={() => onCerrar(row)}
+            >
+              <Lock className="h-4 w-4" aria-hidden="true" />
+              <span>Cerrar</span>
+            </Button>
+          )}
+          <Link href={`/aperturas/${row.id}?mode=read`}>
+            <Button variant="outline" size="sm" className="min-h-[40px] gap-1.5">
+              <Eye className="h-4 w-4" aria-hidden="true" />
+              <span>Ver</span>
+            </Button>
+          </Link>
+        </div>
       </header>
 
       <div className="grid grid-cols-2 gap-3 text-sm">

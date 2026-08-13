@@ -186,7 +186,9 @@ export function SidebarMenu() {
           value={item.path || ''}
           className="text-[13px]"
         >
-          <Link href={item.path || '#'}>{item.title}</Link>
+          <Link href={item.path || '#'} className="flex items-center grow">
+            {item.title}
+          </Link>
         </AccordionMenuItem>
       );
     }

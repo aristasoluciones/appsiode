@@ -1,21 +1,25 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { SearchX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { IConsejeroExterno } from '@/types/sesiones';
 import type { IConsejeroApertura } from '@/types/aperturas-bodegas';
 
 export interface ConsejerosAsistenciaAperturaCardProps {
-  consejeros: IConsejeroExterno[];
+  /**
+   * Padrón del acta con su asistencia. Al crear se siembra desde el catálogo
+   * externo; al abrir una apertura existente son los renglones guardados. En
+   * ambos casos el acta es la fuente y `orden` identifica cada renglón.
+   */
+  items: IConsejeroApertura[];
   loading: boolean;
-  detalle: IConsejeroApertura[];
   readOnly: boolean;
-  onAsistenciaChange: (uid: number, value: boolean) => void;
+  onToggle: (orden: number, value: boolean) => void;
+  onToggleAll: (value: boolean) => void;
 }
 
 function LocalEmptyState({
@@ -41,57 +45,19 @@ function LocalEmptyState({
 }
 
 export function ConsejerosAsistenciaAperturaCard({
-  consejeros,
+  items,
   loading,
-  detalle,
   readOnly,
-  onAsistenciaChange,
+  onToggle,
+  onToggleAll,
 }: ConsejerosAsistenciaAperturaCardProps) {
-  const initialAsistencia = useMemo(() => {
-    const map: Record<number, boolean> = {};
-    detalle.forEach((c) => {
-      if (c.id_consejero != null) map[c.id_consejero] = !!c.asistencia;
-    });
-    return map;
-  }, [detalle]);
-
-  const [asistencia, setAsistencia] =
-    useState<Record<number, boolean>>(initialAsistencia);
-
   const presentes = useMemo(
-    () =>
-      consejeros.reduce(
-        (s, c) => s + (asistencia[c.id] ? 1 : 0),
-        0,
-      ),
-    [consejeros, asistencia],
+    () => items.reduce((s, c) => s + (c.asistencia ? 1 : 0), 0),
+    [items],
   );
 
-  function toggle(uid: number) {
-    if (readOnly) return;
-    setAsistencia((prev) => {
-      const next = { ...prev, [uid]: !prev[uid] };
-      onAsistenciaChange(uid, next[uid]);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (readOnly) return;
-    const allSelected = consejeros.every((c) => asistencia[c.id]);
-    const nextValue = !allSelected;
-    const next: Record<number, boolean> = {};
-    consejeros.forEach((c) => {
-      next[c.id] = nextValue;
-      onAsistenciaChange(c.id, nextValue);
-    });
-    setAsistencia(next);
-  }
-
-  const allSelected =
-    consejeros.length > 0 && consejeros.every((c) => asistencia[c.id]);
-  const someSelected =
-    consejeros.some((c) => asistencia[c.id]) && !allSelected;
+  const allSelected = items.length > 0 && presentes === items.length;
+  const someSelected = presentes > 0 && !allSelected;
 
   return (
     <Card>
@@ -103,7 +69,7 @@ export function ConsejerosAsistenciaAperturaCard({
               checked={
                 allSelected ? true : someSelected ? 'indeterminate' : false
               }
-              onCheckedChange={toggleAll}
+              onCheckedChange={() => onToggleAll(!allSelected)}
             />
           )}
           <label
@@ -116,7 +82,7 @@ export function ConsejerosAsistenciaAperturaCard({
           </label>
         </div>
         <Badge variant="secondary" appearance="light" size="sm">
-          {presentes} / {consejeros.length}
+          {presentes} / {items.length}
         </Badge>
       </CardHeader>
       <CardContent className="p-0">
@@ -129,7 +95,7 @@ export function ConsejerosAsistenciaAperturaCard({
               />
             ))}
           </div>
-        ) : consejeros.length === 0 ? (
+        ) : items.length === 0 ? (
           <LocalEmptyState
             icon={<SearchX className="h-7 w-7 text-gray-400" />}
             title="Sin consejerías"
@@ -138,27 +104,27 @@ export function ConsejerosAsistenciaAperturaCard({
         ) : (
           <ScrollArea className="h-[calc(100dvh-440px)] min-h-[240px]">
             <ul className="divide-y divide-border">
-              {consejeros.map((c) => {
-                const presente = !!asistencia[c.id];
+              {items.map((c) => {
+                const presente = !!c.asistencia;
                 return (
                   <li
-                    key={c.id}
+                    key={c.orden}
                     className="flex items-center gap-3 px-5 py-3"
                   >
                     <Checkbox
-                      id={`ap-consejero-${c.id}`}
+                      id={`ap-consejero-${c.orden}`}
                       checked={presente}
-                      onCheckedChange={() => toggle(c.id)}
+                      onCheckedChange={() => onToggle(c.orden, !presente)}
                       disabled={readOnly}
                     />
                     <label
-                      htmlFor={`ap-consejero-${c.id}`}
+                      htmlFor={`ap-consejero-${c.orden}`}
                       className={`flex-1 min-w-0 ${
                         readOnly ? '' : 'cursor-pointer'
                       }`}
                     >
                       <p className="text-sm font-medium text-foreground leading-tight">
-                        {c.nombre} {c.apellidos}
+                        {c.nombre}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {c.cargo}

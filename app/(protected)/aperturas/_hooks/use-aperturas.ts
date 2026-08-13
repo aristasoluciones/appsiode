@@ -10,12 +10,15 @@ import { toastSuccess } from '@/lib/toast';
 import type {
   IAperturaBodega,
   IAperturaBodegaDetalleAPI,
+  IAperturaBodegaDetallePayload,
   IAperturaBodegaListaPayload,
   IAperturaCrearPayload,
   IAperturaActualizarPayload,
   IAperturaCerrarPayload,
   IAperturaHistorialItem,
   IAperturaHistorialPayload,
+  IAperturasListaMeta,
+  IAperturasResumenData,
   TTipoEleccion,
 } from '@/types/aperturas-bodegas';
 
@@ -23,7 +26,8 @@ import type {
 
 export interface IAperturasListaResult {
   aperturas: IAperturaBodega[];
-  meta: Record<string, unknown> | null;
+  /** Datos del consejo consultado; null cuando el API no los envía. */
+  meta: IAperturasListaMeta | null;
 }
 
 export function useAperturasLista(
@@ -55,11 +59,32 @@ export function useAperturasLista(
   });
 }
 
+// ─── Resumen por consejo (vista administrador) ───────────────────────────────
+
+export function useAperturasResumen(tipoConsejo: 'D' | 'M' | null) {
+  return useQuery<IAperturasResumenData>({
+    queryKey: APERTURAS_KEYS.resumen(tipoConsejo ?? 'NONE'),
+    enabled: !!tipoConsejo,
+    queryFn: async () => {
+      const { data } = await apiClient.get<IAperturasResumenData>(
+        API_ENDPOINTS.APERTURAS_BODEGAS.RESUMEN(tipoConsejo!),
+      );
+      return {
+        progreso: data.progreso ?? { total: 0, abiertas: 0, cerradas: 0 },
+        consejos: data.consejos ?? [],
+      };
+    },
+    staleTime: 30_000,
+  });
+}
+
 // ─── Detalle ──────────────────────────────────────────────────────────────────
 
 export interface IAperturaDetalleResult {
   cabecera: IAperturaBodega;
   detalle: IAperturaBodegaDetalleAPI;
+  /** Datos del consejo; null en aperturas de Oficina Central. */
+  meta: IAperturasListaMeta | null;
 }
 
 export function useAperturaDetalle(id: string | number) {
@@ -67,15 +92,19 @@ export function useAperturaDetalle(id: string | number) {
     queryKey: APERTURAS_KEYS.detalle(id),
     queryFn: async () => {
       try {
-        const { data } = await apiClient.get<IAperturaBodegaDetalleAPI>(
-          API_ENDPOINTS.APERTURAS_BODEGAS.DETALLE(id),
-        );
-        // El backend responde plano: la cabecera y los *_lista comparten el
-        // mismo nivel. `IAperturaBodegaDetalleAPI extends IAperturaBodega`,
-        // así que `data` ya tiene todos los campos de cabecera.
+        const { data } = await apiClient.get<
+          IAperturaBodegaDetalleAPI | IAperturaBodegaDetallePayload
+        >(API_ENDPOINTS.APERTURAS_BODEGAS.DETALLE(id));
+        // Cuando el API adjunta los datos del consejo, la apertura viaja
+        // dentro de `data`; sin ellos llega plana. En ambos casos la cabecera
+        // y los *_lista comparten nivel (`IAperturaBodegaDetalleAPI extends
+        // IAperturaBodega`).
+        const detalle = 'data' in data ? data.data : data;
+        const meta = 'meta' in data ? (data.meta ?? null) : null;
         return {
-          cabecera: data,
-          detalle: data,
+          cabecera: detalle,
+          detalle,
+          meta,
         };
       } catch (error: unknown) {
         if (axios.isAxiosError(error) && error.response?.status === 404) {

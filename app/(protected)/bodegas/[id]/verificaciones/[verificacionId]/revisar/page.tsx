@@ -599,7 +599,9 @@ export default function RevisarPage({ params }: RevisarPageProps) {
             <BreadcrumbList>
               <BreadcrumbItem><BreadcrumbLink href="/">Inicio</BreadcrumbLink></BreadcrumbItem>
               <BreadcrumbSeparator />
-              <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink></BreadcrumbItem>
+              <BreadcrumbItem><span>Bodegas Electorales</span></BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink></BreadcrumbItem>
               {metaData?.bodega?.tipo === 'Consejo' && metaData?.consejo && (
                   <>
                     <BreadcrumbSeparator />

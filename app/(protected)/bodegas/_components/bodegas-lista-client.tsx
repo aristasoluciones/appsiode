@@ -93,13 +93,15 @@ export function BodegasListaClient({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink>
+                  <span>Bodegas Electorales</span>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href={`/bodegas/consejos/${tipoConsejo === 'D' ? 'distritales' : 'municipales'}`}>
-                    {tipoPlural}
-                  </BreadcrumbLink>
+                  <BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <span>{tipoPlural}</span>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
@@ -116,7 +118,11 @@ export function BodegasListaClient({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink>
+                  <span>Bodegas Electorales</span>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>

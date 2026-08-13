@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { useEnlacesExternos } from '@/hooks/use-enlaces-externos';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { CATALOGOS_KEYS, EXTERNOS_KEYS } from '@/lib/query-keys';
@@ -13,8 +14,6 @@ import type {
   ICatalogoCargoApertura,
   ICatalogoProcedencia,
 } from '@/types/aperturas-bodegas';
-
-const RPP_API_BASE = process.env.NEXT_PUBLIC_RPP_API_BASE ?? '';
 
 export interface IRepresentanteExternoAPI {
   id: number;
@@ -123,17 +122,20 @@ export function useRepresentantesExternosApertura(
   tipo: 'd' | 'm' | null,
   idConsejo: string | number | null,
 ) {
+  const { rppApiBase } = useEnlacesExternos();
+
   return useQuery<IRepresentanteExternoAPI[]>({
     queryKey: EXTERNOS_KEYS.representantesApertura(tipo, idConsejo),
     queryFn: async () => {
       if (!tipo || idConsejo === null || idConsejo === undefined) return [];
       const param = tipo === 'd' ? 'district' : 'town';
       const { data } = await axios.get<IRepresentanteExternoAPI[]>(
-        `${RPP_API_BASE}/api/representatives?${param}=${idConsejo}&approved=1`,
+        `${rppApiBase}/api/representatives?${param}=${idConsejo}&approved=1`,
       );
       return Array.isArray(data) ? data : [];
     },
-    enabled: !!tipo && idConsejo !== null && idConsejo !== undefined,
+    enabled:
+      !!tipo && !!rppApiBase && idConsejo !== null && idConsejo !== undefined,
     staleTime: 60_000,
     retry: 1,
   });

@@ -46,12 +46,6 @@ export function EditarBodegaClient({ id }: EditarBodegaClientProps) {
     return `/bodegas/consejos/${tipo}/${meta.consejo.id}`;
   }, [meta]);
 
-  const consejoListHref = useMemo(() => {
-    if (!meta?.consejo) return undefined;
-    const tipo = meta.consejo.tipo_consejo === 'D' ? 'distritales' : 'municipales';
-    return `/bodegas/consejos/${tipo}`;
-  }, [meta]);
-
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -62,7 +56,9 @@ export function EditarBodegaClient({ id }: EditarBodegaClientProps) {
               <BreadcrumbList>
                 <BreadcrumbItem><BreadcrumbLink href="/">Inicio</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
-                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink></BreadcrumbItem>
+                <BreadcrumbItem><span>Bodegas Electorales</span></BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem><BreadcrumbPage>Bodega #{id}</BreadcrumbPage></BreadcrumbItem>
                 <BreadcrumbSeparator />
@@ -96,7 +92,9 @@ export function EditarBodegaClient({ id }: EditarBodegaClientProps) {
               <BreadcrumbList>
                 <BreadcrumbItem><BreadcrumbLink href="/">Inicio</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
-                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink></BreadcrumbItem>
+                <BreadcrumbItem><span>Bodegas Electorales</span></BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem><BreadcrumbPage>Bodega #{id}</BreadcrumbPage></BreadcrumbItem>
                 <BreadcrumbSeparator />
@@ -139,16 +137,18 @@ export function EditarBodegaClient({ id }: EditarBodegaClientProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink>
+                <span>Bodegas Electorales</span>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink>
               </BreadcrumbItem>
 
-              {bodega.tipo === 'Consejo' && meta?.consejo && consejoListHref && consejoHref && (
+              {bodega.tipo === 'Consejo' && meta?.consejo && consejoHref && (
                 <>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
-                    <BreadcrumbLink href={consejoListHref}>
-                      {meta.consejo.tipo_consejo_desc}
-                    </BreadcrumbLink>
+                    <span>{meta.consejo.tipo_consejo_desc}</span>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>

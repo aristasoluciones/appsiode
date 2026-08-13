@@ -8,6 +8,10 @@ export const APERTURAS_KEYS = {
   lista: (tipoConsejo: string, idConsejo: KeyId, tipoEleccion: string) =>
     ['aperturas-bodegas', 'lista', tipoConsejo, idConsejo, tipoEleccion] as const,
 
+  resumenes: () => ['aperturas-bodegas', 'resumen'] as const,
+  resumen: (tipoConsejo: string) =>
+    ['aperturas-bodegas', 'resumen', tipoConsejo] as const,
+
   detalle: (id: KeyId) => ['aperturas-bodegas', 'detalle', id] as const,
   historial: (id: KeyId) => ['aperturas-bodegas', 'historial', id] as const,
 } as const;

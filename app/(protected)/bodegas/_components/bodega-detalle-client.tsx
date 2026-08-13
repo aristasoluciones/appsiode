@@ -205,12 +205,6 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
     return `/bodegas/consejos/${tipo}/${meta.consejo.id}`;
   }, [meta]);
 
-  const consejoListHref = useMemo(() => {
-    if (!meta?.consejo) return undefined;
-    const tipo = meta.consejo.tipo_consejo === 'D' ? 'distritales' : 'municipales';
-    return `/bodegas/consejos/${tipo}`;
-  }, [meta]);
-
   // ── Loading skeleton ──
   if (isLoading) {
     return (
@@ -222,7 +216,9 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               <BreadcrumbList>
                 <BreadcrumbItem><BreadcrumbLink href="/">Inicio</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
-                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink></BreadcrumbItem>
+                <BreadcrumbItem><span>Bodegas Electorales</span></BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem><BreadcrumbPage>Bodega #{id}</BreadcrumbPage></BreadcrumbItem>
               </BreadcrumbList>
@@ -280,7 +276,9 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               <BreadcrumbList>
                 <BreadcrumbItem><BreadcrumbLink href="/">Inicio</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
-                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink></BreadcrumbItem>
+                <BreadcrumbItem><span>Bodegas Electorales</span></BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem><BreadcrumbPage>Bodega #{id}</BreadcrumbPage></BreadcrumbItem>
               </BreadcrumbList>
@@ -303,7 +301,9 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               <BreadcrumbList>
                 <BreadcrumbItem><BreadcrumbLink href="/">Inicio</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
-                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink></BreadcrumbItem>
+                <BreadcrumbItem><span>Bodegas Electorales</span></BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem><BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem><BreadcrumbPage>Bodega #{id}</BreadcrumbPage></BreadcrumbItem>
               </BreadcrumbList>
@@ -336,7 +336,9 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               <BreadcrumbList>
                 <BreadcrumbItem><BreadcrumbLink href="/">Inicio</BreadcrumbLink></BreadcrumbItem>
                 <BreadcrumbSeparator />
-                <BreadcrumbItem><BreadcrumbPage>Bodegas Electorales</BreadcrumbPage></BreadcrumbItem>
+                <BreadcrumbItem><span>Bodegas Electorales</span></BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem><BreadcrumbPage>Bodegas</BreadcrumbPage></BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </ToolbarHeading>
@@ -359,16 +361,18 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbLink href="/bodegas">Bodegas Electorales</BreadcrumbLink>
+                <span>Bodegas Electorales</span>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/bodegas">Bodegas</BreadcrumbLink>
               </BreadcrumbItem>
 
-              {bodega.tipo === 'Consejo' && meta?.consejo && consejoListHref && consejoHref && (
+              {bodega.tipo === 'Consejo' && meta?.consejo && consejoHref && (
                 <>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
-                    <BreadcrumbLink href={consejoListHref}>
-                      {meta.consejo.tipo_consejo_desc}
-                    </BreadcrumbLink>
+                    <span>{meta.consejo.tipo_consejo_desc}</span>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
