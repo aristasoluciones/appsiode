@@ -7,6 +7,9 @@ import { RiErrorWarningFill } from '@remixicon/react';
 import { AlertCircle, Eye, EyeOff, LoaderCircleIcon, ShieldAlert } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/providers/auth-provider';
+import { useCuentaRegresiva } from '@/hooks/use-cuenta-regresiva';
+import type { IBloqueoIntentos } from '@/lib/api/rate-limit';
+import { AvisoBloqueo } from '../_components/aviso-bloqueo';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +31,11 @@ export default function Page() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bloqueo, setBloqueo] = useState<IBloqueoIntentos | null>(null);
+
+  // Mientras corra la espera del bloqueo el formulario queda deshabilitado.
+  const esperaRestante = useCuentaRegresiva(bloqueo?.hasta ?? null);
+  const estaBloqueado = esperaRestante > 0;
 
   const form = useForm<SigninSchemaType>({
     resolver: zodResolver(getSigninSchema()),
@@ -39,11 +47,19 @@ export default function Page() {
   });
 
   async function onSubmit(values: SigninSchemaType) {
+    if (estaBloqueado) return;
+
     setIsProcessing(true);
     setError(null);
 
     try {
       const result = await login(values.username, values.password);
+
+      if (result.bloqueo) {
+        setBloqueo(result.bloqueo);
+        setIsProcessing(false);
+        return;
+      }
 
       if (result.success) {
         // isAuthenticated se volverá true → el useEffect maneja la navegación.
@@ -92,7 +108,11 @@ export default function Page() {
           </Alert>
         )}
 
-        {error && (
+        {estaBloqueado && bloqueo && (
+          <AvisoBloqueo mensaje={bloqueo.mensaje} restante={esperaRestante} />
+        )}
+
+        {error && !estaBloqueado && (
           <Alert variant="destructive">
             <AlertIcon>
               <AlertCircle />
@@ -108,7 +128,7 @@ export default function Page() {
             <FormItem>
               <FormLabel>Usuario</FormLabel>
               <FormControl>
-                <Input placeholder="Su usuario" {...field} />
+                <Input placeholder="Su usuario" disabled={estaBloqueado} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -133,6 +153,7 @@ export default function Page() {
                 <Input
                   placeholder="Su contraseña"
                   type={passwordVisible ? 'text' : 'password'}
+                  disabled={estaBloqueado}
                   {...field}
                 />
                 <Button
@@ -159,7 +180,7 @@ export default function Page() {
         />
 
         <div className="flex flex-col gap-2.5">
-          <Button variant="primary" type="submit" disabled={isProcessing}>
+          <Button variant="primary" type="submit" disabled={isProcessing || estaBloqueado}>
             {isProcessing ? (
               <LoaderCircleIcon className="size-4 animate-spin" />
             ) : null}

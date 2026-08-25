@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import authClient from '@/lib/api/axios-auth';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { getBloqueoIntentos, type IBloqueoIntentos } from '@/lib/api/rate-limit';
 import {
   clearCachedUser,
   readCachedUser,
@@ -24,7 +25,12 @@ interface AuthContextType extends AuthState {
   login: (
     username: string,
     password: string,
-  ) => Promise<{ success: boolean; message?: string }>;
+  ) => Promise<{
+    success: boolean;
+    message?: string;
+    /** Presente cuando el API cortó el intento por exceso de intentos (429). */
+    bloqueo?: IBloqueoIntentos;
+  }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Devuelve true si el usuario tiene acceso al módulo indicado.
@@ -185,6 +191,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           message: res.data.message || 'Error de autenticación',
         };
       } catch (error) {
+        // Bloqueo temporal por demasiados intentos: la pantalla avisa cuánto
+        // falta y deshabilita el botón mientras tanto.
+        const bloqueo = getBloqueoIntentos(error);
+        if (bloqueo) {
+          return { success: false, message: bloqueo.mensaje, bloqueo };
+        }
+
         const message = axios.isAxiosError(error)
           ? error.response?.data?.message
           : undefined;
