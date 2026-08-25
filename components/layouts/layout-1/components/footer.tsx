@@ -1,11 +1,12 @@
-import { generalSettings } from '@/config/general.config';
+import { Container } from '@/components/common/container';
+import { APP_VERSION, APP_VERSION_FULL } from '@/lib/version';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
     <footer className="footer">
-      <div className="container">
+      <Container>
         <div className="flex flex-col md:flex-row justify-center md:justify-between items-center gap-3 py-5">
           <div className="flex order-2 md:order-1  gap-2 font-normal text-sm">
             <span className="text-muted-foreground">{currentYear} &copy;</span>
@@ -17,8 +18,16 @@ export function Footer() {
               Instituto de Elecciones y Participación Ciudadana
             </a>
           </div>
+          <div className="order-1 md:order-2">
+            <span
+              className="text-muted-foreground text-xs font-mono"
+              title={APP_VERSION_FULL}
+            >
+              v{APP_VERSION}
+            </span>
+          </div>
         </div>
-      </div>
+      </Container>
     </footer>
   );
 }

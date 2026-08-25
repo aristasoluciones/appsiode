@@ -27,12 +27,20 @@ jobs:
           node-version: '24.x'
           cache: 'npm'
 
+      - name: Show version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Versión: v$VERSION — build ${{ github.run_number }} (${{ github.sha }})"
+          echo "### SIODE frontend v$VERSION (build ${{ github.run_number }})" >> $GITHUB_STEP_SUMMARY
+
       - name: Install and Build
         run: |
           npm install
           npm run build
         env:
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          # GITHUB_SHA / GITHUB_RUN_NUMBER ya los expone el runner; next.config.mjs
+          # los usa para armar el sello de compilación (cYYMMDD.run.sha).
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
