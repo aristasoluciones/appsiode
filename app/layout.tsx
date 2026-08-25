@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/sonner';
 import { Metadata } from 'next';
+import { headers } from 'next/headers';
 
 import { SettingsProvider } from '@/providers/settings-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -27,6 +28,9 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
+  // El middleware genera un nonce por petición para la política de contenido.
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <html className="h-full" suppressHydrationWarning>
       <body
@@ -37,7 +41,7 @@ export default async function RootLayout({
       >
         <AuthProvider>
           <SettingsProvider>
-            <ThemeProvider>
+            <ThemeProvider nonce={nonce}>
               <QueryProvider>
                 <I18nProvider>
                   <TooltipProvider delayDuration={0}>

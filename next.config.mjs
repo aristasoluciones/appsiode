@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 
+import { ENCABEZADOS_FIJOS } from './lib/security/headers-fijos.mjs';
+
 /** Versión semántica declarada en package.json (la que sube `npm run version:*`). */
 const { version } = JSON.parse(
   readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
@@ -56,6 +58,20 @@ const nextConfig = {
 
   // Disable the floating Next.js dev indicator
   devIndicators: false,
+
+  /**
+   * Encabezados de seguridad fijos para toda respuesta del sitio. La política
+   * de contenido (CSP) y el Cache-Control de las pantallas protegidas se
+   * emiten en `middleware.ts`, porque dependen de cada petición.
+   */
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: ENCABEZADOS_FIJOS,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
