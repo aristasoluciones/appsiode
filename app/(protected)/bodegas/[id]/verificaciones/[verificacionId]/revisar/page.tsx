@@ -554,9 +554,9 @@ export default function RevisarPage({ params }: RevisarPageProps) {
   const [fotosExpanded, setFotosExpanded] = useState(true);
 
   const isRevisada = verificacion?.status === 'Revisada';
-  const cedulaUrl = verificacion?.urlCedula || (verificacion?.cedulaRutaArchivo
-    ? `${process.env.NEXT_PUBLIC_API_URL ?? ''}/uploads/${verificacion.cedulaRutaArchivo}`
-    : null);
+  // La cédula siempre llega como enlace firmado de Azure: el API lo genera cuando
+  // la verificación tiene archivo. No hay una ruta alterna que armar por nuestra cuenta.
+  const cedulaUrl = verificacion?.urlCedula || null;
 
   function resetDialogState() {
     setResultado(null);
