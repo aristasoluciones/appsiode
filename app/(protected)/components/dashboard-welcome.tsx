@@ -3,16 +3,28 @@
 import { LayoutDashboard } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
 import { useProceso } from '@/hooks/use-proceso';
+import { useMounted } from '@/hooks/use-mounted';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+
+/** El saludo depende de la hora local del navegador. */
+function saludoDeLaHora(): string {
+  const hora = new Date().getHours();
+  return hora < 12
+    ? 'Buenos días'
+    : hora < 19
+      ? 'Buenas tardes'
+      : 'Buenas noches';
+}
 
 export function DashboardWelcome() {
   const { user } = useAuth();
   const { data: proceso } = useProceso();
 
-  const hora = new Date().getHours();
-  const saludo =
-    hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+  // La hora del servidor no coincide con la del navegador, así que el saludo
+  // se calcula hasta después de montar para no romper la hidratación.
+  const mounted = useMounted();
+  const saludo = mounted ? saludoDeLaHora() : null;
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -23,7 +35,9 @@ export function DashboardWelcome() {
         </div>
 
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">{saludo},</p>
+          <p className="text-sm text-muted-foreground">
+            {saludo ? `${saludo},` : ' '}
+          </p>
           <h2 className="text-2xl font-semibold text-foreground">
             {user?.nombre ?? 'Usuario'}
           </h2>
