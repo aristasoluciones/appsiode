@@ -16,8 +16,10 @@ export interface IUsuario {
   paterno: string;
   materno: string;
   celular: string | null;
+  /** 'ACT' activa, 'DEL' eliminada. */
   status: string;
   id_rol: number;
+  rol?: string;
   consejo_tipo: string;
   consejo_clave: number;
   tipo?: 'oficina_central' | 'consejo' | string;
@@ -47,6 +49,12 @@ interface IFormDataRaw {
     message: string;
     data: IRolOpcion[];
   };
+}
+
+/** Respuesta de /Usuarios: las eliminadas llegan aparte, en `inactivos`. */
+interface IUsuariosListaRaw {
+  activos: IUsuario[];
+  inactivos: IUsuario[];
 }
 
 interface ICatalogosConsejosRaw {
@@ -94,6 +102,24 @@ export function useUsuariosFormData() {
         consejos: Array.isArray(catalogosData?.consejos) ? catalogosData.consejos : [],
       };
       return result;
+    },
+    staleTime: 2 * 60_000,
+  });
+}
+
+/**
+ * Cuentas eliminadas. Se piden aparte y solo cuando la pantalla las muestra,
+ * porque la carga del formulario entrega únicamente las activas.
+ */
+export function useUsuariosEliminados(enabled: boolean) {
+  return useQuery({
+    queryKey: USUARIOS_KEYS.eliminadas(),
+    enabled,
+    queryFn: async () => {
+      const { data } = await apiClient.get<IUsuariosListaRaw>(
+        API_ENDPOINTS.USUARIOS.LIST(true),
+      );
+      return Array.isArray(data?.inactivos) ? data.inactivos : [];
     },
     staleTime: 2 * 60_000,
   });
@@ -161,10 +187,33 @@ export function useDeleteUsuario() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: USUARIOS_KEYS.form() });
+      queryClient.invalidateQueries({ queryKey: USUARIOS_KEYS.eliminadas() });
       toastSuccess('Usuario eliminado correctamente.');
     },
     onError: (error: unknown) => {
       toastError((error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al eliminar el usuario.');
     },
+  });
+}
+
+/** Devuelve una cuenta eliminada al estado activo, con su rol y su consejo. */
+export function useReactivarUsuario() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (idUsuario: number) => {
+      await apiClient.put(
+        API_ENDPOINTS.USUARIOS.REACTIVAR(idUsuario),
+        getDataAuditoria(),
+      );
+      return idUsuario;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USUARIOS_KEYS.form() });
+      queryClient.invalidateQueries({ queryKey: USUARIOS_KEYS.eliminadas() });
+      queryClient.invalidateQueries({ queryKey: USUARIOS_KEYS.historial() });
+      toastSuccess('Cuenta reactivada. Ya puede entrar al sistema.');
+    },
+    // Errores: los avisa el toast global del cliente de queries.
   });
 }

@@ -1,12 +1,16 @@
 import { qs, type Id } from './_shared';
 
 export const USUARIOS = {
-  LIST: '/Usuarios',
+  /** Listado de cuentas. Con `incluirEliminadas` el API agrega el grupo `inactivos`. */
+  LIST: (incluirEliminadas?: boolean) =>
+    `/Usuarios${qs({ incluir_eliminadas: incluirEliminadas ? 'true' : undefined })}`,
   CREATE: '/Usuarios',
   FORM: '/Usuarios/form',
   BY_ROL: (idRol: Id) => `/Usuarios/rol/${idRol}`,
   UPDATE: (idUsuario: Id) => `/Usuarios/${idUsuario}`,
   DELETE: (idUsuario: Id) => `/Usuarios/${idUsuario}`,
+  /** Devuelve una cuenta eliminada al estado activo, con su rol y su consejo. */
+  REACTIVAR: (idUsuario: Id) => `/Usuarios/${idUsuario}/reactivar`,
   /** Estado del segundo paso (MFA) de todas las cuentas activas. */
   MFA_ESTADOS: '/Usuarios/mfa',
   /** Borra el enrolamiento y los códigos de respaldo; el usuario vuelve a enrolar. */

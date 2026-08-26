@@ -21,6 +21,7 @@ import {
   ShieldPlus,
   Trash2,
   Upload,
+  UserCheck,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
@@ -37,7 +38,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -49,7 +52,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useUsuariosFormData, useDeleteUsuario } from './usuarios-data';
+import {
+  useUsuariosFormData,
+  useUsuariosEliminados,
+  useDeleteUsuario,
+  useReactivarUsuario,
+} from './usuarios-data';
 import type { IUsuario } from './usuarios-data';
 import {
   useExigenciaMfa,
@@ -66,8 +74,15 @@ function nombreCompleto(u: IUsuario | null | undefined): string {
   return `${u.paterno} ${u.materno} ${u.nombre}`.replace(/\s+/g, ' ').trim();
 }
 
+/** Una cuenta eliminada conserva su registro: solo cambia de estatus. */
+function estaEliminada(u: IUsuario | null | undefined): boolean {
+  return u?.status === 'DEL';
+}
+
 export default function UsuariosList() {
   const [search, setSearch] = useState('');
+  const [mostrarEliminadas, setMostrarEliminadas] = useState(false);
+  const [reactivandoUsuario, setReactivandoUsuario] = useState<IUsuario | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showMasivo, setShowMasivo] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState<IUsuario | null>(null);
@@ -87,11 +102,15 @@ export default function UsuariosList() {
   const canVerSesiones = hasPermission('catalogos.usuarios.sesionesver');
   const canAltaMasiva = hasPermission('catalogos.usuarios.masivo');
   const canRevocarSesiones = hasPermission('catalogos.usuarios.sesionesrevocar');
+  const canReactivar = hasPermission('catalogos.usuarios.reactivar');
   // El detalle de la cuenta reúne historial y sesiones: basta con uno de los dos.
   const canVerDetalle = canVerHistorial || canVerSesiones;
 
   const { data: formData, isLoading, isError, error, refetch } = useUsuariosFormData();
   const deleteMutation = useDeleteUsuario();
+  const reactivarMutation = useReactivarUsuario();
+  const { data: eliminadas, isLoading: eliminadasLoading } =
+    useUsuariosEliminados(mostrarEliminadas);
   const { data: mfaEstados, isLoading: mfaLoading } = useUsuariosMfa(canVerMfa);
   const resetearMfaMutation = useResetearMfa();
   const exigenciaMfaMutation = useExigenciaMfa();
@@ -102,9 +121,16 @@ export default function UsuariosList() {
     return mapa;
   }, [mfaEstados]);
 
-  const usuarios = formData?.usuarios ?? [];
+  // Las eliminadas van en el mismo listado, señaladas con su estatus.
+  const usuarios = useMemo(
+    () => [
+      ...(formData?.usuarios ?? []),
+      ...(mostrarEliminadas ? (eliminadas ?? []) : []),
+    ],
+    [formData?.usuarios, mostrarEliminadas, eliminadas],
+  );
   const roles = formData?.roles ?? [];
-  const consejos = formData?.consejos ?? [];
+  const consejos = useMemo(() => formData?.consejos ?? [], [formData?.consejos]);
 
   function handleEdit(usuario: IUsuario) {
     setEditingUsuario(usuario);
@@ -188,12 +214,37 @@ export default function UsuariosList() {
         meta: { skeleton: <Skeleton className="w-32 h-5 rounded-full" /> },
         enableSorting: true,
       },
+      ...(mostrarEliminadas
+        ? ([
+            {
+              id: 'estatus',
+              header: 'Estatus',
+              accessorFn: (row) => (estaEliminada(row) ? 'Eliminada' : 'Activa'),
+              cell: ({ row }) =>
+                estaEliminada(row.original) ? (
+                  <Badge variant="destructive" appearance="light">
+                    Eliminada
+                  </Badge>
+                ) : (
+                  <Badge variant="success" appearance="light">
+                    Activa
+                  </Badge>
+                ),
+              meta: { skeleton: <Skeleton className="w-20 h-5 rounded-full" /> },
+              enableSorting: true,
+            },
+          ] as ColumnDef<IUsuario>[])
+        : []),
       ...(canVerMfa
         ? ([
             {
               id: 'mfa',
               header: 'Segundo paso',
               cell: ({ row }) => {
+                // El segundo paso solo aplica a las cuentas que pueden entrar.
+                if (estaEliminada(row.original)) {
+                  return <span className="text-muted-foreground text-sm">—</span>;
+                }
                 if (mfaLoading) {
                   return <Skeleton className="w-24 h-5 rounded-full" />;
                 }
@@ -237,8 +288,29 @@ export default function UsuariosList() {
       {
         id: 'actions',
         header: '',
-        size: 130,
+        size: 160,
         cell: ({ row }) => {
+          // Sobre una cuenta eliminada la única acción posible es devolverla al
+          // estado activo; editarla o volver a eliminarla no tiene sentido.
+          if (estaEliminada(row.original)) {
+            if (!canReactivar) {
+              return <span className="text-muted-foreground text-sm">—</span>;
+            }
+            return (
+              <div className="flex items-center justify-end gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReactivandoUsuario(row.original)}
+                  disabled={reactivarMutation.isPending}
+                >
+                  <UserCheck className="h-4 w-4" />
+                  Reactivar
+                </Button>
+              </div>
+            );
+          }
+
           const mfa = mfaPorUsuario.get(row.original.id);
           // Del segundo paso se ofrece una sola acción, la que corresponde al
           // estado de la cuenta: con la aplicación enrolada lo útil es resetear
@@ -335,10 +407,12 @@ export default function UsuariosList() {
         enableHiding: false,
       },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       deleteMutation.isPending,
+      reactivarMutation.isPending,
       consejos,
+      mostrarEliminadas,
+      canReactivar,
       canVerMfa,
       canResetearMfa,
       canExigirMfa,
@@ -395,7 +469,7 @@ export default function UsuariosList() {
       <DataGrid
         table={table}
         recordCount={filtered.length}
-        isLoading={isLoading}
+        isLoading={isLoading || (mostrarEliminadas && eliminadasLoading)}
         emptyMessage={
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <Users className="h-8 w-8 text-muted-foreground mb-3" />
@@ -426,6 +500,21 @@ export default function UsuariosList() {
                 disabled={isLoading}
                 className="ps-9 w-full sm:w-40 md:w-64"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="mostrar-eliminadas"
+                size="sm"
+                checked={mostrarEliminadas}
+                onCheckedChange={setMostrarEliminadas}
+                disabled={isLoading}
+              />
+              <Label
+                htmlFor="mostrar-eliminadas"
+                className="text-sm text-muted-foreground font-normal"
+              >
+                Mostrar cuentas eliminadas
+              </Label>
             </div>
             <div className="flex flex-wrap items-center gap-2.5 ms-auto">
               {canAltaMasiva && (
@@ -498,6 +587,37 @@ export default function UsuariosList() {
               }}
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={reactivandoUsuario !== null}
+        onOpenChange={(v) => {
+          if (!v) setReactivandoUsuario(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Reactivar la cuenta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La cuenta de{' '}
+              <strong>"{nombreCompleto(reactivandoUsuario)}"</strong> volverá a
+              poder entrar al sistema con su mismo rol y su mismo consejo. Su
+              historial se conserva y el movimiento queda registrado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (reactivandoUsuario)
+                  reactivarMutation.mutate(reactivandoUsuario.id);
+                setReactivandoUsuario(null);
+              }}
+            >
+              Reactivar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

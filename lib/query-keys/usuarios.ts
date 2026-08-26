@@ -7,6 +7,9 @@ export const USUARIOS_KEYS = {
   /** Carga combinada del formulario: usuarios + roles + consejos. */
   form: () => ['usuarios', 'form'] as const,
 
+  /** Cuentas eliminadas: el listado las pide aparte y solo cuando se muestran. */
+  eliminadas: () => ['usuarios', 'eliminadas'] as const,
+
   /** Estado del segundo paso (MFA) de todas las cuentas. */
   mfa: () => ['usuarios', 'mfa'] as const,
 
