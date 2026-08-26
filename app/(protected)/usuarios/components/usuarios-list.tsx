@@ -11,6 +11,8 @@ import {
 } from '@tanstack/react-table';
 import {
   AlertTriangle,
+  EllipsisVertical,
+  History,
   Pencil,
   Plus,
   RotateCcw,
@@ -27,6 +29,12 @@ import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,6 +57,7 @@ import {
   type IUsuarioMfa,
 } from './usuarios-mfa-data';
 import UsuarioForm from './usuarios-form';
+import { UsuarioDetalleDialog } from './usuario-detalle-dialog';
 
 function nombreCompleto(u: IUsuario | null | undefined): string {
   if (!u) return '';
@@ -61,6 +70,7 @@ export default function UsuariosList() {
   const [editingUsuario, setEditingUsuario] = useState<IUsuario | null>(null);
   const [deletingUsuario, setDeletingUsuario] = useState<IUsuario | null>(null);
   const [reseteandoMfa, setReseteandoMfa] = useState<IUsuario | null>(null);
+  const [detalleUsuario, setDetalleUsuario] = useState<IUsuario | null>(null);
   const [cambiandoExigencia, setCambiandoExigencia] = useState<{
     usuario: IUsuario;
     exigir: boolean;
@@ -70,6 +80,11 @@ export default function UsuariosList() {
   const canVerMfa = hasPermission('catalogos.usuarios.ver');
   const canResetearMfa = hasPermission('catalogos.usuarios.mfaresetear');
   const canExigirMfa = hasPermission('catalogos.usuarios.mfaexigir');
+  const canVerHistorial = hasPermission('catalogos.usuarios.historialver');
+  const canVerSesiones = hasPermission('catalogos.usuarios.sesionesver');
+  const canRevocarSesiones = hasPermission('catalogos.usuarios.sesionesrevocar');
+  // El detalle de la cuenta reúne historial y sesiones: basta con uno de los dos.
+  const canVerDetalle = canVerHistorial || canVerSesiones;
 
   const { data: formData, isLoading, isError, error, refetch } = useUsuariosFormData();
   const deleteMutation = useDeleteUsuario();
@@ -218,51 +233,23 @@ export default function UsuariosList() {
       {
         id: 'actions',
         header: '',
-        size: 150,
+        size: 130,
         cell: ({ row }) => {
           const mfa = mfaPorUsuario.get(row.original.id);
+          // Del segundo paso se ofrece una sola acción, la que corresponde al
+          // estado de la cuenta: con la aplicación enrolada lo útil es resetear
+          // el enrolamiento; sin ella, exigir el segundo paso o liberarlo.
+          const enrolado = !!mfa?.enrolado;
+          const puedeResetear = canResetearMfa && enrolado;
+          const puedeExigir = canExigirMfa && !enrolado;
+          const hayMasAcciones = canVerDetalle || puedeExigir || puedeResetear;
           return (
             <div className="flex items-center justify-end gap-1">
-              {canExigirMfa && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  title={
-                    mfa?.exigido
-                      ? 'Liberar el segundo paso'
-                      : 'Exigir el segundo paso'
-                  }
-                  onClick={() =>
-                    setCambiandoExigencia({
-                      usuario: row.original,
-                      exigir: !mfa?.exigido,
-                    })
-                  }
-                  disabled={mfaLoading || exigenciaMfaMutation.isPending}
-                >
-                  {mfa?.exigido ? (
-                    <ShieldOff className="h-4 w-4" />
-                  ) : (
-                    <ShieldPlus className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
-              {canResetearMfa && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  title="Resetear el enrolamiento del segundo paso"
-                  onClick={() => setReseteandoMfa(row.original)}
-                  disabled={
-                    mfaLoading || !mfa?.enrolado || resetearMfaMutation.isPending
-                  }
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              )}
               <Button
                 variant="outline"
                 size="icon"
+                title="Editar usuario"
+                aria-label="Editar usuario"
                 onClick={() => handleEdit(row.original)}
               >
                 <Pencil className="h-4 w-4" />
@@ -271,11 +258,72 @@ export default function UsuariosList() {
                 variant="outline"
                 size="icon"
                 className="text-destructive hover:text-destructive"
+                title="Eliminar usuario"
+                aria-label="Eliminar usuario"
                 onClick={() => setDeletingUsuario(row.original)}
                 disabled={deleteMutation.isPending}
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
+              {hayMasAcciones && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Más acciones"
+                      aria-label="Más acciones"
+                    >
+                      <EllipsisVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  {/* El estado se cambia al terminar el cierre del menú: así el
+                      foco que devuelve no interfiere con el diálogo que abre. */}
+                  <DropdownMenuContent align="end" className="min-w-56">
+                    {canVerDetalle && (
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          setTimeout(() => setDetalleUsuario(row.original), 0)
+                        }
+                      >
+                        <History />
+                        Historial y sesiones
+                      </DropdownMenuItem>
+                    )}
+                    {puedeExigir && (
+                      <DropdownMenuItem
+                        disabled={mfaLoading || exigenciaMfaMutation.isPending}
+                        onSelect={() =>
+                          setTimeout(
+                            () =>
+                              setCambiandoExigencia({
+                                usuario: row.original,
+                                exigir: !mfa?.exigido,
+                              }),
+                            0,
+                          )
+                        }
+                      >
+                        {mfa?.exigido ? <ShieldOff /> : <ShieldPlus />}
+                        {mfa?.exigido
+                          ? 'Liberar el segundo paso'
+                          : 'Exigir el segundo paso'}
+                      </DropdownMenuItem>
+                    )}
+                    {puedeResetear && (
+                      <DropdownMenuItem
+                        disabled={mfaLoading || resetearMfaMutation.isPending}
+                        onSelect={() =>
+                          setTimeout(() => setReseteandoMfa(row.original), 0)
+                        }
+                      >
+                        <RotateCcw />
+                        Resetear el segundo paso
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           );
         },
@@ -290,6 +338,7 @@ export default function UsuariosList() {
       canVerMfa,
       canResetearMfa,
       canExigirMfa,
+      canVerDetalle,
       mfaPorUsuario,
       mfaLoading,
       resetearMfaMutation.isPending,
@@ -517,6 +566,17 @@ export default function UsuariosList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UsuarioDetalleDialog
+        usuario={detalleUsuario}
+        open={detalleUsuario !== null}
+        onOpenChange={(v) => {
+          if (!v) setDetalleUsuario(null);
+        }}
+        puedeVerHistorial={canVerHistorial}
+        puedeVerSesiones={canVerSesiones}
+        puedeRevocarSesiones={canRevocarSesiones}
+      />
     </>
   );
 }

@@ -16,10 +16,14 @@ import {
 } from '@/components/common/toolbar';
 import { PerfilInfo } from './_components/perfil-info';
 import { MfaSeccion } from './_components/mfa-seccion';
+import { SesionesSeccion } from './_components/sesiones-seccion';
+import { DispositivosSeccion } from './_components/dispositivos-seccion';
+import { HistorialSeccion } from './_components/historial-seccion';
 
 export const metadata: Metadata = {
   title: 'Mi perfil',
-  description: 'Datos de la cuenta y autenticación en dos pasos.',
+  description:
+    'Datos de la cuenta, autenticación en dos pasos y seguridad de la sesión.',
 };
 
 export default async function PerfilPage() {
@@ -49,6 +53,11 @@ export default async function PerfilPage() {
         <div className="grid gap-5 lg:grid-cols-2 items-start">
           <PerfilInfo />
           <MfaSeccion />
+          <SesionesSeccion />
+          <DispositivosSeccion />
+          <div className="lg:col-span-2">
+            <HistorialSeccion />
+          </div>
         </div>
       </Container>
     </>

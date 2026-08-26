@@ -1,3 +1,5 @@
+import { qs } from './_shared';
+
 export const AUTH = {
   LOGIN: '/Auth/login',
   REFRESH: '/Auth/refresh',
@@ -13,4 +15,22 @@ export const AUTH = {
   MFA_ENROLAR: '/Auth/mfa/enrolar',
   MFA_CONFIRMAR: '/Auth/mfa/confirmar',
   MFA_DESACTIVAR: '/Auth/mfa/desactivar',
+
+  /** Sesiones abiertas de la propia cuenta (sección de seguridad del perfil). */
+  SESIONES: '/auth/sesiones',
+  /** Cierra una sesión concreta de la propia cuenta. */
+  SESION: (idSesion: string) => `/auth/sesiones/${idSesion}`,
+
+  /** Equipos de confianza del segundo paso de la propia cuenta. */
+  MFA_DISPOSITIVOS: '/auth/mfa/dispositivos',
+  /** Retira la confianza a un equipo recordado. */
+  MFA_DISPOSITIVO: (idDispositivo: string) =>
+    `/auth/mfa/dispositivos/${idDispositivo}`,
+
+  /** Historial de la propia cuenta, paginado y con filtro por tipo o categoría. */
+  HISTORIAL: (
+    pagina?: number,
+    tamanio?: number,
+    tipo?: string | null,
+  ) => `/auth/historial${qs({ pagina, tamanio, tipo })}`,
 } as const;
