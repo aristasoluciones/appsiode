@@ -4,4 +4,7 @@ export const USUARIOS_KEYS = {
 
   /** Carga combinada del formulario: usuarios + roles + consejos. */
   form: () => ['usuarios', 'form'] as const,
+
+  /** Estado del segundo paso (MFA) de todas las cuentas. */
+  mfa: () => ['usuarios', 'mfa'] as const,
 } as const;

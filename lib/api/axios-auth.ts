@@ -32,12 +32,15 @@ authClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Solo reintentar en 401, una sola vez, y no en llamadas de auth propias
+    // Solo reintentar en 401, una sola vez, y no en llamadas de auth propias.
+    // El verificar del MFA responde 401 con un código incorrecto: no es una
+    // sesión vencida y no debe disparar el refresh.
     if (
       error?.response?.status !== 401 ||
       originalRequest._retry ||
       originalRequest.url === API_ENDPOINTS.AUTH.REFRESH ||
-      originalRequest.url === API_ENDPOINTS.AUTH.PERFIL
+      originalRequest.url === API_ENDPOINTS.AUTH.PERFIL ||
+      originalRequest.url === API_ENDPOINTS.AUTH.MFA_VERIFICAR
     ) {
       return Promise.reject(error);
     }

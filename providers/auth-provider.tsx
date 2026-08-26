@@ -18,7 +18,13 @@ import {
   readCachedUser,
   writeCachedUser,
 } from '@/lib/auth-cache';
-import type { ApiResponse, AuthState, AuthUser } from '@/types/auth';
+import type {
+  ApiResponse,
+  AuthState,
+  AuthUser,
+  IMfaLoginData,
+  IMfaReto,
+} from '@/types/auth';
 import type { IProceso } from '@/types/proceso';
 
 interface AuthContextType extends AuthState {
@@ -30,6 +36,19 @@ interface AuthContextType extends AuthState {
     message?: string;
     /** Presente cuando el API cortó el intento por exceso de intentos (429). */
     bloqueo?: IBloqueoIntentos;
+    /** Presente cuando la cuenta exige el segundo paso: reto temporal y método. */
+    mfa?: IMfaReto;
+  }>;
+  /** Completa el login canjeando el reto MFA con el código del segundo paso. */
+  loginMfa: (
+    reto: string,
+    codigo: string,
+  ) => Promise<{
+    success: boolean;
+    message?: string;
+    bloqueo?: IBloqueoIntentos;
+    /** El reto venció o agotó sus intentos: hay que volver a iniciar sesión. */
+    retoInvalido?: boolean;
   }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -165,24 +184,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser();
   }, [refreshUser]);
 
+  /** Deja la sesión iniciada con el usuario que devolvió el API. */
+  const establecerSesion = useCallback((user: AuthUser) => {
+    hydratedFromCache.current = false;
+    writeCachedUser(user);
+    setState({
+      user, // ya trae modulos + proceso
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  }, []);
+
   const login = useCallback(
     async (username: string, password: string) => {
       try {
-        const res = await authClient.post<ApiResponse<AuthUser | null>>(
-          API_ENDPOINTS.AUTH.LOGIN,
-          { username, password },
-        );
+        const res = await authClient.post<
+          ApiResponse<AuthUser | IMfaLoginData | null>
+        >(API_ENDPOINTS.AUTH.LOGIN, { username, password });
 
         if (res.status === 200 && res.data.status === 200 && res.data.data) {
+          const data = res.data.data;
 
-          // Mapear directamente los datos que ya vienen en el login
-          hydratedFromCache.current = false;
-          writeCachedUser(res.data.data);
-          setState({
-            user: res.data.data,   // ya trae modulos + proceso
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          // Con el segundo paso activo el API no emite la sesión: entrega un
+          // reto temporal que se canjea en loginMfa con el código.
+          if ('mfaRequerido' in data && data.mfaRequerido) {
+            return {
+              success: false,
+              mfa: { reto: data.reto, metodo: data.metodo },
+            };
+          }
+
+          establecerSesion(data as AuthUser);
           return { success: true };
         }
 
@@ -207,7 +239,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
     },
-    [],
+    [establecerSesion],
+  );
+
+  const loginMfa = useCallback(
+    async (reto: string, codigo: string) => {
+      try {
+        const res = await authClient.post<ApiResponse<AuthUser | null>>(
+          API_ENDPOINTS.AUTH.MFA_VERIFICAR,
+          { reto, codigo },
+        );
+
+        if (res.status === 200 && res.data.status === 200 && res.data.data) {
+          establecerSesion(res.data.data);
+          return { success: true };
+        }
+
+        return {
+          success: false,
+          message: res.data.message || 'No se pudo verificar el código',
+        };
+      } catch (error) {
+        const bloqueo = getBloqueoIntentos(error);
+        if (bloqueo) {
+          return { success: false, message: bloqueo.mensaje, bloqueo };
+        }
+
+        const message = axios.isAxiosError(error)
+          ? (error.response?.data?.message as string | undefined)
+          : undefined;
+        // El API distingue el reto vencido/agotado del código incorrecto por el
+        // mensaje; con el reto muerto solo queda volver a iniciar sesión.
+        const retoInvalido =
+          axios.isAxiosError(error) &&
+          error.response?.status === 401 &&
+          /reto/i.test(message ?? '');
+        return {
+          success: false,
+          message: message || 'No se pudo verificar el código. Intente de nuevo.',
+          retoInvalido,
+        };
+      }
+    },
+    [establecerSesion],
   );
 
   const logout = useCallback(async () => {
@@ -232,7 +306,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refreshUser, hasPermission }}>
+    <AuthContext.Provider
+      value={{ ...state, login, loginMfa, logout, refreshUser, hasPermission }}
+    >
       {children}
     </AuthContext.Provider>
   );

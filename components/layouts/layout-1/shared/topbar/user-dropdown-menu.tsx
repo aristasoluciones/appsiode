@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { useAuth } from '@/providers/auth-provider';
 import {
   Moon,
+  UserRound,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
@@ -66,7 +67,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
             />
             <div className="flex flex-col">
               <Link
-                href="#"
+                href="/perfil"
                 className="text-xs text-mono hover:text-primary font-semibold"
               >
                 {user?.nombre || 'Usuario'}
@@ -79,6 +80,15 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
             </div>
           </div>
         </div>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem asChild>
+          <Link href="/perfil" className="flex items-center gap-2">
+            <UserRound />
+            Mi perfil
+          </Link>
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 

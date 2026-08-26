@@ -13,10 +13,14 @@ import {
   AlertTriangle,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
+  ShieldOff,
+  ShieldPlus,
   Trash2,
   Users,
 } from 'lucide-react';
+import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -38,16 +42,46 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useUsuariosFormData, useDeleteUsuario } from './usuarios-data';
 import type { IUsuario } from './usuarios-data';
+import {
+  useExigenciaMfa,
+  useResetearMfa,
+  useUsuariosMfa,
+  type IUsuarioMfa,
+} from './usuarios-mfa-data';
 import UsuarioForm from './usuarios-form';
+
+function nombreCompleto(u: IUsuario | null | undefined): string {
+  if (!u) return '';
+  return `${u.paterno} ${u.materno} ${u.nombre}`.replace(/\s+/g, ' ').trim();
+}
 
 export default function UsuariosList() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState<IUsuario | null>(null);
   const [deletingUsuario, setDeletingUsuario] = useState<IUsuario | null>(null);
+  const [reseteandoMfa, setReseteandoMfa] = useState<IUsuario | null>(null);
+  const [cambiandoExigencia, setCambiandoExigencia] = useState<{
+    usuario: IUsuario;
+    exigir: boolean;
+  } | null>(null);
+
+  const { hasPermission } = useAuth();
+  const canVerMfa = hasPermission('catalogos.usuarios.ver');
+  const canResetearMfa = hasPermission('catalogos.usuarios.mfaresetear');
+  const canExigirMfa = hasPermission('catalogos.usuarios.mfaexigir');
 
   const { data: formData, isLoading, isError, error, refetch } = useUsuariosFormData();
   const deleteMutation = useDeleteUsuario();
+  const { data: mfaEstados, isLoading: mfaLoading } = useUsuariosMfa(canVerMfa);
+  const resetearMfaMutation = useResetearMfa();
+  const exigenciaMfaMutation = useExigenciaMfa();
+
+  const mfaPorUsuario = useMemo(() => {
+    const mapa = new Map<number, IUsuarioMfa>();
+    (mfaEstados ?? []).forEach((m) => mapa.set(m.id_usuario, m));
+    return mapa;
+  }, [mfaEstados]);
 
   const usuarios = formData?.usuarios ?? [];
   const roles = formData?.roles ?? [];
@@ -135,36 +169,132 @@ export default function UsuariosList() {
         meta: { skeleton: <Skeleton className="w-32 h-5 rounded-full" /> },
         enableSorting: true,
       },
+      ...(canVerMfa
+        ? ([
+            {
+              id: 'mfa',
+              header: 'Segundo paso',
+              cell: ({ row }) => {
+                if (mfaLoading) {
+                  return <Skeleton className="w-24 h-5 rounded-full" />;
+                }
+                const mfa = mfaPorUsuario.get(row.original.id);
+                const activo = !!mfa?.enrolado && !!mfa?.confirmado;
+                return (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5">
+                      {activo ? (
+                        <Badge variant="success" appearance="light">
+                          Activo
+                        </Badge>
+                      ) : mfa?.enrolado ? (
+                        <Badge variant="warning" appearance="light">
+                          Pendiente
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" appearance="light">
+                          Sin enrolar
+                        </Badge>
+                      )}
+                      {mfa?.exigido && (
+                        <Badge variant="info" appearance="light">
+                          Exigido
+                        </Badge>
+                      )}
+                    </div>
+                    {activo && (
+                      <span className="text-xs text-muted-foreground">
+                        Códigos de respaldo: {mfa.respaldo_restantes}
+                      </span>
+                    )}
+                  </div>
+                );
+              },
+              meta: { skeleton: <Skeleton className="w-24 h-5 rounded-full" /> },
+              enableSorting: false,
+            },
+          ] as ColumnDef<IUsuario>[])
+        : []),
       {
         id: 'actions',
         header: '',
-        size: 100,
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleEdit(row.original)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="text-destructive hover:text-destructive"
-              onClick={() => setDeletingUsuario(row.original)}
-              disabled={deleteMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
-        ),
+        size: 150,
+        cell: ({ row }) => {
+          const mfa = mfaPorUsuario.get(row.original.id);
+          return (
+            <div className="flex items-center justify-end gap-1">
+              {canExigirMfa && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title={
+                    mfa?.exigido
+                      ? 'Liberar el segundo paso'
+                      : 'Exigir el segundo paso'
+                  }
+                  onClick={() =>
+                    setCambiandoExigencia({
+                      usuario: row.original,
+                      exigir: !mfa?.exigido,
+                    })
+                  }
+                  disabled={mfaLoading || exigenciaMfaMutation.isPending}
+                >
+                  {mfa?.exigido ? (
+                    <ShieldOff className="h-4 w-4" />
+                  ) : (
+                    <ShieldPlus className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              {canResetearMfa && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title="Resetear el enrolamiento del segundo paso"
+                  onClick={() => setReseteandoMfa(row.original)}
+                  disabled={
+                    mfaLoading || !mfa?.enrolado || resetearMfaMutation.isPending
+                  }
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleEdit(row.original)}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setDeletingUsuario(row.original)}
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          );
+        },
         enableSorting: false,
         enableHiding: false,
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [deleteMutation.isPending, consejos],
+    [
+      deleteMutation.isPending,
+      consejos,
+      canVerMfa,
+      canResetearMfa,
+      canExigirMfa,
+      mfaPorUsuario,
+      mfaLoading,
+      resetearMfaMutation.isPending,
+      exigenciaMfaMutation.isPending,
+    ],
   );
 
   const filtered = useMemo(
@@ -301,6 +431,88 @@ export default function UsuariosList() {
               }}
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={reseteandoMfa !== null}
+        onOpenChange={(v) => {
+          if (!v) setReseteandoMfa(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Resetear el enrolamiento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se borrará la aplicación autenticadora y los códigos de respaldo
+              de <strong>"{nombreCompleto(reseteandoMfa)}"</strong>. En su
+              siguiente inicio de sesión podrá volver a enrolar. Útil cuando el
+              usuario perdió el teléfono.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (reseteandoMfa) resetearMfaMutation.mutate(reseteandoMfa.id);
+                setReseteandoMfa(null);
+              }}
+            >
+              Resetear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={cambiandoExigencia !== null}
+        onOpenChange={(v) => {
+          if (!v) setCambiandoExigencia(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {cambiandoExigencia?.exigir
+                ? '¿Exigir el segundo paso?'
+                : '¿Liberar el segundo paso?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {cambiandoExigencia?.exigir ? (
+                <>
+                  La cuenta de{' '}
+                  <strong>"{nombreCompleto(cambiandoExigencia?.usuario)}"</strong>{' '}
+                  deberá completar el segundo paso en cada inicio de sesión.
+                  Mientras no enrole una aplicación autenticadora, el código le
+                  llegará por correo electrónico.
+                </>
+              ) : (
+                <>
+                  El segundo paso dejará de ser obligatorio para{' '}
+                  <strong>"{nombreCompleto(cambiandoExigencia?.usuario)}"</strong>.
+                  Si la cuenta tiene su aplicación enrolada, la seguirá usando;
+                  solo deja de estar obligada.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (cambiandoExigencia) {
+                  exigenciaMfaMutation.mutate({
+                    idUsuario: cambiandoExigencia.usuario.id,
+                    exigido: cambiandoExigencia.exigir,
+                  });
+                }
+                setCambiandoExigencia(null);
+              }}
+            >
+              {cambiandoExigencia?.exigir ? 'Exigir' : 'Liberar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

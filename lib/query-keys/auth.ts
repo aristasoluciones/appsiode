@@ -4,4 +4,7 @@ export const AUTH_KEYS = {
 
   /** Validez del token que llega en el enlace de restablecimiento. */
   tokenReset: (token: string | null) => ['auth', 'token-reset', token] as const,
+
+  /** Estado del segundo paso (MFA) de la propia cuenta. */
+  mfaEstado: () => ['auth', 'mfa', 'estado'] as const,
 } as const;

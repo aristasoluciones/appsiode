@@ -9,7 +9,9 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '@/providers/auth-provider';
 import { useCuentaRegresiva } from '@/hooks/use-cuenta-regresiva';
 import type { IBloqueoIntentos } from '@/lib/api/rate-limit';
+import type { IMfaReto } from '@/types/auth';
 import { AvisoBloqueo } from '../_components/aviso-bloqueo';
+import { PasoMfa } from '../_components/paso-mfa';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,6 +34,9 @@ export default function Page() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bloqueo, setBloqueo] = useState<IBloqueoIntentos | null>(null);
+  // Reto del segundo paso: con valor, la pantalla muestra la captura del código
+  // sin desmontar el formulario de credenciales (no se pierde lo capturado).
+  const [mfa, setMfa] = useState<IMfaReto | null>(null);
 
   // Mientras corra la espera del bloqueo el formulario queda deshabilitado.
   const esperaRestante = useCuentaRegresiva(bloqueo?.hasta ?? null);
@@ -61,6 +66,13 @@ export default function Page() {
         return;
       }
 
+      if (result.mfa) {
+        // La cuenta exige el segundo paso: conmutar a la captura del código.
+        setMfa(result.mfa);
+        setIsProcessing(false);
+        return;
+      }
+
       if (result.success) {
         // isAuthenticated se volverá true → el useEffect maneja la navegación.
         // Mantener isProcessing=true hasta que la navegación ocurra.
@@ -74,6 +86,10 @@ export default function Page() {
     }
 
     setIsProcessing(false);
+  }
+
+  if (mfa) {
+    return <PasoMfa mfa={mfa} onVolver={() => setMfa(null)} />;
   }
 
   return (

@@ -1,5 +1,13 @@
 import axios from 'axios';
 import { clearCachedUser } from '@/lib/auth-cache';
+import { API_ENDPOINTS } from '@/lib/api/endpoints';
+
+// Endpoints que responden 401 cuando el código MFA presentado es incorrecto:
+// no es una sesión vencida y no deben disparar el refresh ni el reintento.
+const URLS_401_DE_NEGOCIO: string[] = [
+  API_ENDPOINTS.AUTH.MFA_CONFIRMAR,
+  API_ENDPOINTS.AUTH.MFA_DESACTIVAR,
+];
 
 let isRefreshing = false;
 let refreshQueue: Array<(success: boolean) => void> = [];
@@ -92,7 +100,8 @@ apiClient.interceptors.response.use((response) => {
 
   if (
     status !== 401 ||
-    originalRequest._retry
+    originalRequest._retry ||
+    URLS_401_DE_NEGOCIO.includes(originalRequest?.url)
   ) {
     return Promise.reject(error);
   }
