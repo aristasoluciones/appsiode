@@ -24,6 +24,13 @@ export const USUARIOS = {
   /** Catálogo de tipos de evento con el que las pantallas arman su filtro. */
   HISTORIAL_TIPOS: '/Usuarios/historial/tipos',
 
+  /** Formato de captura (xlsx) del alta masiva, con sus listas desplegables. */
+  MASIVO_LAYOUT: '/Usuarios/masivo/layout',
+  /** Revisa el archivo y devuelve la vista previa fila por fila, sin crear nada. */
+  MASIVO_VALIDAR: '/Usuarios/masivo/validar',
+  /** Crea las cuentas válidas del archivo y devuelve el acuse con sus contraseñas. */
+  MASIVO_CREAR: '/Usuarios/masivo',
+
   /** Sesiones abiertas de una cuenta. */
   SESIONES: (idUsuario: Id) => `/Usuarios/${idUsuario}/sesiones`,
   /** Cierra una sesión concreta de la cuenta. */

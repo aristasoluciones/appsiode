@@ -20,6 +20,7 @@ import {
   ShieldOff,
   ShieldPlus,
   Trash2,
+  Upload,
   Users,
 } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
@@ -58,6 +59,7 @@ import {
 } from './usuarios-mfa-data';
 import UsuarioForm from './usuarios-form';
 import { UsuarioDetalleDialog } from './usuario-detalle-dialog';
+import { UsuariosMasivoDialog } from './usuarios-masivo-dialog';
 
 function nombreCompleto(u: IUsuario | null | undefined): string {
   if (!u) return '';
@@ -67,6 +69,7 @@ function nombreCompleto(u: IUsuario | null | undefined): string {
 export default function UsuariosList() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [showMasivo, setShowMasivo] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState<IUsuario | null>(null);
   const [deletingUsuario, setDeletingUsuario] = useState<IUsuario | null>(null);
   const [reseteandoMfa, setReseteandoMfa] = useState<IUsuario | null>(null);
@@ -82,6 +85,7 @@ export default function UsuariosList() {
   const canExigirMfa = hasPermission('catalogos.usuarios.mfaexigir');
   const canVerHistorial = hasPermission('catalogos.usuarios.historialver');
   const canVerSesiones = hasPermission('catalogos.usuarios.sesionesver');
+  const canAltaMasiva = hasPermission('catalogos.usuarios.masivo');
   const canRevocarSesiones = hasPermission('catalogos.usuarios.sesionesrevocar');
   // El detalle de la cuenta reúne historial y sesiones: basta con uno de los dos.
   const canVerDetalle = canVerHistorial || canVerSesiones;
@@ -423,10 +427,22 @@ export default function UsuariosList() {
                 className="ps-9 w-full sm:w-40 md:w-64"
               />
             </div>
-            <Button onClick={() => setShowForm(true)} disabled={isLoading}>
-              <Plus />
-              Nuevo
-            </Button>
+            <div className="flex flex-wrap items-center gap-2.5 ms-auto">
+              {canAltaMasiva && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowMasivo(true)}
+                  disabled={isLoading}
+                >
+                  <Upload />
+                  Generar cuentas
+                </Button>
+              )}
+              <Button onClick={() => setShowForm(true)} disabled={isLoading}>
+                <Plus />
+                Nuevo
+              </Button>
+            </div>
           </CardHeader>
           <CardTable>
             <ScrollArea>
@@ -451,6 +467,8 @@ export default function UsuariosList() {
         consejos={consejos}
         onSuccess={handleCloseForm}
       />
+
+      <UsuariosMasivoDialog open={showMasivo} onOpenChange={setShowMasivo} />
 
       <AlertDialog
         open={deletingUsuario !== null}
