@@ -31,6 +31,19 @@ export function Header() {
   const pathname = usePathname();
   const mobileMode = useIsMobile();
 
+  // Consejo asignado: «C.D 01.- NOMBRE»; «OFC» en las cuentas de oficina central.
+  const tipoConsejoChar = user?.tipoConsejo?.toUpperCase();
+  const consejoEtiqueta =
+    tipoConsejoChar === 'D' || tipoConsejoChar === 'M'
+      ? [
+          `C.${tipoConsejoChar}`,
+          user?.claveConsejo ? `${user.claveConsejo}.-` : '',
+          user?.consejo,
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : 'OFC';
+
   const scrollPosition = useScrollPosition();
   const headerSticky: boolean = scrollPosition > 0;
 
@@ -99,7 +112,9 @@ export function Header() {
                     {user?.nombre || 'Usuario'}
                   </span>
                   <span className="text-xs text-muted-foreground leading-tight">
-                    {user?.rol || ''}
+                    {consejoEtiqueta
+                      ? `${consejoEtiqueta} · ${user?.rol || ''}`
+                      : user?.rol || ''}
                   </span>
                 </div>
                 <img
