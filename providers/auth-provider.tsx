@@ -43,6 +43,8 @@ interface AuthContextType extends AuthState {
   loginMfa: (
     reto: string,
     codigo: string,
+    /** Casilla «recordar este dispositivo»: este equipo deja de pedir el código. */
+    recordarDispositivo?: boolean,
   ) => Promise<{
     success: boolean;
     message?: string;
@@ -243,11 +245,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const loginMfa = useCallback(
-    async (reto: string, codigo: string) => {
+    async (reto: string, codigo: string, recordarDispositivo = false) => {
       try {
+        // Con recordarDispositivo el API entrega al navegador la credencial del
+        // equipo de confianza; a partir de ahí ese equipo entra sin el código.
         const res = await authClient.post<ApiResponse<AuthUser | null>>(
           API_ENDPOINTS.AUTH.MFA_VERIFICAR,
-          { reto, codigo },
+          { reto, codigo, recordarDispositivo },
         );
 
         if (res.status === 200 && res.data.status === 200 && res.data.data) {

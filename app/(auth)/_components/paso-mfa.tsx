@@ -17,6 +17,7 @@ import type { IMfaReto } from '@/types/auth';
 import { AvisoBloqueo } from './aviso-bloqueo';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -32,6 +33,12 @@ import {
 } from '@/components/ui/input-otp';
 import { getMfaSchema, MfaSchemaType } from '../forms/mfa-schema';
 
+/**
+ * Días que dura la confianza de un equipo recordado. Es el plazo de omisión del
+ * API (`Mfa:TrustedDeviceDays`) y aquí solo sirve para redactar el aviso.
+ */
+const DIAS_CONFIANZA = 30;
+
 interface PasoMfaProps {
   /** Reto temporal y método que devolvió el login. */
   mfa: IMfaReto;
@@ -46,6 +53,7 @@ interface PasoMfaProps {
 export function PasoMfa({ mfa, onVolver }: PasoMfaProps) {
   const { loginMfa } = useAuth();
   const [usarRespaldo, setUsarRespaldo] = useState(false);
+  const [recordarDispositivo, setRecordarDispositivo] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retoInvalido, setRetoInvalido] = useState(false);
@@ -75,7 +83,7 @@ export function PasoMfa({ mfa, onVolver }: PasoMfaProps) {
       const codigo = usarRespaldo
         ? values.codigo.trim().toUpperCase()
         : values.codigo;
-      const result = await loginMfa(mfa.reto, codigo);
+      const result = await loginMfa(mfa.reto, codigo, recordarDispositivo);
 
       if (result.success) {
         // La sesión ya quedó emitida; recarga completa como en el login normal.
@@ -144,6 +152,33 @@ export function PasoMfa({ mfa, onVolver }: PasoMfaProps) {
           </div>
         ) : (
           <>
+            {/* Va antes del código a propósito: al completar los 6 dígitos el
+                formulario se envía solo y ya no habría oportunidad de marcarla. */}
+            <div className="flex items-start gap-2.5 rounded-lg border border-input p-3">
+              <Checkbox
+                id="recordar-dispositivo"
+                className="mt-0.5"
+                checked={recordarDispositivo}
+                onCheckedChange={(valor) =>
+                  setRecordarDispositivo(valor === true)
+                }
+                disabled={estaBloqueado || isProcessing}
+              />
+              <label
+                htmlFor="recordar-dispositivo"
+                className="cursor-pointer space-y-1"
+              >
+                <span className="block text-sm font-medium text-foreground">
+                  Recordar este dispositivo
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Durante los próximos {DIAS_CONFIANZA} días no le pediremos el
+                  código en esta computadora. No la marque en equipos
+                  compartidos del consejo.
+                </span>
+              </label>
+            </div>
+
             <FormField
               control={form.control}
               name="codigo"
