@@ -105,20 +105,35 @@ const buildValidationSchema = (isEditing: boolean) => Yup.object({
   id_rol: Yup.number()
     .min(0, 'El rol es obligatorio')
     .required('El rol es obligatorio'),
+  // Los límites siguen a los del API para que nada se rechace desde el servidor.
   usuario: Yup.string()
+    .trim()
     .required('El correo es obligatorio')
     .email('Ingresa un correo válido')
-    .max(150, 'Máximo 150 caracteres'),
-  celular: Yup.string().max(20, 'Máximo 20 caracteres').nullable(),
+    .min(3, 'Mínimo 3 caracteres')
+    .max(255, 'Máximo 255 caracteres'),
+  celular: Yup.string()
+    .trim()
+    .matches(/^[0-9]{10}$/, {
+      message: 'El celular debe tener 10 dígitos',
+      excludeEmptyString: true,
+    })
+    .nullable(),
+  // Se recortan los espacios antes de validar: el API también lo hace y un
+  // valor de puros espacios regresaría como error del servidor.
   paterno: Yup.string()
+    .trim()
     .required('El apellido paterno es obligatorio')
-    .max(80, 'Máximo 80 caracteres'),
+    .max(100, 'Máximo 100 caracteres'),
   materno: Yup.string()
+    .trim()
     .required('El apellido materno es obligatorio')
-    .max(80, 'Máximo 80 caracteres'),
+    .max(100, 'Máximo 100 caracteres'),
   nombre: Yup.string()
+    .trim()
     .required('El nombre es obligatorio')
-    .max(80, 'Máximo 80 caracteres'),
+    .min(2, 'Mínimo 2 caracteres')
+    .max(100, 'Máximo 100 caracteres'),
   password: Yup.string().when('tipo', {
     is: 'consejo',
     then: (schema) => {
@@ -191,6 +206,11 @@ export default function UsuarioForm({
   ) {
     const payload: ICreateUsuarioInput = {
       ...values,
+      usuario: values.usuario.trim(),
+      celular: values.celular.trim(),
+      nombre: values.nombre.trim(),
+      paterno: values.paterno.trim(),
+      materno: values.materno.trim(),
       consejo_tipo: values.tipo === 'consejo' ? values.consejo_tipo : undefined,
       consejo_clave: values.tipo === 'consejo' ? values.consejo_clave : undefined,
       password: values.tipo === 'consejo' && values.password ? values.password : undefined,
@@ -438,7 +458,7 @@ export default function UsuarioForm({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Correo / Usuario <span className="text-red-600">*</span>
                       </label>
-                      <Field name="usuario" as={Input} placeholder="correo@ejemplo.com" type="email" />
+                      <Field name="usuario" as={Input} placeholder="correo@ejemplo.com" type="email" maxLength={255} />
                       {errors.usuario && touched.usuario && (
                         <p className="text-red-600 text-xs mt-1">{errors.usuario}</p>
                       )}
@@ -447,7 +467,7 @@ export default function UsuarioForm({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Celular
                       </label>
-                      <Field name="celular" as={Input} placeholder="5512345678" />
+                      <Field name="celular" as={Input} placeholder="5512345678" inputMode="numeric" maxLength={10} />
                       {errors.celular && touched.celular && (
                         <p className="text-danger text-xs mt-1">{errors.celular}</p>
                       )}
@@ -460,7 +480,7 @@ export default function UsuarioForm({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Apellido Paterno <span className="text-red-600">*</span>
                       </label>
-                      <Field name="paterno" as={Input} placeholder="Paterno" />
+                      <Field name="paterno" as={Input} placeholder="Paterno" maxLength={100} />
                       {errors.paterno && touched.paterno && (
                         <p className="text-red-600 text-xs mt-1">{errors.paterno}</p>
                       )}
@@ -469,7 +489,7 @@ export default function UsuarioForm({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Apellido Materno <span className="text-red-600">*</span>
                       </label>
-                      <Field name="materno" as={Input} placeholder="Materno" />
+                      <Field name="materno" as={Input} placeholder="Materno" maxLength={100} />
                       {errors.materno && touched.materno && (
                         <p className="text-red-600 text-xs mt-1">{errors.materno}</p>
                       )}
@@ -481,7 +501,7 @@ export default function UsuarioForm({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                       Nombre <span className="text-red-600">*</span>
                     </label>
-                    <Field name="nombre" as={Input} placeholder="Nombre(s)" />
+                    <Field name="nombre" as={Input} placeholder="Nombre(s)" maxLength={100} />
                     {errors.nombre && touched.nombre && (
                       <p className="text-red-600 text-xs mt-1">{errors.nombre}</p>
                     )}
