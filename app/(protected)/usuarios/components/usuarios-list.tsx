@@ -41,6 +41,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -148,21 +153,35 @@ export default function UsuariosList() {
         id: 'nombre',
         header: 'Nombre',
         accessorFn: (row) => `${row.paterno} ${row.materno} ${row.nombre}`,
+        // El nombre y el correo llevan un ancho mínimo para que el reparto de
+        // la tabla no los deje en una franja estrecha. Si aun así no cabe, el
+        // texto se acomoda en varias líneas: nada se corta.
         cell: ({ row }) => (
           <span className="font-medium">
             {row.original.paterno} {row.original.materno} {row.original.nombre}
           </span>
         ),
-        meta: { skeleton: <Skeleton className="w-44 h-4" /> },
+        meta: {
+          skeleton: <Skeleton className="w-44 h-4" />,
+          headerClassName: 'min-w-[200px]',
+          cellClassName: 'min-w-[200px]',
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'usuario',
         header: 'Correo / Usuario',
+        // Un correo largo se parte solo si de verdad no cabe.
         cell: ({ row }) => (
-          <span className="text-muted-foreground text-sm">{row.original.usuario}</span>
+          <span className="text-muted-foreground text-sm break-words">
+            {row.original.usuario}
+          </span>
         ),
-        meta: { skeleton: <Skeleton className="w-48 h-4" /> },
+        meta: {
+          skeleton: <Skeleton className="w-48 h-4" />,
+          headerClassName: 'min-w-[200px]',
+          cellClassName: 'min-w-[200px]',
+        },
         enableSorting: true,
       },
       {
@@ -171,7 +190,11 @@ export default function UsuariosList() {
         cell: ({ row }) => (
           <span className="text-sm">{row.original.celular || '—'}</span>
         ),
-        meta: { skeleton: <Skeleton className="w-28 h-4" /> },
+        meta: {
+          skeleton: <Skeleton className="w-28 h-4" />,
+          headerClassName: 'min-w-[110px]',
+          cellClassName: 'min-w-[110px]',
+        },
         enableSorting: false,
       },
       {
@@ -183,7 +206,11 @@ export default function UsuariosList() {
           ) : (
             <span className="text-muted-foreground text-sm">—</span>
           ),
-        meta: { skeleton: <Skeleton className="w-24 h-5 rounded-full" /> },
+        meta: {
+          skeleton: <Skeleton className="w-24 h-5 rounded-full" />,
+          headerClassName: 'min-w-[120px]',
+          cellClassName: 'min-w-[120px]',
+        },
         enableSorting: true,
       },
       {
@@ -199,7 +226,9 @@ export default function UsuariosList() {
             return (
               <div className="flex flex-col gap-0.5">
                 <Badge variant="primary" className="w-fit">Consejo</Badge>
-                <span className="text-xs text-muted-foreground">
+                {/* El nombre del consejo es largo: se acota para que no le
+                    quite ancho al nombre ni al correo. */}
+                <span className="block max-w-[220px] text-xs text-muted-foreground">
                   {consejo_tipo === 'D' ? 'Distrital' : consejo_tipo === 'M' ? 'Municipal' : consejo_tipo}
                   {consejo ? ` · ${consejo_clave} - ${consejo.consejo}` : consejo_clave ? ` · ${consejo_clave}` : ''}
                 </span>
@@ -211,7 +240,11 @@ export default function UsuariosList() {
           }
           return <span className="text-muted-foreground text-sm">{tipo || '—'}</span>;
         },
-        meta: { skeleton: <Skeleton className="w-32 h-5 rounded-full" /> },
+        meta: {
+          skeleton: <Skeleton className="w-32 h-5 rounded-full" />,
+          headerClassName: 'min-w-[140px]',
+          cellClassName: 'min-w-[140px]',
+        },
         enableSorting: true,
       },
       ...(mostrarEliminadas
@@ -230,7 +263,11 @@ export default function UsuariosList() {
                     Activa
                   </Badge>
                 ),
-              meta: { skeleton: <Skeleton className="w-20 h-5 rounded-full" /> },
+              meta: {
+                skeleton: <Skeleton className="w-20 h-5 rounded-full" />,
+                headerClassName: 'min-w-[100px]',
+                cellClassName: 'min-w-[100px]',
+              },
               enableSorting: true,
             },
           ] as ColumnDef<IUsuario>[])
@@ -280,7 +317,11 @@ export default function UsuariosList() {
                   </div>
                 );
               },
-              meta: { skeleton: <Skeleton className="w-24 h-5 rounded-full" /> },
+              meta: {
+                skeleton: <Skeleton className="w-24 h-5 rounded-full" />,
+                headerClassName: 'min-w-[150px]',
+                cellClassName: 'min-w-[150px]',
+              },
               enableSorting: false,
             },
           ] as ColumnDef<IUsuario>[])
@@ -288,25 +329,66 @@ export default function UsuariosList() {
       {
         id: 'actions',
         header: '',
-        size: 160,
+        size: 130,
+        // Ocupa lo justo y deja el ancho sobrante a las columnas de texto.
+        meta: {
+          headerClassName: 'w-[1%] whitespace-nowrap',
+          cellClassName: 'w-[1%] whitespace-nowrap',
+        },
         cell: ({ row }) => {
-          // Sobre una cuenta eliminada la única acción posible es devolverla al
-          // estado activo; editarla o volver a eliminarla no tiene sentido.
+          // Una cuenta eliminada conserva la misma forma de la fila —iconos y
+          // menú— pero cambia lo que ofrece: devolverla al servicio en lugar de
+          // editarla o volver a eliminarla.
           if (estaEliminada(row.original)) {
-            if (!canReactivar) {
+            if (!canReactivar && !canVerDetalle) {
               return <span className="text-muted-foreground text-sm">—</span>;
             }
             return (
               <div className="flex items-center justify-end gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setReactivandoUsuario(row.original)}
-                  disabled={reactivarMutation.isPending}
-                >
-                  <UserCheck className="h-4 w-4" />
-                  Reactivar
-                </Button>
+                {canReactivar && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label="Reactivar cuenta"
+                        onClick={() => setReactivandoUsuario(row.original)}
+                        disabled={reactivarMutation.isPending}
+                      >
+                        <UserCheck className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Reactivar cuenta</TooltipContent>
+                  </Tooltip>
+                )}
+                {canVerDetalle && (
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            aria-label="Más acciones"
+                          >
+                            <EllipsisVertical className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Más acciones</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="min-w-56">
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          setTimeout(() => setDetalleUsuario(row.original), 0)
+                        }
+                      >
+                        <History />
+                        Historial y sesiones
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             );
           }
@@ -321,38 +403,50 @@ export default function UsuariosList() {
           const hayMasAcciones = canVerDetalle || puedeExigir || puedeResetear;
           return (
             <div className="flex items-center justify-end gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                title="Editar usuario"
-                aria-label="Editar usuario"
-                onClick={() => handleEdit(row.original)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="text-destructive hover:text-destructive"
-                title="Eliminar usuario"
-                aria-label="Eliminar usuario"
-                onClick={() => setDeletingUsuario(row.original)}
-                disabled={deleteMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="Editar usuario"
+                    onClick={() => handleEdit(row.original)}
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Editar usuario</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    aria-label="Eliminar usuario"
+                    onClick={() => setDeletingUsuario(row.original)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Eliminar usuario</TooltipContent>
+              </Tooltip>
               {hayMasAcciones && (
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      title="Más acciones"
-                      aria-label="Más acciones"
-                    >
-                      <EllipsisVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          aria-label="Más acciones"
+                        >
+                          <EllipsisVertical className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Más acciones</TooltipContent>
+                  </Tooltip>
                   {/* El estado se cambia al terminar el cierre del menú: así el
                       foco que devuelve no interfiere con el diálogo que abre. */}
                   <DropdownMenuContent align="end" className="min-w-56">
