@@ -1,17 +1,12 @@
 import { Metadata } from 'next';
-import { ModuloEnDesarrollo } from '@/components/common/modulo-en-desarrollo';
+import { ComprobacionesClient } from '../_components/comprobaciones-client';
 
 export const metadata: Metadata = {
-  title: 'Comprobación Física',
+  title: 'Comprobación Física | SIODE',
   description:
-    'Comprobación física de la documentación y el material electoral.',
+    'Comprobación física de la documentación y el material electoral del consejo.',
 };
 
 export default function ComprobacionFisicaPage() {
-  return (
-    <ModuloEnDesarrollo
-      titulo="Comprobación Física"
-      seccion="Documentación y Material"
-    />
-  );
+  return <ComprobacionesClient />;
 }
