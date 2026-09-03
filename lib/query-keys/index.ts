@@ -9,6 +9,7 @@ import { AUTH_KEYS } from './auth';
 import { BODEGAS_KEYS, VERIFICACIONES_KEYS } from './bodegas';
 import { CATALOGOS_KEYS } from './catalogos';
 import { EXTERNOS_KEYS } from './externos';
+import { MATERIAL_ELECTORAL_KEYS } from './material-electoral';
 import { PROCESOS_KEYS } from './procesos';
 import { ROLES_KEYS } from './roles';
 import { SESIONES_KEYS } from './sesiones';
@@ -25,6 +26,7 @@ export const QUERY_KEYS = {
   VERIFICACIONES: VERIFICACIONES_KEYS,
   APERTURAS_BODEGAS: APERTURAS_KEYS,
   EXTERNOS: EXTERNOS_KEYS,
+  MATERIAL_ELECTORAL: MATERIAL_ELECTORAL_KEYS,
 } as const;
 
 export {
@@ -33,6 +35,7 @@ export {
   BODEGAS_KEYS,
   CATALOGOS_KEYS,
   EXTERNOS_KEYS,
+  MATERIAL_ELECTORAL_KEYS,
   PROCESOS_KEYS,
   ROLES_KEYS,
   SESIONES_KEYS,
