@@ -678,6 +678,19 @@ export function ComprobacionesAdminDashboard() {
   const { data, isLoading, isFetching, isError, refetch } =
     useAvanceComprobaciones(tipoConsejo, eleccion, !isLoadingProceso);
 
+  /**
+   * Catálogo de elecciones del tipo de consejo. Se toma del avance sin filtro
+   * porque la respuesta filtrada solo trae la elección elegida y las pills se
+   * quedarían sin las demás, sin manera de volver a «Todas». Mientras no hay
+   * filtro es la misma consulta —misma llave de caché—, así que no cuesta otra
+   * petición.
+   */
+  const { data: avanceCompleto } = useAvanceComprobaciones(
+    tipoConsejo,
+    TODAS_ELECCIONES,
+    !isLoadingProceso,
+  );
+
   const descargarReporte = useDescargarReporteComprobaciones();
 
   const consejos = useMemo(() => data?.consejos ?? [], [data]);
@@ -686,12 +699,12 @@ export function ComprobacionesAdminDashboard() {
   const opcionesEleccion = useMemo(
     () => [
       { value: TODAS_ELECCIONES, label: 'Todas' },
-      ...(data?.elecciones ?? []).map((e) => ({
+      ...(avanceCompleto?.elecciones ?? []).map((e) => ({
         value: e.clave,
         label: e.descripcion,
       })),
     ],
-    [data],
+    [avanceCompleto],
   );
 
   const totales: Record<TConteoConsejo, number> = {
