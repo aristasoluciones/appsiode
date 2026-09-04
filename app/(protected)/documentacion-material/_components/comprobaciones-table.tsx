@@ -259,13 +259,13 @@ export function ComprobacionesTable({
                 </TooltipContent>
               </Tooltip>
             )}
-            {onHistorial && row.original.capturas > 0 && (
+            {onHistorial && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="outline"
                     size="icon"
-                    aria-label="Ver historial de capturas"
+                    aria-label="Ver historial de comprobaciones"
                     onClick={() => onHistorial(row.original)}
                   >
                     <History className="h-4 w-4" aria-hidden="true" />
@@ -417,7 +417,7 @@ function MobileCard({
             <span>{row.cantidad_fisica == null ? 'Capturar' : 'Corregir'}</span>
           </Button>
         )}
-        {onHistorial && row.capturas > 0 && (
+        {onHistorial && (
           <Button
             variant="outline"
             size="sm"

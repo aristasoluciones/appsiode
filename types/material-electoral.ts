@@ -194,18 +194,40 @@ export interface IComprobacionCapturaPayload {
   observaciones: string;
 }
 
-/** Una captura del historial, con su autor. */
-export interface IComprobacionCaptura {
-  id: number;
-  cantidad_fisica: number;
-  diferencia: number;
-  observaciones: string;
-  fecha_registro: string;
+/** Naturaleza de cada hito de la línea de tiempo del renglón. */
+export type TComprobacionEventoTipo =
+  | 'CARGA_INICIAL'
+  | 'ACTUALIZACION'
+  | 'COMPROBACION';
+
+/**
+ * Un hito del renglón: su alta con el layout, un cambio posterior de la
+ * cantidad entregada o una comprobación física del consejo. Los campos que no
+ * corresponden al tipo de evento vienen en null.
+ */
+export interface IComprobacionEvento {
+  tipo: TComprobacionEventoTipo;
+  /** Nombre del evento tal como se muestra en pantalla. */
+  evento: string;
+  fecha: string;
   id_usuario: number | null;
   usuario: string | null;
+  /** Importación que originó el evento; solo en carga inicial y actualización. */
+  id_importacion: number | null;
+  archivo: string | null;
+  /** Cantidad entregada con la que quedó el renglón tras el evento. */
+  cantidad: number | null;
+  /** Cantidad entregada previa; solo en las actualizaciones. */
+  cantidad_anterior: number | null;
+  /** Datos de la comprobación física. */
+  id_captura: number | null;
+  cantidad_fisica: number | null;
+  diferencia: number | null;
+  observaciones: string | null;
+  vigente: boolean | null;
 }
 
-/** Historial de capturas de un renglón: cada corrección deja rastro. */
+/** Historial de un renglón: su origen y cada comprobación física. */
 export interface IComprobacionHistorial {
   id: number;
   id_documento: string;
@@ -216,7 +238,10 @@ export interface IComprobacionHistorial {
   cantidad: number | null;
   cantidad_fisica: number | null;
   diferencia: number | null;
-  capturas: IComprobacionCaptura[];
+  /** Importación que dio de alta el renglón; null en los renglones heredados. */
+  id_importacion: number | null;
+  /** Línea de tiempo completa, del evento más reciente al más antiguo. */
+  eventos: IComprobacionEvento[];
 }
 
 /* -------------------------------------------------------------------------- */

@@ -64,7 +64,7 @@ export function useComprobaciones(
   });
 }
 
-/** Historial de capturas de un renglón; solo se pide con la ventana abierta. */
+/** Historial de un renglón; solo se pide con la ventana abierta. */
 export function useComprobacionHistorial(
   id: number | null,
   tipoConsejo: 'D' | 'M' | null,
@@ -85,7 +85,7 @@ export function useComprobacionHistorial(
           tipoConsejo!,
         ),
       );
-      return { ...data, capturas: data?.capturas ?? [] };
+      return { ...data, eventos: data?.eventos ?? [] };
     },
   });
 }
