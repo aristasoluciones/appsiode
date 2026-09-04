@@ -2,7 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  ILayoutImportacion,
+  ILayoutImportacionRevertirPayload,
   ILayoutResultado,
+  ILayoutReversion,
   ILayoutValidacion,
   ITipoDocumentacion,
 } from '@/types/material-electoral';
@@ -10,7 +13,7 @@ import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { getDataAuditoria } from '@/lib/auditoria';
 import { MATERIAL_ELECTORAL_KEYS } from '@/lib/query-keys';
-import { toastError } from '@/lib/toast';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 const TIPO_EXCEL =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -128,13 +131,72 @@ export function useCargarLayout() {
     },
     onSuccess: () => {
       // La carga cambia los renglones de los consejos: se rehacen el tablero de
-      // avance y las listas de comprobación ya cargadas.
-      queryClient.invalidateQueries({
-        queryKey: MATERIAL_ELECTORAL_KEYS.avance(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: MATERIAL_ELECTORAL_KEYS.comprobaciones(),
-      });
+      // avance, las listas de comprobación ya cargadas y el historial.
+      invalidarTrasCambioDeLayout(queryClient);
+    },
+  });
+}
+
+/** Una carga o una reversión tocan lo mismo: avance, comprobaciones e historial. */
+function invalidarTrasCambioDeLayout(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  queryClient.invalidateQueries({
+    queryKey: MATERIAL_ELECTORAL_KEYS.avance(),
+  });
+  queryClient.invalidateQueries({
+    queryKey: MATERIAL_ELECTORAL_KEYS.comprobaciones(),
+  });
+  queryClient.invalidateQueries({
+    queryKey: MATERIAL_ELECTORAL_KEYS.layoutImportaciones(),
+  });
+}
+
+/**
+ * Historial de importaciones del proceso y del tipo de consejo, de la más
+ * reciente a la más antigua. Se pide solo con el apartado abierto; el error se
+ * muestra en la propia ventana.
+ */
+export function useImportacionesLayout(
+  tipoConsejo: 'D' | 'M',
+  habilitado = true,
+) {
+  return useQuery({
+    enabled: habilitado,
+    queryKey: MATERIAL_ELECTORAL_KEYS.layoutImportacionesTipo(tipoConsejo),
+    queryFn: async () => {
+      const { data } = await apiClient.get<ILayoutImportacion[]>(
+        API_ENDPOINTS.MATERIAL_ELECTORAL.LAYOUT_IMPORTACIONES(tipoConsejo),
+      );
+      return data ?? [];
+    },
+    meta: { silenciarToast: true },
+  });
+}
+
+/**
+ * Revierte la importación aplicada más reciente: borra los documentos que creó
+ * y regresa a sus valores anteriores los que actualizó. Si el API la rechaza
+ * (por ejemplo, porque ya hay comprobaciones capturadas) la ventana muestra su
+ * mensaje tal cual; por eso aquí se silencia el toast de error.
+ */
+export function useRevertirImportacion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: { silenciarToast: true },
+    mutationFn: async ({ id, motivo }: ILayoutImportacionRevertirPayload) => {
+      const { data } = await apiClient.post<ILayoutReversion>(
+        API_ENDPOINTS.MATERIAL_ELECTORAL.LAYOUT_IMPORTACION_REVERTIR(id),
+        { motivo: motivo.trim(), ...getDataAuditoria() },
+      );
+      return data;
+    },
+    onSuccess: (data) => {
+      toastSuccess(
+        `Importación revertida: ${data.eliminados.toLocaleString('es-MX')} documentos eliminados y ${data.restaurados.toLocaleString('es-MX')} regresados a sus valores anteriores.`,
+      );
+      invalidarTrasCambioDeLayout(queryClient);
     },
   });
 }

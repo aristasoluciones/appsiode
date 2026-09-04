@@ -893,7 +893,7 @@ export function ComprobacionesAdminDashboard() {
                   onClick={() => setLayoutAbierto(true)}
                 >
                   <Upload className="h-4 w-4" />
-                  Cargar layout
+                  Cargas por consejo
                 </Button>
               )}
               {puedeExportar && tipoConsejo && (

@@ -8,6 +8,12 @@ export const MATERIAL_ELECTORAL_KEYS = {
   layoutTipos: (incluirInactivos?: boolean) =>
     ['material-electoral', 'layout-tipos', incluirInactivos ?? false] as const,
 
+  /** Prefijo del historial de importaciones, para refrescarlo tras una carga o una reversión. */
+  layoutImportaciones: () =>
+    ['material-electoral', 'layout-importaciones'] as const,
+  layoutImportacionesTipo: (tipoConsejo: string) =>
+    ['material-electoral', 'layout-importaciones', tipoConsejo] as const,
+
   /** Prefijo de las listas de comprobación, para invalidarlas todas tras una captura. */
   comprobaciones: () => ['material-electoral', 'comprobaciones'] as const,
   comprobacionesConsejo: (

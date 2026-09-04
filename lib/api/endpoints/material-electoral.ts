@@ -15,9 +15,19 @@ export const MATERIAL_ELECTORAL = {
   LAYOUT_VALIDAR: '/material-electoral/layouts/validar',
   /** Carga los renglones del layout; si una fila tiene observaciones no se carga ninguna. */
   LAYOUT_CARGAR: '/material-electoral/layouts',
+  /** Historial de cargas del proceso y tipo de consejo, de la más reciente a la más antigua. */
+  LAYOUT_IMPORTACIONES: (tipoConsejo: 'D' | 'M') =>
+    `/material-electoral/layouts/importaciones${qs({ tipoConsejo })}`,
+  /** Revierte la importación aplicada más reciente; exige el permiso de revertir. */
+  LAYOUT_IMPORTACION_REVERTIR: (id: Id) =>
+    `/material-electoral/layouts/importaciones/${id}/revertir`,
 
   /** Lista de comprobación del consejo; sin `idEleccion` vienen todas las elecciones. */
-  COMPROBACIONES: (idConsejo: Id, tipoConsejo: 'D' | 'M', idEleccion?: string) =>
+  COMPROBACIONES: (
+    idConsejo: Id,
+    tipoConsejo: 'D' | 'M',
+    idEleccion?: string,
+  ) =>
     `/material-electoral/comprobaciones${qs({ idConsejo, tipoConsejo, idEleccion })}`,
   /** Historial de capturas de un renglón, con el autor de cada corrección. */
   COMPROBACION_HISTORIAL: (id: Id, idConsejo: Id, tipoConsejo: 'D' | 'M') =>
@@ -30,7 +40,11 @@ export const MATERIAL_ELECTORAL = {
     `/material-electoral/avance/comprobaciones${qs({ tipoConsejo, idEleccion })}`,
 
   /** Reporte en Excel de la comprobación de un consejo, renglón por renglón. */
-  REPORTE_CONSEJO: (idConsejo: Id, tipoConsejo: 'D' | 'M', idEleccion?: string) =>
+  REPORTE_CONSEJO: (
+    idConsejo: Id,
+    tipoConsejo: 'D' | 'M',
+    idEleccion?: string,
+  ) =>
     `/material-electoral/reportes/consejo${qs({ idConsejo, tipoConsejo, idEleccion })}`,
   /** Reporte en Excel del avance de todos los consejos del tipo. */
   REPORTE_GENERAL: (tipoConsejo: 'D' | 'M', idEleccion?: string) =>

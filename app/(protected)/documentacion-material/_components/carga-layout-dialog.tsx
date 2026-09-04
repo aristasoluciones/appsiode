@@ -6,6 +6,7 @@ import {
   CircleAlert,
   Download,
   FileSpreadsheet,
+  History,
   LoaderCircleIcon,
   MapPin,
   Paperclip,
@@ -33,16 +34,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useCargarLayout,
   useDescargarFormatoLayout,
   useTiposDocumentacion,
   useValidarLayout,
 } from '../_hooks/use-carga-layout';
+import { CargaLayoutHistorial } from './carga-layout-historial';
 import { CargaLayoutPrevia } from './carga-layout-previa';
 import { CargaLayoutResultado } from './carga-layout-resultado';
 
 type TPaso = 'archivo' | 'previa' | 'resultado';
+/** Apartados de la ventana: cargar un archivo o ver el historial de cargas. */
+type TApartado = 'cargar' | 'historial';
 
 const ACEPTA = LAYOUT_LIMITES.extensiones.join(',');
 
@@ -63,6 +68,10 @@ function pesoLegible(bytes: number): string {
  * completo o no entra: basta un renglón con observaciones para que la carga no
  * se pueda confirmar.
  *
+ * La misma ventana tiene un segundo apartado, «Historial de importaciones»,
+ * con las cargas del tipo de consejo elegido y la reversión de la más reciente
+ * (permiso propio `documentacionymaterial.comprobaciones.layoutrevertir`).
+ *
  * Quien monte la ventana debe ofrecerla solo a oficina central y con el permiso
  * `documentacionymaterial.comprobaciones.layout`; aquí se vuelve a comprobar
  * para que el componente no dependa de que el llamador lo haga.
@@ -81,6 +90,7 @@ export function CargaLayoutDialog({
   const { data: proceso } = useProceso();
 
   const [tipoElegido, setTipoElegido] = useState<'D' | 'M'>('D');
+  const [apartado, setApartado] = useState<TApartado>('cargar');
   const [paso, setPaso] = useState<TPaso>('archivo');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [validacion, setValidacion] = useState<ILayoutValidacion | null>(null);
@@ -96,6 +106,9 @@ export function CargaLayoutDialog({
 
   const puedeCargar = hasPermission(
     'documentacionymaterial.comprobaciones.layout',
+  );
+  const puedeRevertir = hasPermission(
+    'documentacionymaterial.comprobaciones.layoutrevertir',
   );
   const esOficinaCentral = parseInt(user?.idConsejo ?? '0') === 0;
 
@@ -125,6 +138,7 @@ export function CargaLayoutDialog({
   // Cada apertura arranca limpia.
   useEffect(() => {
     if (!open) return;
+    setApartado('cargar');
     setPaso('archivo');
     setArchivo(null);
     setValidacion(null);
@@ -223,6 +237,44 @@ export function CargaLayoutDialog({
   }
 
   const sinAcceso = !puedeCargar || !esOficinaCentral;
+  const enCarga = apartado === 'cargar';
+
+  // Selector del tipo de consejo. Es JSX en una variable, no un componente
+  // local, para que no se remonte en cada render; se usa en los dos apartados.
+  const selectorTipo = (
+    <div
+      role="radiogroup"
+      aria-label="Tipo de consejo"
+      className="flex flex-wrap gap-2"
+    >
+      {opciones.map((op) => {
+        const activo = op.value === tipoConsejo;
+        const Icono = ICONO_TIPO[op.value];
+        return (
+          <button
+            key={op.value}
+            type="button"
+            role="radio"
+            aria-checked={activo}
+            onClick={() => cambiarTipo(op.value)}
+            disabled={ocupado}
+            className={[
+              'inline-flex items-center gap-2 h-8.5 px-3 rounded-md border text-[0.8125rem] font-medium',
+              'transition-colors duration-150 motion-reduce:transition-none',
+              'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:border-ring',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+              activo
+                ? 'bg-primary/10 border-primary text-primary'
+                : 'bg-background border-input text-foreground hover:bg-accent',
+            ].join(' ')}
+          >
+            <Icono className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{op.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <Dialog
@@ -235,18 +287,54 @@ export function CargaLayoutDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Cargar el layout</DialogTitle>
+          <DialogTitle>Carga de documentación y material</DialogTitle>
           <DialogDescription>
-            {paso === 'archivo' &&
+            {!enCarga &&
+              'Cargas del layout hechas en el proceso, con sus conteos y quién las hizo. Solo se puede revertir la más reciente.'}
+            {enCarga &&
+              paso === 'archivo' &&
               'Descarga el formato de captura del tipo de consejo, llénalo y súbelo para revisarlo antes de cargar nada.'}
-            {paso === 'previa' &&
+            {enCarga &&
+              paso === 'previa' &&
               'Esto es lo que trae el archivo. Revisa las observaciones y confirma para cargar el layout.'}
-            {paso === 'resultado' &&
+            {enCarga &&
+              paso === 'resultado' &&
               'Carga terminada. Los consejos ya pueden capturar su comprobación física.'}
           </DialogDescription>
         </DialogHeader>
 
         <DialogBody className="flex flex-col gap-4 min-h-0">
+          {!sinAcceso && (
+            <Tabs
+              value={apartado}
+              onValueChange={(valor) =>
+                !ocupado && setApartado(valor as TApartado)
+              }
+            >
+              <TabsList>
+                <TabsTrigger value="cargar" disabled={ocupado}>
+                  <Upload className="h-4 w-4" />
+                  Cargar el layout
+                </TabsTrigger>
+                <TabsTrigger value="historial" disabled={ocupado}>
+                  <History className="h-4 w-4" />
+                  Historial de importaciones
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent
+                value="historial"
+                className="flex flex-col gap-4 mt-4"
+              >
+                {selectorTipo}
+                <CargaLayoutHistorial
+                  tipoConsejo={tipoConsejo}
+                  activo={open && !enCarga}
+                  puedeRevertir={puedeRevertir}
+                />
+              </TabsContent>
+            </Tabs>
+          )}
+
           {sinAcceso ? (
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-12 text-center space-y-3">
               <ShieldOff className="h-10 w-10 text-destructive mx-auto" />
@@ -256,7 +344,7 @@ export function CargaLayoutDialog({
                   : 'No tienes permiso para cargar el layout de documentación y material.'}
               </p>
             </div>
-          ) : (
+          ) : !enCarga ? null : (
             <>
               {error && (
                 <Alert variant="destructive" appearance="light" close={false}>
@@ -269,41 +357,7 @@ export function CargaLayoutDialog({
 
               {paso === 'archivo' && (
                 <>
-                  <div
-                    role="radiogroup"
-                    aria-label="Tipo de consejo"
-                    className="flex flex-wrap gap-2"
-                  >
-                    {opciones.map((op) => {
-                      const activo = op.value === tipoConsejo;
-                      const Icono = ICONO_TIPO[op.value];
-                      return (
-                        <button
-                          key={op.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={activo}
-                          onClick={() => cambiarTipo(op.value)}
-                          disabled={ocupado}
-                          className={[
-                            'inline-flex items-center gap-2 h-8.5 px-3 rounded-md border text-[0.8125rem] font-medium',
-                            'transition-colors duration-150 motion-reduce:transition-none',
-                            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:border-ring',
-                            'disabled:opacity-50 disabled:cursor-not-allowed',
-                            activo
-                              ? 'bg-primary/10 border-primary text-primary'
-                              : 'bg-background border-input text-foreground hover:bg-accent',
-                          ].join(' ')}
-                        >
-                          <Icono
-                            className="h-4 w-4 shrink-0"
-                            aria-hidden="true"
-                          />
-                          <span>{op.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {selectorTipo}
 
                   <Alert appearance="light" close={false}>
                     <AlertIcon>
@@ -414,14 +468,14 @@ export function CargaLayoutDialog({
         </DialogBody>
 
         <DialogFooter>
-          {!sinAcceso && paso === 'previa' && (
+          {!sinAcceso && enCarga && paso === 'previa' && (
             <Button variant="outline" onClick={reiniciar} disabled={ocupado}>
               <Paperclip />
               Cambiar el archivo
             </Button>
           )}
 
-          {!sinAcceso && paso === 'resultado' && (
+          {!sinAcceso && enCarga && paso === 'resultado' && (
             <Button variant="outline" onClick={reiniciar}>
               Cargar otro layout
             </Button>
@@ -431,7 +485,7 @@ export function CargaLayoutDialog({
             Cerrar
           </Button>
 
-          {!sinAcceso && paso === 'archivo' && (
+          {!sinAcceso && enCarga && paso === 'archivo' && (
             <Button
               onClick={revisar}
               disabled={!archivo || validarMutation.isPending}
@@ -443,7 +497,7 @@ export function CargaLayoutDialog({
             </Button>
           )}
 
-          {!sinAcceso && paso === 'previa' && validacion && (
+          {!sinAcceso && enCarga && paso === 'previa' && validacion && (
             <Button
               onClick={cargar}
               disabled={validacion.rechazadas > 0 || cargarMutation.isPending}

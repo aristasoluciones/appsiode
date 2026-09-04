@@ -67,6 +67,8 @@ export interface ILayoutValidacion {
 
 /** Resultado de la carga: qué renglones se crearon, se actualizaron y se omitieron. */
 export interface ILayoutResultado {
+  /** Registro de la carga en el historial de importaciones. */
+  id_importacion?: number;
   total: number;
   insertados: number;
   actualizados: number;
@@ -74,6 +76,48 @@ export interface ILayoutResultado {
   omitidos_comprobados: number;
   /** Renglones que ya existían más de una vez y no se pueden actualizar sin ambigüedad. */
   omitidos_duplicados: number;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Historial de importaciones del layout                                      */
+/* Contrato de `/material-electoral/layouts/importaciones` — snake_case.      */
+/* -------------------------------------------------------------------------- */
+
+/** Estatus de una importación; la reversión lo cambia a REVERTIDA. */
+export type TEstatusImportacion = 'APLICADA' | 'REVERTIDA';
+
+/** Una carga del layout registrada en el historial, con su autor y su reversión si la hubo. */
+export interface ILayoutImportacion {
+  id: number;
+  tipo_consejo: 'D' | 'M';
+  archivo: string;
+  renglones: number;
+  nuevos: number;
+  actualizados: number;
+  omitidos: number;
+  estatus: TEstatusImportacion;
+  fecha_registro: string;
+  id_usuario: number | null;
+  usuario: string | null;
+  fecha_reversion: string | null;
+  id_usuario_reversion: number | null;
+  usuario_reversion: string | null;
+  motivo_reversion: string | null;
+  /** Solo la importación aplicada más reciente del tipo de consejo se puede revertir. */
+  reversible: boolean;
+}
+
+/** Motivo obligatorio de la reversión; el API exige entre 5 y 500 caracteres. */
+export interface ILayoutImportacionRevertirPayload {
+  id: number;
+  motivo: string;
+}
+
+/** Resultado de la reversión: documentos borrados y regresados a sus valores anteriores. */
+export interface ILayoutReversion {
+  id: number;
+  eliminados: number;
+  restaurados: number;
 }
 
 /* -------------------------------------------------------------------------- */
