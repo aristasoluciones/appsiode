@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
+  BookOpen,
   Building2,
   CircleAlert,
   Download,
@@ -9,6 +11,7 @@ import {
   History,
   LoaderCircleIcon,
   MapPin,
+  PackageOpen,
   Paperclip,
   ShieldOff,
   Upload,
@@ -35,10 +38,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useArticulos } from '../_hooks/use-articulos';
 import {
   useCargarLayout,
   useDescargarFormatoLayout,
-  useTiposDocumentacion,
   useValidarLayout,
 } from '../_hooks/use-carga-layout';
 import { CargaLayoutHistorial } from './carga-layout-historial';
@@ -101,8 +104,12 @@ export function CargaLayoutDialog({
   const formatoMutation = useDescargarFormatoLayout();
   const validarMutation = useValidarLayout();
   const cargarMutation = useCargarLayout();
-  // El catálogo solo hace falta con la ventana abierta.
-  const { data: tipos } = useTiposDocumentacion(open);
+  // El catálogo de artículos activos solo hace falta con la ventana abierta:
+  // sin artículos no hay formato que descargar ni layout que cargar.
+  const { data: articulos, isLoading: cargandoArticulos } = useArticulos(
+    false,
+    open,
+  );
 
   const puedeCargar = hasPermission(
     'documentacionymaterial.comprobaciones.layout',
@@ -111,6 +118,10 @@ export function CargaLayoutDialog({
     'documentacionymaterial.comprobaciones.layoutrevertir',
   );
   const esOficinaCentral = parseInt(user?.idConsejo ?? '0') === 0;
+  const puedeVerArticulos = hasPermission(
+    'documentacionymaterial.articulos.ver',
+  );
+  const sinArticulos = !cargandoArticulos && (articulos?.length ?? 0) === 0;
 
   // Tipos de consejo del proceso: solo se ofrecen los que tienen elecciones activas.
   const opciones = useMemo<{ value: 'D' | 'M'; label: string }[]>(() => {
@@ -359,25 +370,55 @@ export function CargaLayoutDialog({
                 <>
                   {selectorTipo}
 
-                  <Alert appearance="light" close={false}>
-                    <AlertIcon>
-                      <FileSpreadsheet className="text-primary" />
-                    </AlertIcon>
-                    <AlertTitle className="text-accent-foreground">
-                      El formato de captura trae las columnas y las listas de
-                      elección, consejo y tipo del proceso. Se admite Excel
-                      (.xlsx) o csv, hasta {pesoLegible(LAYOUT_LIMITES.bytes)} y{' '}
-                      {LAYOUT_LIMITES.filas.toLocaleString('es-MX')} renglones
-                      por archivo. El layout se carga completo: si un renglón
-                      tiene observaciones no se carga ninguno.
-                    </AlertTitle>
-                  </Alert>
+                  {sinArticulos ? (
+                    <Alert variant="warning" appearance="light" close={false}>
+                      <AlertIcon>
+                        <PackageOpen />
+                      </AlertIcon>
+                      <AlertTitle>
+                        No hay artículos activos en el catálogo. El formato de
+                        captura y la carga del layout se arman con ese catálogo:
+                        registra o activa los artículos antes de continuar.
+                        {puedeVerArticulos && (
+                          <>
+                            {' '}
+                            <Link
+                              href="/documentacion-material/articulos"
+                              className="font-medium underline underline-offset-2"
+                            >
+                              Ir a Artículos
+                            </Link>
+                          </>
+                        )}
+                      </AlertTitle>
+                    </Alert>
+                  ) : (
+                    <Alert appearance="light" close={false}>
+                      <AlertIcon>
+                        <FileSpreadsheet className="text-primary" />
+                      </AlertIcon>
+                      <AlertTitle className="text-accent-foreground">
+                        El formato de captura trae las columnas y las listas de
+                        elección, consejo y artículo del catálogo; el tipo y la
+                        descripción salen del artículo. Se admite Excel (.xlsx)
+                        o csv, hasta {pesoLegible(LAYOUT_LIMITES.bytes)} y{' '}
+                        {LAYOUT_LIMITES.filas.toLocaleString('es-MX')} renglones
+                        por archivo. El layout se carga completo: si un renglón
+                        tiene observaciones no se carga ninguno.
+                      </AlertTitle>
+                    </Alert>
+                  )}
 
-                  <div>
+                  <div className="flex flex-wrap items-center gap-3">
                     <Button
                       variant="outline"
                       onClick={() => formatoMutation.mutate(tipoConsejo)}
-                      disabled={formatoMutation.isPending || ocupado}
+                      disabled={
+                        formatoMutation.isPending ||
+                        ocupado ||
+                        cargandoArticulos ||
+                        sinArticulos
+                      }
                     >
                       {formatoMutation.isPending ? (
                         <LoaderCircleIcon className="animate-spin" />
@@ -386,24 +427,27 @@ export function CargaLayoutDialog({
                       )}
                       Descargar el formato de captura
                     </Button>
-                  </div>
 
-                  {tipos && tipos.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        Tipos admitidos:
-                      </span>
-                      {tipos.map((t) => (
-                        <Badge
-                          key={t.clave}
-                          variant="secondary"
-                          appearance="light"
-                        >
-                          {t.clave} · {t.descripcion}
+                    {articulos && articulos.length > 0 && (
+                      <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="secondary" appearance="light">
+                          {articulos.length.toLocaleString('es-MX')}{' '}
+                          {articulos.length === 1
+                            ? 'artículo activo'
+                            : 'artículos activos'}
                         </Badge>
-                      ))}
-                    </div>
-                  )}
+                        {puedeVerArticulos && (
+                          <Link
+                            href="/documentacion-material/articulos"
+                            className="inline-flex items-center gap-1 hover:text-foreground hover:underline underline-offset-2"
+                          >
+                            <BookOpen className="h-3.5 w-3.5" />
+                            Ver el catálogo
+                          </Link>
+                        )}
+                      </span>
+                    )}
+                  </div>
 
                   <input
                     ref={inputRef}
@@ -442,7 +486,9 @@ export function CargaLayoutDialog({
                     <button
                       type="button"
                       onClick={() => inputRef.current?.click()}
-                      className="flex flex-col items-center justify-center gap-2 border border-dashed border-input rounded-lg py-10 text-center hover:bg-accent transition-colors cursor-pointer"
+                      // Sin artículos activos el API rechaza la carga: no se ofrece elegir archivo.
+                      disabled={sinArticulos}
+                      className="flex flex-col items-center justify-center gap-2 border border-dashed border-input rounded-lg py-10 text-center hover:bg-accent transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                     >
                       <Upload className="h-8 w-8 text-muted-foreground" />
                       <span className="text-sm font-medium">

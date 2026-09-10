@@ -1,8 +1,14 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type {
   ILayoutImportacion,
+  ILayoutImportacionDetalle,
   ILayoutImportacionRevertirPayload,
   ILayoutResultado,
   ILayoutReversion,
@@ -170,6 +176,37 @@ export function useImportacionesLayout(
       );
       return data ?? [];
     },
+    meta: { silenciarToast: true },
+  });
+}
+
+/** Renglones por página del detalle de una importación. */
+export const IMPORTACION_POR_PAGINA = 100;
+
+/**
+ * Detalle de una importación: su encabezado y los renglones que tocó, por
+ * páginas. Se pide solo con la ventana del detalle abierta; el error se muestra
+ * ahí mismo. Las páginas ya vistas se conservan para volver sin esperar.
+ */
+export function useImportacionLayout(
+  id: number | null,
+  pagina: number,
+  habilitado = true,
+) {
+  return useQuery({
+    enabled: habilitado && id !== null,
+    queryKey: MATERIAL_ELECTORAL_KEYS.layoutImportacionDetalle(id ?? 0, pagina),
+    queryFn: async () => {
+      const { data } = await apiClient.get<ILayoutImportacionDetalle>(
+        API_ENDPOINTS.MATERIAL_ELECTORAL.LAYOUT_IMPORTACION(
+          id ?? 0,
+          pagina,
+          IMPORTACION_POR_PAGINA,
+        ),
+      );
+      return data;
+    },
+    placeholderData: keepPreviousData,
     meta: { silenciarToast: true },
   });
 }

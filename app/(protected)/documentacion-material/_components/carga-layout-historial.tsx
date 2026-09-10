@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   CircleAlert,
   History,
+  ListOrdered,
   LoaderCircleIcon,
   RefreshCw,
   TriangleAlert,
@@ -39,6 +40,7 @@ import {
   useImportacionesLayout,
   useRevertirImportacion,
 } from '../_hooks/use-carga-layout';
+import { CargaLayoutImportacionDialog } from './carga-layout-importacion-dialog';
 
 /** Límites del motivo que exige el API. */
 const MOTIVO_MIN = 5;
@@ -222,6 +224,7 @@ export function CargaLayoutHistorial({
     refetch,
   } = useImportacionesLayout(tipoConsejo, activo);
   const [aRevertir, setARevertir] = useState<ILayoutImportacion | null>(null);
+  const [aDetallar, setADetallar] = useState<ILayoutImportacion | null>(null);
 
   if (isError) {
     return (
@@ -345,16 +348,26 @@ export function CargaLayoutHistorial({
                           )}
                         </TableCell>
                         <TableCell className="text-end">
-                          {!revertida && imp.reversible && puedeRevertir && (
+                          <div className="inline-flex items-center gap-1.5">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setARevertir(imp)}
+                              onClick={() => setADetallar(imp)}
                             >
-                              <Undo2 />
-                              Revertir
+                              <ListOrdered />
+                              Detalle
                             </Button>
-                          )}
+                            {!revertida && imp.reversible && puedeRevertir && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setARevertir(imp)}
+                              >
+                                <Undo2 />
+                                Revertir
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -366,6 +379,11 @@ export function CargaLayoutHistorial({
           </ScrollArea>
         </div>
       )}
+
+      <CargaLayoutImportacionDialog
+        importacion={aDetallar}
+        onOpenChange={(open) => !open && setADetallar(null)}
+      />
 
       <RevertirDialog
         importacion={aRevertir}

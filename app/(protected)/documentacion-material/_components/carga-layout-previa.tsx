@@ -1,6 +1,10 @@
 'use client';
 
 import { Building2, CircleAlert, CircleCheck, Layers } from 'lucide-react';
+import type {
+  ILayoutFila,
+  ILayoutValidacion,
+} from '@/types/material-electoral';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
@@ -12,10 +16,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type {
-  ILayoutFila,
-  ILayoutValidacion,
-} from '@/types/material-electoral';
 
 /** Tabla de renglones del archivo; con los motivos cuando vienen rechazados. */
 function TablaFilas({
@@ -32,13 +32,15 @@ function TablaFilas({
           <TableHeader>
             <TableRow>
               <TableHead className="w-16">Fila</TableHead>
-              <TableHead>ID</TableHead>
+              <TableHead>Código</TableHead>
+              <TableHead>Artículo</TableHead>
               <TableHead>Elección</TableHead>
               <TableHead>Consejo</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Descripción</TableHead>
               <TableHead>Versión</TableHead>
               <TableHead className="text-end">Cantidad</TableHead>
+              <TableHead className="text-end whitespace-nowrap">
+                Paquetes o cajas
+              </TableHead>
               {conMotivos && <TableHead>Observaciones</TableHead>}
             </TableRow>
           </TableHeader>
@@ -48,21 +50,33 @@ function TablaFilas({
                 key={f.fila}
                 className={conMotivos ? 'bg-destructive/5' : undefined}
               >
-                <TableCell className="text-muted-foreground">{f.fila}</TableCell>
-                <TableCell className="font-medium">
-                  {f.id_documento || '—'}
+                <TableCell className="text-muted-foreground">
+                  {f.fila}
+                </TableCell>
+                <TableCell
+                  className="font-medium max-w-[14rem] truncate"
+                  title={f.codigo}
+                >
+                  {f.codigo || '—'}
+                </TableCell>
+                <TableCell
+                  className="max-w-[22rem] truncate"
+                  title={f.descripcion ? `${f.descripcion} · ${f.tipo}` : ''}
+                >
+                  {f.descripcion || '—'}
+                  {f.tipo && (
+                    <span className="block text-xs text-muted-foreground truncate">
+                      {f.tipo}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell>{f.eleccion || '—'}</TableCell>
                 <TableCell>{f.consejo || '—'}</TableCell>
-                <TableCell>{f.tipo || '—'}</TableCell>
-                <TableCell
-                  className="max-w-[22rem] truncate"
-                  title={f.descripcion}
-                >
-                  {f.descripcion || '—'}
-                </TableCell>
                 <TableCell>{f.version || '—'}</TableCell>
                 <TableCell className="text-end">{f.cantidad || '—'}</TableCell>
+                <TableCell className="text-end">
+                  {f.paquetes_cajas || '—'}
+                </TableCell>
                 {conMotivos && (
                   <TableCell>
                     <ul className="list-disc ps-4 text-xs text-destructive space-y-0.5">
