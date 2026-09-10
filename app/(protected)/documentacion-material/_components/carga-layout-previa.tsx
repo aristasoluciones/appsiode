@@ -17,6 +17,15 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+/**
+ * El API resuelve la elección como «GOB Gubernatura»; en pantalla basta la
+ * descripción, la clave no aporta nada al usuario.
+ */
+function descripcionEleccion(valor: string): string {
+  const sinClave = valor.replace(/^\S+\s+/, '').trim();
+  return sinClave || valor || '—';
+}
+
 /** Tabla de renglones del archivo; con los motivos cuando vienen rechazados. */
 function TablaFilas({
   filas,
@@ -59,18 +68,15 @@ function TablaFilas({
                 >
                   {f.codigo || '—'}
                 </TableCell>
-                <TableCell
-                  className="max-w-[22rem] truncate"
-                  title={f.descripcion ? `${f.descripcion} · ${f.tipo}` : ''}
-                >
+                <TableCell className="min-w-[18rem] whitespace-normal">
                   {f.descripcion || '—'}
                   {f.tipo && (
-                    <span className="block text-xs text-muted-foreground truncate">
+                    <span className="block text-xs text-muted-foreground">
                       {f.tipo}
                     </span>
                   )}
                 </TableCell>
-                <TableCell>{f.eleccion || '—'}</TableCell>
+                <TableCell>{descripcionEleccion(f.eleccion)}</TableCell>
                 <TableCell>{f.consejo || '—'}</TableCell>
                 <TableCell>{f.version || '—'}</TableCell>
                 <TableCell className="text-end">{f.cantidad || '—'}</TableCell>
@@ -175,7 +181,7 @@ export function CargaLayoutPrevia({
                   {validacion.resumen.map((r) => (
                     <TableRow key={`${r.consejo}|${r.eleccion}`}>
                       <TableCell className="font-medium">{r.consejo}</TableCell>
-                      <TableCell>{r.eleccion}</TableCell>
+                      <TableCell>{descripcionEleccion(r.eleccion)}</TableCell>
                       <TableCell className="text-end">{r.renglones}</TableCell>
                       <TableCell className="text-end">
                         {r.cantidad_total.toLocaleString('es-MX')}
