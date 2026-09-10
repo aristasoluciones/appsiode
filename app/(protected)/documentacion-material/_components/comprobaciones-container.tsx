@@ -287,7 +287,7 @@ export function ComprobacionesContainer({
     return porEleccion.filter(
       (d) =>
         d.desc_documento?.toLowerCase().includes(q) ||
-        d.id_documento?.toLowerCase().includes(q) ||
+        d.codigo?.toLowerCase().includes(q) ||
         d.desc_tipo?.toLowerCase().includes(q),
     );
   }, [porEleccion, busquedaDiferida]);
@@ -351,7 +351,7 @@ export function ComprobacionesContainer({
         <Input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por documento, clave o tipo..."
+          placeholder="Buscar por código, artículo o tipo..."
           disabled={isLoading}
           className="pl-9 pr-9"
           aria-label="Buscar documentación y material"

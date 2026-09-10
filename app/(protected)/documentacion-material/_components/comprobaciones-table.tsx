@@ -24,6 +24,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { ArticuloFoto } from './articulo-foto';
+import { enPaquetesCajas } from './comprobacion-cantidades';
 import { ESTATUS_COMPROBACION } from './comprobacion-estatus';
 
 /** Diferencia con signo y color; `null` mientras el renglón no se captura. */
@@ -69,26 +71,41 @@ export function ComprobacionesTable({
         id: 'documento',
         header: 'Documento o material',
         size: 420,
-        accessorFn: (row) => `${row.desc_documento} ${row.id_documento}`,
+        accessorFn: (row) => `${row.codigo} ${row.desc_documento}`,
         cell: ({ row }) => (
-          <div className="w-full">
-            {/* El nombre va completo: se envuelve en varias líneas en lugar de
-                cortarse, porque es lo que identifica el registro. */}
-            <p className="text-sm font-medium text-foreground whitespace-normal break-words text-pretty">
-              {row.original.desc_documento || '—'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {row.original.id_documento}
-              {row.original.version ? ` · v${row.original.version}` : ''}
-              {row.original.desc_tipo ? ` · ${row.original.desc_tipo}` : ''}
-            </p>
+          <div className="flex w-full items-start gap-3">
+            {/* Solo hay miniatura cuando el artículo tiene fotografía; sin ella
+                no se reserva espacio. */}
+            <ArticuloFoto
+              codigo={row.original.codigo}
+              descripcion={row.original.desc_documento}
+              miniatura={row.original.miniatura_url}
+              imagen={row.original.imagen_url}
+            />
+            <div className="min-w-0">
+              {/* El nombre va completo: se envuelve en varias líneas en lugar de
+                  cortarse, porque es lo que identifica el registro. */}
+              <p className="text-sm font-medium text-foreground whitespace-normal break-words text-pretty">
+                {row.original.desc_documento || '—'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                <span className="font-mono font-semibold text-foreground/80">
+                  {row.original.codigo}
+                </span>
+                {row.original.version ? ` · v${row.original.version}` : ''}
+                {row.original.desc_tipo ? ` · ${row.original.desc_tipo}` : ''}
+              </p>
+            </div>
           </div>
         ),
         meta: {
           skeleton: (
-            <div className="space-y-1.5">
-              <Skeleton className="w-52 h-4 animate-pulse motion-reduce:animate-none" />
-              <Skeleton className="w-32 h-3 animate-pulse motion-reduce:animate-none" />
+            <div className="flex items-start gap-3">
+              <Skeleton className="h-10 w-10 shrink-0 rounded-md animate-pulse motion-reduce:animate-none" />
+              <div className="space-y-1.5">
+                <Skeleton className="w-52 h-4 animate-pulse motion-reduce:animate-none" />
+                <Skeleton className="w-32 h-3 animate-pulse motion-reduce:animate-none" />
+              </div>
             </div>
           ),
         },
@@ -114,19 +131,28 @@ export function ComprobacionesTable({
       {
         id: 'cantidad',
         header: 'Entregada',
-        size: 92,
+        size: 130,
         accessorFn: (row) => row.cantidad ?? 0,
-        cell: ({ row }) => (
-          <div className="text-right">
-            <span className="text-sm font-semibold text-foreground">
-              {row.original.cantidad ?? 0}
-            </span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const paquetes = enPaquetesCajas(row.original.numero_paquetes_cajas);
+          return (
+            <div className="text-right">
+              <span className="text-sm font-semibold text-foreground">
+                {row.original.cantidad ?? 0}
+              </span>
+              {paquetes && (
+                <p className="text-xs text-muted-foreground leading-tight whitespace-nowrap">
+                  {paquetes}
+                </p>
+              )}
+            </div>
+          );
+        },
         meta: {
           skeleton: (
-            <div className="flex justify-end">
+            <div className="flex flex-col items-end gap-1.5">
               <Skeleton className="w-10 h-4 animate-pulse motion-reduce:animate-none" />
+              <Skeleton className="w-20 h-3 animate-pulse motion-reduce:animate-none" />
             </div>
           ),
         },
@@ -192,12 +218,23 @@ export function ComprobacionesTable({
               </p>
               {row.original.observaciones &&
                 row.original.observaciones !== '-' && (
-                  <p
-                    className="text-xs text-muted-foreground mt-0.5 truncate"
-                    title={row.original.observaciones}
-                  >
-                    {row.original.observaciones}
-                  </p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      {/* tabIndex para que el tooltip también se abra con teclado. */}
+                      <p
+                        tabIndex={0}
+                        className="text-xs text-muted-foreground mt-0.5 truncate cursor-help focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 rounded-sm"
+                      >
+                        {row.original.observaciones}
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs whitespace-pre-line text-left"
+                    >
+                      {row.original.observaciones}
+                    </TooltipContent>
+                  </Tooltip>
                 )}
             </div>
           );
@@ -369,13 +406,28 @@ function MobileCard({
             {estatus.label}
           </Badge>
         )}
-        <p className="text-sm font-medium text-foreground">
-          {row.desc_documento || '—'}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {row.desc_eleccion || row.id_eleccion} · {row.id_documento}
-          {row.version ? ` · v${row.version}` : ''}
-        </p>
+        <div className="flex items-start gap-3">
+          <ArticuloFoto
+            codigo={row.codigo}
+            descripcion={row.desc_documento}
+            miniatura={row.miniatura_url}
+            imagen={row.imagen_url}
+            tamano="md"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              {row.desc_documento || '—'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-mono font-semibold text-foreground/80">
+                {row.codigo}
+              </span>
+              {' · '}
+              {row.desc_eleccion || row.id_eleccion}
+              {row.version ? ` · v${row.version}` : ''}
+            </p>
+          </div>
+        </div>
       </header>
 
       <div className="grid grid-cols-3 gap-2 text-center">
@@ -384,6 +436,11 @@ function MobileCard({
           <p className="text-lg font-bold text-foreground">
             {row.cantidad ?? 0}
           </p>
+          {enPaquetesCajas(row.numero_paquetes_cajas) && (
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              {enPaquetesCajas(row.numero_paquetes_cajas)}
+            </p>
+          )}
         </div>
         <div className="rounded-md bg-gray-50 dark:bg-gray-900/40 p-2.5">
           <p className="text-xs text-muted-foreground">Física</p>

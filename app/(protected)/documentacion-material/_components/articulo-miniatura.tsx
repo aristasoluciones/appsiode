@@ -3,15 +3,9 @@
 import { useState } from 'react';
 import { ImageIcon, ImageOff } from 'lucide-react';
 import type { IArticulo } from '@/types/material-electoral';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useArticuloImagen } from '../_hooks/use-articulos';
+import { cajaFoto, FotoArticuloDialog } from './articulo-foto';
 
 const TAMANO = {
   sm: 'h-10 w-10',
@@ -44,7 +38,7 @@ export function ArticuloMiniatura({
     tieneFoto,
   );
 
-  const caja = `${TAMANO[tamano]} shrink-0 rounded-md border border-border bg-muted/40 overflow-hidden flex items-center justify-center`;
+  const caja = cajaFoto(tamano);
 
   if (!tieneFoto) {
     return (
@@ -74,12 +68,10 @@ export function ArticuloMiniatura({
     );
   }
 
-  const alt = `Fotografía del artículo ${articulo.codigo}`;
-
   const imagen = (
     <img
       src={data.miniatura}
-      alt={alt}
+      alt={`Fotografía del artículo ${articulo.codigo}`}
       className="h-full w-full object-cover"
       loading="lazy"
     />
@@ -101,21 +93,13 @@ export function ArticuloMiniatura({
         {imagen}
       </button>
 
-      <Dialog open={abierta} onOpenChange={setAbierta}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{articulo.codigo}</DialogTitle>
-            <DialogDescription>{articulo.descripcion}</DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center justify-center rounded-lg border border-border bg-muted/40 p-2 max-h-[70vh] overflow-hidden">
-            <img
-              src={data.imagen ?? data.miniatura}
-              alt={alt}
-              className="max-h-[66vh] w-auto max-w-full object-contain"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FotoArticuloDialog
+        open={abierta}
+        onOpenChange={setAbierta}
+        codigo={articulo.codigo}
+        descripcion={articulo.descripcion}
+        imagen={data.imagen ?? data.miniatura}
+      />
     </>
   );
 }

@@ -201,15 +201,26 @@ export interface IComprobacionResumen {
 export interface IComprobacionDocumento {
   /** Identificador del renglón documento-consejo (no la clave del catálogo). */
   id: number;
-  id_documento: string;
+  /** Artículo del catálogo al que está ligado el renglón y su código. */
+  id_articulo: number;
+  codigo: string;
+  /**
+   * Fotografía del artículo: URL firmadas de solo lectura, vigentes 24 horas.
+   * Solo vienen cuando el artículo tiene fotografía; sin ella no viaja ninguna.
+   */
+  imagen_url?: string;
+  miniatura_url?: string;
   id_eleccion: string;
   desc_eleccion: string;
+  /** Tipo y descripción copiados del artículo al cargar; no cambian con el catálogo. */
   tipo_doc: string;
   desc_tipo: string | null;
   desc_documento: string;
   version: string | null;
   /** Cantidad entregada por la oficina central. */
   cantidad: number | null;
+  /** Paquetes o cajas en que se entregó la cantidad; null si no se capturó en el layout. */
+  numero_paquetes_cajas: number | null;
   /** Cantidad contada por el consejo; null mientras no captura. */
   cantidad_fisica: number | null;
   diferencia: number | null;
@@ -275,12 +286,17 @@ export interface IComprobacionEvento {
 /** Historial de un renglón: su origen y cada comprobación física. */
 export interface IComprobacionHistorial {
   id: number;
-  id_documento: string;
+  id_articulo: number;
+  codigo: string;
+  /** Fotografía del artículo; solo cuando existe (ver `IComprobacionDocumento`). */
+  imagen_url?: string;
+  miniatura_url?: string;
   id_eleccion: string;
   tipo_doc: string;
   desc_documento: string;
   version: string | null;
   cantidad: number | null;
+  numero_paquetes_cajas: number | null;
   cantidad_fisica: number | null;
   diferencia: number | null;
   /** Importación que dio de alta el renglón; null en los renglones heredados. */
@@ -395,7 +411,7 @@ export interface IArticuloPayload {
   tipo: string;
 }
 
-/** URL firmadas de la fotografía y su miniatura; vigentes 30 minutos. */
+/** URL firmadas de la fotografía y su miniatura; vigentes 24 horas. */
 export interface IArticuloImagenUrls {
   imagen: string | null;
   miniatura: string | null;

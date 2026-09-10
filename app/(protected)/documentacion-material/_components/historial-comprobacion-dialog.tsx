@@ -2,6 +2,11 @@
 
 import { ReactNode } from 'react';
 import { ClipboardCheck, FileUp, History, RefreshCw } from 'lucide-react';
+import type {
+  IComprobacionDocumento,
+  IComprobacionEvento,
+} from '@/types/material-electoral';
+import { formatFechaHora } from '@/lib/fechas';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -11,13 +16,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Timeline, TimelineItem, type TTimelineTono } from '@/components/common/timeline';
-import { formatFechaHora } from '@/lib/fechas';
+import {
+  Timeline,
+  TimelineItem,
+  type TTimelineTono,
+} from '@/components/common/timeline';
 import { useComprobacionHistorial } from '../_hooks/use-comprobaciones';
-import type {
-  IComprobacionDocumento,
-  IComprobacionEvento,
-} from '@/types/material-electoral';
+import { ArticuloFoto } from './articulo-foto';
+import { piezas, piezasConPaquetes } from './comprobacion-cantidades';
 
 interface HistorialComprobacionDialogProps {
   /** Renglón del que se consulta el rastro; null cuando la ventana está inactiva. */
@@ -47,14 +53,12 @@ function marcador(evento: IComprobacionEvento) {
   if (evento.tipo === 'COMPROBACION') {
     return {
       ...base,
-      tono: (evento.diferencia === 0 ? 'exito' : 'advertencia') as TTimelineTono,
+      tono: (evento.diferencia === 0
+        ? 'exito'
+        : 'advertencia') as TTimelineTono,
     };
   }
   return base;
-}
-
-function piezas(cantidad: number | null) {
-  return `${cantidad ?? 0} ${cantidad === 1 ? 'pieza' : 'piezas'}`;
 }
 
 /**
@@ -83,8 +87,34 @@ export function HistorialComprobacionDialog({
       <DialogContent className="w-[calc(100vw-2rem)] max-h-[85vh] sm:w-full sm:max-w-xl lg:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Historial de comprobaciones</DialogTitle>
-          <DialogDescription>
-            {documento?.desc_documento ?? ''}
+          <DialogDescription asChild>
+            <div className="flex items-start gap-3 text-left">
+              {documento && (
+                <ArticuloFoto
+                  codigo={documento.codigo}
+                  descripcion={documento.desc_documento}
+                  miniatura={documento.miniatura_url}
+                  imagen={documento.imagen_url}
+                  tamano="md"
+                />
+              )}
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-sm text-foreground">
+                  {documento?.desc_documento ?? ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-mono font-semibold text-foreground/80">
+                    {documento?.codigo}
+                  </span>
+                  {documento?.version ? ` · v${documento.version}` : ''}
+                  {' · Entregadas: '}
+                  {piezasConPaquetes(
+                    documento?.cantidad ?? null,
+                    documento?.numero_paquetes_cajas,
+                  )}
+                </p>
+              </div>
+            </div>
           </DialogDescription>
         </DialogHeader>
 
@@ -96,7 +126,10 @@ export function HistorialComprobacionDialog({
           </div>
         ) : eventos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
-            <History className="h-8 w-8 text-gray-400 mb-3" aria-hidden="true" />
+            <History
+              className="h-8 w-8 text-gray-400 mb-3"
+              aria-hidden="true"
+            />
             <p className="text-sm text-muted-foreground">
               Este renglón todavía no tiene movimientos registrados.
             </p>
