@@ -24,16 +24,20 @@ export interface ITipoDocumentacion {
 /** Renglón del archivo tal como lo revisó el API, para la vista previa. */
 export interface ILayoutFila {
   fila: number;
-  id_documento: string;
+  /** Código del artículo; en las filas rechazadas viene tal como se capturó. */
+  codigo: string;
   /** Elección ya resuelta contra el catálogo: «GOB Gubernatura». */
   eleccion: string;
   /** Consejo ya resuelto contra el catálogo: «01 TUXTLA GUTIÉRREZ». */
   consejo: string;
-  /** Tipo del catálogo: «DOCUMENTO Documentación electoral». */
+  /** Tipo del artículo, tomado del catálogo: «DOCUMENTO Documentación electoral». */
   tipo: string;
+  /** Descripción del artículo, tomada del catálogo; vacía si el código no se resolvió. */
   descripcion: string;
   version: string;
   cantidad: string;
+  /** Paquetes o cajas en que se entrega la cantidad; opcional en el archivo. */
+  paquetes_cajas: string;
   valida: boolean;
   errores: string[];
 }
@@ -105,6 +109,47 @@ export interface ILayoutImportacion {
   motivo_reversion: string | null;
   /** Solo la importación aplicada más reciente del tipo de consejo se puede revertir. */
   reversible: boolean;
+}
+
+/** Qué hizo la importación con el renglón. */
+export type TAccionImportacion = 'NUEVO' | 'ACTUALIZADO';
+
+/**
+ * Renglón que tocó una importación, con los valores que tenía antes y los que
+ * tiene ahora. Los «anteriores» vienen en null en los renglones nuevos; los
+ * «actuales» en null cuando la carga ya se revirtió y el renglón nuevo se borró.
+ */
+export interface ILayoutImportacionRenglon {
+  id_renglon: number;
+  id_consejo: number;
+  consejo: string;
+  id_eleccion: string;
+  id_articulo: number;
+  codigo: string;
+  descripcion_articulo: string;
+  accion: TAccionImportacion;
+  tipo_doc_anterior: string | null;
+  desc_documento_anterior: string | null;
+  version_anterior: string | null;
+  cantidad_anterior: number | null;
+  paquetes_cajas_anterior: number | null;
+  tipo_doc_actual: string | null;
+  desc_documento_actual: string | null;
+  version_actual: string | null;
+  cantidad_actual: number | null;
+  paquetes_cajas_actual: number | null;
+  cantidad_fisica: number | null;
+  /** El renglón sigue existiendo en la base. */
+  existe: boolean;
+}
+
+/** Detalle de una importación: su encabezado y los renglones que tocó, por páginas. */
+export interface ILayoutImportacionDetalle {
+  importacion: ILayoutImportacion;
+  total_detalle: number;
+  pagina: number;
+  por_pagina: number;
+  detalle: ILayoutImportacionRenglon[];
 }
 
 /** Motivo obligatorio de la reversión; el API exige entre 5 y 500 caracteres. */
@@ -294,3 +339,148 @@ export interface IAvanceComprobaciones {
 
 /** Reportes en Excel que genera el API para la oficina central. */
 export type TReporteComprobacion = 'consejo' | 'general' | 'general-detallado';
+
+/* -------------------------------------------------------------------------- */
+/* Catálogo de artículos                                                      */
+/* Contrato de `/material-electoral/articulos` — snake_case del API.          */
+/* -------------------------------------------------------------------------- */
+
+/** Límites que impone el API al catálogo y a sus importaciones; se avisan también en pantalla. */
+export const ARTICULOS_LIMITES = {
+  /** Reglas del código: sin espacios ni signos que estorben en el formato de captura. */
+  codigo: { max: 50, patron: /^[A-Za-z0-9._/-]+$/ },
+  descripcion: { max: 500 },
+  /** Fotografía individual y cada imagen del zip. */
+  foto: {
+    bytes: 5 * 1024 * 1024,
+    tipos: ['image/jpeg', 'image/png', 'image/webp'] as const,
+  },
+  /** Archivo de importación del catálogo. */
+  importacion: {
+    bytes: 4 * 1024 * 1024,
+    filas: 2000,
+    extensiones: ['.xlsx', '.csv'] as const,
+  },
+  /** Zip de fotografías. */
+  zip: {
+    bytes: 100 * 1024 * 1024,
+    archivos: 500,
+    extensiones: ['.zip'] as const,
+  },
+} as const;
+
+/** Artículo del catálogo con su uso en las cargas del layout. */
+export interface IArticulo {
+  id: number;
+  codigo: string;
+  descripcion: string;
+  /** Clave del tipo: DOCUMENTO, MATERIAL o BOLETA. */
+  tipo: string;
+  desc_tipo: string | null;
+  /** Nombre del archivo de la fotografía; null cuando no tiene. */
+  imagen: string | null;
+  imagen_version: number;
+  activo: boolean;
+  /** Renglones cargados y cargas del layout en que aparece. */
+  renglones: number;
+  cargas: number;
+  /** Un artículo usado no cambia de código; al editarlo el cambio aplica solo a cargas nuevas. */
+  usado: boolean;
+}
+
+/** Alta y edición: el código queda fijo en cuanto el artículo se usa en una carga. */
+export interface IArticuloPayload {
+  codigo: string;
+  descripcion: string;
+  tipo: string;
+}
+
+/** URL firmadas de la fotografía y su miniatura; vigentes 30 minutos. */
+export interface IArticuloImagenUrls {
+  imagen: string | null;
+  miniatura: string | null;
+  imagen_version: number;
+}
+
+/** Qué hará la importación con un renglón del archivo. */
+export type TArticuloEfecto = 'NUEVO' | 'ACTUALIZA' | 'SIN_CAMBIOS';
+
+/** Renglón del archivo de artículos tal como lo revisó el API. */
+export interface IArticuloFila {
+  fila: number;
+  codigo: string;
+  descripcion: string;
+  /** Tipo ya resuelto contra el catálogo: «DOCUMENTO Documentación electoral». */
+  tipo: string;
+  efecto: TArticuloEfecto | '';
+  valida: boolean;
+  errores: string[];
+}
+
+/** Vista previa de la importación del catálogo: qué se crearía, qué cambiaría y qué renglones traen observaciones. */
+export interface IArticulosValidacion {
+  total: number;
+  validas: number;
+  rechazadas: number;
+  nuevos: number;
+  actualizados: number;
+  sin_cambios: number;
+  filas_rechazadas: IArticuloFila[];
+  /** Renglones rechazados que no cupieron en la respuesta. */
+  rechazadas_omitidas: number;
+  muestra: IArticuloFila[];
+}
+
+/** Resultado de importar el catálogo. */
+export interface IArticulosImportacionResultado {
+  total: number;
+  nuevos: number;
+  actualizados: number;
+  sin_cambios: number;
+}
+
+/** Archivo del zip que corresponde a un artículo del catálogo. */
+export interface IFotografiaCoincidencia {
+  archivo: string;
+  id_articulo: number;
+  codigo: string;
+  descripcion: string;
+  activo: boolean;
+  /** El artículo ya tenía fotografía y esta la reemplaza. */
+  reemplaza: boolean;
+}
+
+/** Archivo del zip que no se aplicará, con el motivo. */
+export interface IFotografiaObservacion {
+  archivo: string;
+  motivo: string;
+}
+
+/** Artículo activo que seguiría sin fotografía después de aplicar el zip. */
+export interface IArticuloSinFotografia {
+  id_articulo: number;
+  codigo: string;
+  descripcion: string;
+}
+
+/** Vista previa de la importación de fotografías antes de cambiar nada. */
+export interface IArticulosFotografiasValidacion {
+  total_archivos: number;
+  coincidencias: IFotografiaCoincidencia[];
+  reemplazos: number;
+  sin_articulo: IFotografiaObservacion[];
+  invalidos: IFotografiaObservacion[];
+  articulos_sin_fotografia: IArticuloSinFotografia[];
+  /** Carpetas y archivos del sistema dentro del zip que se pasan por alto. */
+  omitidos: number;
+}
+
+/** Resultado de aplicar el zip: cuántas fotografías quedaron y cuáles fallaron. */
+export interface IArticulosFotografiasResultado {
+  aplicadas: number;
+  reemplazadas: number;
+  fallidas: IFotografiaObservacion[];
+  sin_articulo: number;
+  invalidos: number;
+  articulos_sin_fotografia: number;
+}

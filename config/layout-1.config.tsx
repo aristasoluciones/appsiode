@@ -57,6 +57,7 @@ import {
   CarFront,
   CarIcon,
   Warehouse,
+  Package,
   PackageCheck,
 } from 'lucide-react';
 import { MenuConfig } from '@/config/types';
@@ -112,8 +113,16 @@ export const MENU_SIDEBAR: MenuConfig = [
       disabled: false,
       permission: 'mecanismos.ver',
   },
-  { heading: 'Documentación y Material', permission: 'documentacionymaterial.comprobaciones.ver' },
-  { 
+  { heading: 'Documentación y Material', permission: ['documentacionymaterial.articulos.ver', 'documentacionymaterial.comprobaciones.ver'] },
+  {
+      title: 'Artículos',
+      icon: Package,
+      path: '/documentacion-material/articulos',
+      badge: 'New',
+      disabled: false,
+      permission: 'documentacionymaterial.articulos.ver',
+  },
+  {
       title: 'Comprobación Física',
       icon: Presentation,
       path: '/documentacion-material/comprobaciones',
