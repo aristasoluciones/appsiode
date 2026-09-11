@@ -122,4 +122,22 @@ export const MATERIAL_ELECTORAL = {
   ACTA_ANULAR: (id: Id) => `/material-electoral/actas/${id}/anular`,
   /** Consejo: descarta su acta con motivo mientras no esté aceptada. */
   ACTA_DESCARTAR: (id: Id) => `/material-electoral/actas/${id}/descartar`,
+
+  /* Configuración del acta: plantilla Word y apartados de fotografías del proceso
+     activo de la sesión; exclusiva de oficina central con permiso propio. */
+
+  /** Configuración vigente: plantilla, apartados y versiones. */
+  ACTAS_CONFIGURACION: '/material-electoral/actas/configuracion',
+  /** Catálogo de marcadores que la plantilla puede traer. */
+  ACTAS_CONFIGURACION_MARCADORES:
+    '/material-electoral/actas/configuracion/marcadores',
+  /** GET: URL firmada de la plantilla vigente o de una versión; PUT: sube una nueva (form `archivo`). */
+  ACTAS_CONFIGURACION_PLANTILLA: (version?: Id) =>
+    `/material-electoral/actas/configuracion/plantilla${qs({ version })}`,
+  /** Revisa una plantilla sin guardarla (form `archivo`). */
+  ACTAS_CONFIGURACION_PLANTILLA_VALIDAR:
+    '/material-electoral/actas/configuracion/plantilla/validar',
+  /** Reemplaza la lista de apartados de fotografías (PUT). */
+  ACTAS_CONFIGURACION_APARTADOS:
+    '/material-electoral/actas/configuracion/apartados',
 } as const;

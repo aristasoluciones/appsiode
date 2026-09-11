@@ -533,6 +533,23 @@ export const ACTA_LIMITES = {
   ciudad: { max: 150 },
   lugar: { max: 500 },
   motivo: { max: 2000 },
+  /** Observaciones de la revisión de oficina central. */
+  observaciones: { max: 4000 },
+  /** Plantilla Word de la configuración. */
+  plantilla: {
+    bytes: 10 * 1024 * 1024,
+    tipos: [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ] as const,
+  },
+  /** Apartados de fotografías de la configuración. */
+  apartado: {
+    titulo: { max: 150 },
+    descripcion: { max: 500 },
+    minimo: { min: 0, max: 50 },
+    /** Apartados por configuración. */
+    maximo: 30,
+  },
 } as const;
 
 /**
@@ -564,6 +581,8 @@ export interface IActaParticipante {
   cargo?: string | null;
   id_partido?: number | null;
   partido?: string | null;
+  /** Ruta del logotipo del partido en el RPP; se guarda con el acta para no depender de ese servicio al leerla. */
+  imagen?: string | null;
   asistencia: boolean;
 }
 
@@ -741,7 +760,7 @@ export interface IActaFotografiaEliminada {
 export interface IActasResumenConsejo {
   tipo_consejo: 'D' | 'M';
   id_consejo: number;
-  nombre_consejo: string;
+  consejo: string;
   total: number;
   generadas: number;
   en_revision: number;
@@ -769,4 +788,81 @@ export interface IActasResumen {
     descartadas: number;
   };
   consejos: IActasResumenConsejo[];
+}
+
+/* -------------------------------------------------------------------------- */
+/* Configuración del acta circunstanciada                                     */
+/* Contrato de `/material-electoral/actas/configuracion` — solo oficina central. */
+/* -------------------------------------------------------------------------- */
+
+/** Apartado de fotografías tal como lo devuelve la configuración; `id` es nulo en los apartados por defecto. */
+export interface IActaConfiguracionApartado {
+  id: number | null;
+  clave: string;
+  titulo: string;
+  descripcion: string | null;
+  minimo: number;
+  orden: number;
+  activo: boolean;
+}
+
+/** Versión de la configuración; cada cambio de plantilla o de apartados crea una. */
+export interface IActaConfiguracionVersion {
+  id: number;
+  version: number;
+  cambio: 'INICIAL' | 'PLANTILLA' | 'APARTADOS';
+  plantilla: string | null;
+  plantilla_nombre: string | null;
+  plantilla_version: number | null;
+  vigente: boolean;
+  fecha_registro: string;
+  id_usuario: number | null;
+  usuario: string | null;
+  /** Actas que se generaron con esta versión. */
+  actas: number;
+}
+
+/** Configuración vigente del acta del proceso de la sesión. */
+export interface IActaConfiguracion {
+  /** Nulo mientras el proceso no tiene ninguna versión guardada. */
+  id: number | null;
+  version: number | null;
+  /** Ya hay plantilla: los consejos pueden generar actas. */
+  lista: boolean;
+  plantilla: string | null;
+  plantilla_nombre: string | null;
+  plantilla_version: number;
+  fecha_registro: string | null;
+  id_usuario: number | null;
+  usuario: string | null;
+  apartados: IActaConfiguracionApartado[];
+  versiones: IActaConfiguracionVersion[];
+}
+
+/** Marcador que la plantilla Word puede traer y que el sistema llena al generar. */
+export interface IActaMarcador {
+  marcador: string;
+  /** TEXTO se sustituye en línea; TABLA y FOTOGRAFIAS ocupan un párrafo propio. */
+  tipo: 'TEXTO' | 'TABLA' | 'FOTOGRAFIAS';
+  obligatorio: boolean;
+  descripcion: string;
+  ejemplo: string;
+}
+
+/** Resultado de revisar una plantilla: qué trae, qué obligatorio falta y qué está mal ubicado. */
+export interface IActaPlantillaValidacion {
+  valida: boolean;
+  encontrados: string[];
+  faltantes: string[];
+  desconocidos: string[];
+  errores: string[];
+}
+
+/** Apartado tal como viaja al guardar; sin `clave` el servidor asigna una nueva. */
+export interface IActaApartadoPayload {
+  clave?: string | null;
+  titulo: string;
+  descripcion?: string | null;
+  minimo: number;
+  activo: boolean;
 }

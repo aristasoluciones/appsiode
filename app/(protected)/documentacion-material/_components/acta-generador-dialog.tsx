@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertCircle,
@@ -10,7 +10,7 @@ import {
   Loader2,
   Trash2,
 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch, type Control } from 'react-hook-form';
 import { z } from 'zod';
 import type {
   IActa,
@@ -214,11 +214,22 @@ export function ActaGeneradorDialog({
   const [sembrado, setSembrado] = useState(false);
   const [confirmarSinRenglones, setConfirmarSinRenglones] = useState(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+  /**
+   * Acta cuyo formulario ya se hidrató. Cada foto subida o quitada deja un
+   * objeto `acta` nuevo en caché; sin esta marca el efecto volvería a correr y
+   * pisaría lo que el usuario lleva capturado.
+   */
+  const hidratadaRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!open) hidratadaRef.current = null;
+  }, [open]);
 
   // Al abrir: lo guardado en el acta manda; si no hay, lo que quedó en el
-  // navegador; y si tampoco, se siembra desde los sistemas externos.
+  // navegador; y si tampoco, se siembra desde los sistemas externos. Corre una
+  // sola vez por acta abierta.
   useEffect(() => {
-    if (!open || !acta) return;
+    if (!open || !acta || hidratadaRef.current === acta.id) return;
+    hidratadaRef.current = acta.id;
     setSembrado(false);
 
     if (acta.participantes.length > 0) {
@@ -251,6 +262,7 @@ export function ActaGeneradorDialog({
             subtitulo: x.partido ?? '',
             id_partido: x.id_partido,
             partido: x.partido,
+            imagen: x.imagen ?? null,
             asistencia: !!x.asistencia,
           })),
       );
@@ -272,10 +284,17 @@ export function ActaGeneradorDialog({
       /* sin almacenamiento: se siembra desde los sistemas externos */
     }
 
-    form.reset({ ...DATOS_VACIOS, fecha_acta: hoy(), hora_acta: ahora() });
+    // Borrador nuevo: la ciudad se propone con el nombre del consejo (el
+    // municipio o la cabecera del distrito) y el usuario la corrige si hace falta.
+    form.reset({
+      ...DATOS_VACIOS,
+      fecha_acta: hoy(),
+      hora_acta: ahora(),
+      ciudad: (acta.consejo ?? user?.consejo ?? '').trim(),
+    });
     setConsejerias([]);
     setRepresentaciones([]);
-  }, [open, acta, form]);
+  }, [open, acta, form, user?.consejo]);
 
   // Siembra desde SICE y RPP, solo si no había nada guardado.
   useEffect(() => {
@@ -316,6 +335,7 @@ export function ActaGeneradorDialog({
         subtitulo: r.partyName || r.cargo,
         id_partido: r.id_partido,
         partido: r.partyName,
+        imagen: r.partyImagePath ?? null,
         asistencia: false,
       })),
     );
@@ -332,33 +352,7 @@ export function ActaGeneradorDialog({
     form,
   ]);
 
-  // Lo capturado se conserva en el navegador mientras el acta siga en borrador,
-  // para retomarlo al volver a abrir el generador.
-  const valores = form.watch();
-  useEffect(() => {
-    if (!open || !acta || !esBorrador || !sembrado) return;
-    const t = setTimeout(() => {
-      try {
-        const local: IBorradorLocal = {
-          datos: valores,
-          consejerias,
-          representaciones,
-        };
-        sessionStorage.setItem(claveLocal(acta.id), JSON.stringify(local));
-      } catch {
-        /* sin almacenamiento: lo capturado se pierde al cerrar */
-      }
-    }, 500);
-    return () => clearTimeout(t);
-  }, [
-    open,
-    acta,
-    esBorrador,
-    sembrado,
-    valores,
-    consejerias,
-    representaciones,
-  ]);
+  const autoguardar = open && !!acta && esBorrador && sembrado;
 
   const limpiarLocal = useCallback((id: number) => {
     try {
@@ -434,6 +428,7 @@ export function ActaGeneradorDialog({
         nombre: r.nombre,
         id_partido: r.id_partido ?? null,
         partido: r.partido ?? null,
+        imagen: r.imagen ?? null,
         asistencia: r.asistencia,
       })),
     ];
@@ -514,7 +509,7 @@ export function ActaGeneradorDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={cerrar}>
-        <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col">
           <DialogHeader className="pr-8">
             <DialogTitle className="flex flex-wrap items-center gap-2">
               {regenerar
@@ -528,261 +523,275 @@ export function ActaGeneradorDialog({
             </DialogTitle>
             <DialogDescription>
               {regenerar
-                ? 'Al guardar se toma un corte nuevo de las comprobaciones y se rehace el Word; las observaciones de oficina central se conservan.'
+                ? 'Al guardar se toma un corte nuevo de las comprobaciones y se vuelve a generar el acta circunstanciada en Word con los datos actuales; las observaciones de oficina central se conservan.'
                 : 'Captura los datos de la reunión, marca la asistencia y agrega las fotografías de cada apartado. Puedes cerrar y retomar el borrador después.'}
             </DialogDescription>
           </DialogHeader>
 
-          {isLoading || !acta ? (
-            <div className="space-y-4" aria-busy="true">
-              <Skeleton className="h-28 w-full rounded-lg" />
-              <Skeleton className="h-48 w-full rounded-lg" />
-              <Skeleton className="h-40 w-full rounded-lg" />
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {readOnly && (
-                <Alert variant="warning" icon="warning" appearance="light">
-                  <AlertIcon>
-                    <AlertCircle />
-                  </AlertIcon>
-                  <AlertTitle>{estatus?.descripcion}</AlertTitle>
-                </Alert>
-              )}
-
-              {acta.estatus === 'REQUERIDO' &&
-                acta.observaciones[0]?.observaciones && (
+          {/* Solo el cuerpo hace scroll; cabecera y pie quedan fijos. */}
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1 -mr-1">
+            {isLoading || !acta ? (
+              <div className="space-y-4" aria-busy="true">
+                <Skeleton className="h-28 w-full rounded-lg" />
+                <Skeleton className="h-48 w-full rounded-lg" />
+                <Skeleton className="h-40 w-full rounded-lg" />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {readOnly && (
                   <Alert variant="warning" icon="warning" appearance="light">
                     <AlertIcon>
                       <AlertCircle />
                     </AlertIcon>
-                    <AlertTitle>
-                      Observaciones de oficina central:{' '}
-                      {acta.observaciones[0].observaciones}
-                    </AlertTitle>
+                    <AlertTitle>{estatus?.descripcion}</AlertTitle>
                   </Alert>
                 )}
 
-              {/* ── Datos de la reunión ─────────────────────────────────── */}
-              <Form {...form}>
-                <form
-                  id="acta-generador-form"
-                  className="space-y-4"
-                  onSubmit={form.handleSubmit(() => enviar(false))}
-                >
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      Datos de la reunión
-                    </h3>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="fecha_acta"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Fecha <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                {...field}
-                                disabled={readOnly}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="hora_acta"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Hora <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="time"
-                                {...field}
-                                disabled={readOnly}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="ciudad"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Ciudad <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                maxLength={ACTA_LIMITES.ciudad.max}
-                                placeholder="Tuxtla Gutiérrez, Chiapas"
-                                disabled={readOnly}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="lugar"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Lugar de la reunión{' '}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Textarea
-                                {...field}
-                                rows={2}
-                                maxLength={ACTA_LIMITES.lugar.max}
-                                placeholder="Instalaciones del consejo, domicilio…"
-                                disabled={readOnly}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </section>
+                {acta.estatus === 'REQUERIDO' &&
+                  acta.observaciones[0]?.observaciones && (
+                    <Alert variant="warning" icon="warning" appearance="light">
+                      <AlertIcon>
+                        <AlertCircle />
+                      </AlertIcon>
+                      <AlertTitle>
+                        Observaciones de oficina central:{' '}
+                        {acta.observaciones[0].observaciones}
+                      </AlertTitle>
+                    </Alert>
+                  )}
 
-                  {/* ── Participantes ───────────────────────────────────── */}
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      Participantes
-                    </h3>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="presidencia"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Presidencia{' '}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                maxLength={200}
-                                disabled={readOnly}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="secretaria"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Secretaría técnica{' '}
-                              <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                maxLength={200}
-                                disabled={readOnly}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <ActaAsistenciaCard
-                        id="acta-consejerias"
-                        titulo="Consejerías electorales"
-                        items={consejerias}
-                        loading={necesitaPadron && cargandoConsejeros}
-                        error={necesitaPadron && errorConsejeros}
-                        readOnly={readOnly}
-                        vacio="No hay consejerías registradas para este consejo."
-                        onToggle={toggleConsejeria}
-                        onToggleAll={toggleTodasConsejerias}
-                      />
-                      <ActaAsistenciaCard
-                        id="acta-representaciones"
-                        titulo="Representaciones de partido"
-                        items={representaciones}
-                        loading={necesitaPadron && cargandoRep}
-                        error={necesitaPadron && errorRep}
-                        readOnly={readOnly}
-                        vacio="No hay representaciones acreditadas para este consejo."
-                        onToggle={toggleRepresentacion}
-                        onToggleAll={toggleTodasRepresentaciones}
-                      />
-                    </div>
-                  </section>
-                </form>
-              </Form>
-
-              {/* ── Fotografías ─────────────────────────────────────────── */}
-              <section className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Fotografías
-                  </h3>
-                  <Badge
-                    variant={minimosCumplidos ? 'success' : 'warning'}
-                    appearance="light"
-                    size="sm"
-                  >
-                    {minimosCumplidos
-                      ? 'Mínimos cumplidos'
-                      : `${apartadosIncompletos.length} ${apartadosIncompletos.length === 1 ? 'apartado incompleto' : 'apartados incompletos'}`}
-                  </Badge>
-                </div>
-                {apartados.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    La configuración vigente no tiene apartados de fotografías.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {apartados.map((a) => (
-                      <ActaFotografiasApartado
-                        key={a.clave}
-                        idActa={acta.id}
-                        apartado={a}
-                        fotografias={fotosPorApartado.get(a.clave) ?? []}
-                        readOnly={readOnly}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {!readOnly && !minimosCumplidos && (
-                <p className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                  <Info
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                    aria-hidden="true"
+                {/* ── Datos de la reunión ─────────────────────────────────── */}
+                {autoguardar && (
+                  <AutoguardadoBorrador
+                    control={form.control}
+                    idActa={acta.id}
+                    consejerias={consejerias}
+                    representaciones={representaciones}
                   />
-                  <span>
-                    Para guardar faltan fotografías en:{' '}
-                    {apartadosIncompletos.map((a) => a.titulo).join('; ')}. La
-                    vista previa ya muestra las fotografías subidas.
-                  </span>
-                </p>
-              )}
-            </div>
-          )}
+                )}
+                <Form {...form}>
+                  <form
+                    id="acta-generador-form"
+                    className="space-y-4"
+                    onSubmit={form.handleSubmit(() => enviar(false))}
+                  >
+                    <section className="space-y-3">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Datos de la reunión
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FormField
+                          control={form.control}
+                          name="fecha_acta"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Fecha{' '}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="date"
+                                  {...field}
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="hora_acta"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Hora <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="ciudad"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Ciudad{' '}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  maxLength={ACTA_LIMITES.ciudad.max}
+                                  placeholder="Ciudad donde se levanta el acta"
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="lugar"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Lugar de la reunión{' '}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  rows={2}
+                                  maxLength={ACTA_LIMITES.lugar.max}
+                                  placeholder="Instalaciones del consejo, domicilio…"
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </section>
+
+                    {/* ── Participantes ───────────────────────────────────── */}
+                    <section className="space-y-3">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Participantes
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FormField
+                          control={form.control}
+                          name="presidencia"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Presidencia{' '}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  maxLength={200}
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="secretaria"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                Secretaría técnica{' '}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  maxLength={200}
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <ActaAsistenciaCard
+                          id="acta-consejerias"
+                          titulo="Consejerías electorales"
+                          items={consejerias}
+                          loading={necesitaPadron && cargandoConsejeros}
+                          error={necesitaPadron && errorConsejeros}
+                          readOnly={readOnly}
+                          vacio="No hay consejerías registradas para este consejo."
+                          onToggle={toggleConsejeria}
+                          onToggleAll={toggleTodasConsejerias}
+                        />
+                        <ActaAsistenciaCard
+                          id="acta-representaciones"
+                          titulo="Representaciones de partido"
+                          items={representaciones}
+                          loading={necesitaPadron && cargandoRep}
+                          error={necesitaPadron && errorRep}
+                          readOnly={readOnly}
+                          vacio="No hay representaciones acreditadas para este consejo."
+                          onToggle={toggleRepresentacion}
+                          onToggleAll={toggleTodasRepresentaciones}
+                        />
+                      </div>
+                    </section>
+                  </form>
+                </Form>
+
+                {/* ── Fotografías ─────────────────────────────────────────── */}
+                <section className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Fotografías
+                    </h3>
+                    <Badge
+                      variant={minimosCumplidos ? 'success' : 'warning'}
+                      appearance="light"
+                      size="sm"
+                    >
+                      {minimosCumplidos
+                        ? 'Mínimos cumplidos'
+                        : `${apartadosIncompletos.length} ${apartadosIncompletos.length === 1 ? 'apartado incompleto' : 'apartados incompletos'}`}
+                    </Badge>
+                  </div>
+                  {apartados.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      La configuración vigente no tiene apartados de
+                      fotografías.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {apartados.map((a) => (
+                        <ActaFotografiasApartado
+                          key={a.clave}
+                          idActa={acta.id}
+                          apartado={a}
+                          fotografias={fotosPorApartado.get(a.clave) ?? []}
+                          readOnly={readOnly}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {!readOnly && !minimosCumplidos && (
+                  <p className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                    <Info
+                      className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span>
+                      Para guardar faltan fotografías en:{' '}
+                      {apartadosIncompletos.map((a) => a.titulo).join('; ')}. La
+                      vista previa ya muestra las fotografías subidas.
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           <DialogFooter className="flex-wrap gap-2 sm:justify-between">
             <div className="flex gap-2">
@@ -923,4 +932,44 @@ export function ActaGeneradorDialog({
       </AlertDialog>
     </>
   );
+}
+
+// ─── Autoguardado del borrador ────────────────────────────────────────────────
+
+/**
+ * Guarda en el navegador lo capturado en el borrador (datos de la reunión y
+ * asistencia) con medio segundo de espera. Es un componente aparte con
+ * `useWatch` para que cada tecla vuelva a pintar solo esto y no todo el
+ * generador con sus fotografías y listas.
+ */
+function AutoguardadoBorrador({
+  control,
+  idActa,
+  consejerias,
+  representaciones,
+}: {
+  control: Control<TDatosForm>;
+  idActa: number;
+  consejerias: IPersonaActa[];
+  representaciones: IPersonaActa[];
+}) {
+  const datos = useWatch({ control });
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const local: IBorradorLocal = {
+          datos: { ...DATOS_VACIOS, ...datos },
+          consejerias,
+          representaciones,
+        };
+        sessionStorage.setItem(claveLocal(idActa), JSON.stringify(local));
+      } catch {
+        /* sin almacenamiento: lo capturado se pierde al cerrar */
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [idActa, datos, consejerias, representaciones]);
+
+  return null;
 }

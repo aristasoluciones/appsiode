@@ -8,6 +8,7 @@ import type {
   IActaFotografiaSubida,
   IActaGenerarPayload,
   IActasConsejo,
+  IActasResumen,
 } from '@/types/material-electoral';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
@@ -103,9 +104,17 @@ export function useActa(id: number | null) {
 
 // ---------------------------------------------------------------- Borrador
 
-/** Cualquier escritura rehace el listado del consejo y el detalle que esté abierto. */
+/**
+ * Cualquier escritura rehace el listado del consejo y el resumen de oficina
+ * central. El detalle NO se invalida: cada escritura ya recibe el acta completa
+ * del servidor y la deja en caché con `setQueryData`; volver a pedirla abriría
+ * una ventana en la que una respuesta vieja pisara lo recién guardado.
+ */
 function invalidarActas(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: MATERIAL_ELECTORAL_KEYS.actas() });
+  queryClient.invalidateQueries({
+    queryKey: MATERIAL_ELECTORAL_KEYS.actas(),
+    predicate: (q) => q.queryKey[2] !== 'detalle',
+  });
 }
 
 /** Abre el generador: crea el borrador del consejo o retoma el que había, con sus fotografías. */
@@ -139,7 +148,10 @@ export function useEliminarBorrador() {
       );
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      // El detalle del borrador se retira de la caché sin volver a pedirlo:
+      // ya no existe y el servidor respondería «no existe» con su toast.
+      queryClient.removeQueries({ queryKey: MATERIAL_ELECTORAL_KEYS.acta(id) });
       invalidarActas(queryClient);
       toastSuccess('El borrador y sus fotografías se eliminaron.');
     },
@@ -148,12 +160,20 @@ export function useEliminarBorrador() {
 
 // ---------------------------------------------------------------- Fotografías
 
-/** Reemplaza el avance de apartados y la lista de fotografías en el detalle en caché. */
-function actualizarFotografiasEnCache(
+/**
+ * Reemplaza el avance de apartados y la lista de fotografías en el detalle en
+ * caché. Antes cancela cualquier lectura del detalle que vaya en vuelo (por
+ * ejemplo, la de recuperar el foco de la ventana): si llegara después, traería
+ * la lista sin la fotografía recién subida y la quitaría de pantalla.
+ */
+async function actualizarFotografiasEnCache(
   queryClient: ReturnType<typeof useQueryClient>,
   idActa: number,
   cambio: (acta: IActa) => IActa,
 ) {
+  await queryClient.cancelQueries({
+    queryKey: MATERIAL_ELECTORAL_KEYS.acta(idActa),
+  });
   queryClient.setQueryData<IActa>(
     MATERIAL_ELECTORAL_KEYS.acta(idActa),
     (actual) => (actual ? cambio(actual) : actual),
@@ -180,7 +200,7 @@ export function useSubirFotografiaActa(idActa: number) {
       );
       return data;
     },
-    onSuccess: (foto) => {
+    onSuccess: async (foto) => {
       const { apartados, ...resto } = foto;
       const nueva: IActaFotografia = {
         id: resto.id,
@@ -190,7 +210,7 @@ export function useSubirFotografiaActa(idActa: number) {
         imagen_url: resto.imagen_url ?? null,
         miniatura_url: resto.miniatura_url ?? null,
       };
-      actualizarFotografiasEnCache(queryClient, idActa, (acta) => ({
+      await actualizarFotografiasEnCache(queryClient, idActa, (acta) => ({
         ...acta,
         configuracion: { ...acta.configuracion, apartados },
         fotografias: [...acta.fotografias, nueva],
@@ -211,8 +231,8 @@ export function useEliminarFotografiaActa(idActa: number) {
       );
       return data;
     },
-    onSuccess: (resultado) => {
-      actualizarFotografiasEnCache(queryClient, idActa, (acta) => ({
+    onSuccess: async (resultado) => {
+      await actualizarFotografiasEnCache(queryClient, idActa, (acta) => ({
         ...acta,
         configuracion: {
           ...acta.configuracion,
@@ -242,8 +262,8 @@ export function useReordenarFotografiasActa(idActa: number) {
       );
       return { apartado, fotografias: data };
     },
-    onSuccess: ({ apartado, fotografias }) => {
-      actualizarFotografiasEnCache(queryClient, idActa, (acta) => ({
+    onSuccess: async ({ apartado, fotografias }) => {
+      await actualizarFotografiasEnCache(queryClient, idActa, (acta) => ({
         ...acta,
         fotografias: [
           ...acta.fotografias.filter((f) => f.apartado !== apartado),
@@ -392,6 +412,99 @@ export function useDescartarActa() {
       queryClient.setQueryData(MATERIAL_ELECTORAL_KEYS.acta(acta.id), acta);
       invalidarActas(queryClient);
       toastSuccess('Acta descartada. El consejo ya puede generar una nueva.');
+    },
+  });
+}
+
+// ---------------------------------------------------------------- Oficina central
+
+/** Resumen por consejo del tipo: todos los consejos aunque vayan en ceros, con sus actas por estatus. */
+export function useActasResumen(tipoConsejo: 'D' | 'M' | null, enabled = true) {
+  return useQuery<IActasResumen>({
+    queryKey: MATERIAL_ELECTORAL_KEYS.actasResumen(tipoConsejo ?? 'NONE'),
+    enabled: enabled && !!tipoConsejo,
+    queryFn: async () => {
+      const { data } = await apiClient.get<IActasResumen>(
+        API_ENDPOINTS.MATERIAL_ELECTORAL.ACTAS_RESUMEN(tipoConsejo!),
+      );
+      return { ...data, consejos: data?.consejos ?? [] };
+    },
+    staleTime: 30_000,
+  });
+}
+
+/** Observaciones obligatorias de oficina central: el acta pasa a Requerido. */
+export function useObservarActa() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      observaciones,
+    }: {
+      id: number;
+      observaciones: string;
+    }) => {
+      const { data } = await apiClient.post<IActa>(
+        API_ENDPOINTS.MATERIAL_ELECTORAL.ACTA_OBSERVACIONES(id),
+        { observaciones, ...getDataAuditoria() },
+      );
+      return data;
+    },
+    onSuccess: (acta) => {
+      queryClient.setQueryData(MATERIAL_ELECTORAL_KEYS.acta(acta.id), acta);
+      invalidarActas(queryClient);
+      toastSuccess(
+        'Observaciones enviadas. El acta queda como Requerido para el consejo.',
+      );
+    },
+  });
+}
+
+/** Acepta el acta: queda inmutable y fija el corte del consejo. */
+export function useAceptarActa() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      observaciones,
+    }: {
+      id: number;
+      observaciones?: string;
+    }) => {
+      const { data } = await apiClient.post<IActa>(
+        API_ENDPOINTS.MATERIAL_ELECTORAL.ACTA_ACEPTAR(id),
+        { observaciones: observaciones || null, ...getDataAuditoria() },
+      );
+      return data;
+    },
+    onSuccess: (acta) => {
+      queryClient.setQueryData(MATERIAL_ELECTORAL_KEYS.acta(acta.id), acta);
+      invalidarActas(queryClient);
+      toastSuccess('Acta aceptada. Ya no admite cambios.');
+    },
+  });
+}
+
+/** Anula un acta aceptada con motivo; sus renglones quedan libres para la siguiente. */
+export function useAnularActa() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, motivo }: { id: number; motivo: string }) => {
+      const { data } = await apiClient.post<IActa>(
+        API_ENDPOINTS.MATERIAL_ELECTORAL.ACTA_ANULAR(id),
+        { motivo, ...getDataAuditoria() },
+      );
+      return data;
+    },
+    onSuccess: (acta) => {
+      queryClient.setQueryData(MATERIAL_ELECTORAL_KEYS.acta(acta.id), acta);
+      invalidarActas(queryClient);
+      toastSuccess(
+        'Acta anulada. El consejo puede generar una nueva que la sustituya.',
+      );
     },
   });
 }

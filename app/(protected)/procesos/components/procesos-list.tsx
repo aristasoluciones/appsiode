@@ -15,8 +15,10 @@ import {
   Pencil,
   Plus,
   Search,
+  Settings2,
   ShieldOff,
 } from 'lucide-react';
+import { useAuth } from '@/providers/auth-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -26,7 +28,15 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/providers/auth-provider';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  PERMISOS_CONFIGURACION,
+  ProcesoConfiguracionesDialog,
+} from './proceso-configuraciones-dialog';
 import {
   etiquetaModo,
   etiquetaStatus,
@@ -37,8 +47,18 @@ import type { IProcesoCatalogo } from './procesos-data';
 import ProcesoForm from './procesos-form';
 
 const MESES = [
-  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
 ];
 
 /** Formatea una fecha ISO (yyyy-mm-dd) sin desfase por zona horaria. */
@@ -50,14 +70,22 @@ function formatFecha(valor: string | null): string {
 }
 
 export default function ProcesosList() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const canVer = hasPermission('catalogos.procesos.ver');
   const canAgregar = hasPermission('catalogos.procesos.agregar');
   const canEditar = hasPermission('catalogos.procesos.editar');
+  // Configuraciones por módulo: la API las administra sobre el proceso activo de la sesión.
+  const canConfigurar = hasPermission(PERMISOS_CONFIGURACION);
+  const idProcesoActivo = String(user?.idProceso ?? '');
 
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [editingProceso, setEditingProceso] = useState<IProcesoCatalogo | null>(null);
+  const [editingProceso, setEditingProceso] = useState<IProcesoCatalogo | null>(
+    null,
+  );
+  const [configurando, setConfigurando] = useState<IProcesoCatalogo | null>(
+    null,
+  );
 
   const { data, isLoading, isError, error, refetch } = useProcesos(canVer);
   const procesos = useMemo(() => data ?? [], [data]);
@@ -100,7 +128,9 @@ export default function ProcesosList() {
         accessorKey: 'modo',
         header: 'Modo',
         cell: ({ row }) => (
-          <Badge variant={row.original.modo === 'PROD' ? 'primary' : 'secondary'}>
+          <Badge
+            variant={row.original.modo === 'PROD' ? 'primary' : 'secondary'}
+          >
             {etiquetaModo(row.original.modo)}
           </Badge>
         ),
@@ -111,7 +141,9 @@ export default function ProcesosList() {
         accessorKey: 'status',
         header: 'Estatus',
         cell: ({ row }) => (
-          <Badge variant={row.original.status === 'ACT' ? 'success' : 'outline'}>
+          <Badge
+            variant={row.original.status === 'ACT' ? 'success' : 'outline'}
+          >
             {etiquetaStatus(row.original.status)}
           </Badge>
         ),
@@ -126,12 +158,18 @@ export default function ProcesosList() {
         cell: ({ row }) => {
           const { consejo_distrital, consejo_municipal } = row.original;
           if (!consejo_distrital && !consejo_municipal) {
-            return <span className="text-muted-foreground text-sm">Ninguno</span>;
+            return (
+              <span className="text-muted-foreground text-sm">Ninguno</span>
+            );
           }
           return (
             <div className="flex flex-wrap gap-1">
-              {consejo_distrital && <Badge variant="outline">Distritales</Badge>}
-              {consejo_municipal && <Badge variant="outline">Municipales</Badge>}
+              {consejo_distrital && (
+                <Badge variant="outline">Distritales</Badge>
+              )}
+              {consejo_municipal && (
+                <Badge variant="outline">Municipales</Badge>
+              )}
             </div>
           );
         },
@@ -146,7 +184,11 @@ export default function ProcesosList() {
         cell: ({ row }) => {
           const cfg = row.original.configuracion;
           if (!cfg?.rpp_api_base && !cfg?.sice_api_base) {
-            return <span className="text-muted-foreground text-sm">Sin capturar</span>;
+            return (
+              <span className="text-muted-foreground text-sm">
+                Sin capturar
+              </span>
+            );
           }
           return (
             <div className="flex flex-col gap-0.5 text-xs text-muted-foreground max-w-[260px]">
@@ -165,25 +207,53 @@ export default function ProcesosList() {
       {
         id: 'actions',
         header: '',
-        size: 60,
-        cell: ({ row }) =>
-          canEditar ? (
+        size: 100,
+        cell: ({ row }) => {
+          if (!canEditar && !canConfigurar) return null;
+          const esActivo = String(row.original.id) === idProcesoActivo;
+          return (
             <div className="flex items-center justify-end gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleEdit(row.original)}
-                title="Editar proceso"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
+              {canConfigurar && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {/* El botón deshabilitado no recibe eventos: el envoltorio sí. */}
+                    <span tabIndex={esActivo ? -1 : 0} className="inline-flex">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setConfigurando(row.original)}
+                        disabled={!esActivo}
+                        aria-label="Configuraciones del proceso"
+                      >
+                        <Settings2 className="h-4 w-4" />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    {esActivo
+                      ? 'Configuraciones'
+                      : 'Las configuraciones solo se administran sobre el proceso activo de tu sesión.'}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              {canEditar && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleEdit(row.original)}
+                  title="Editar proceso"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-          ) : null,
+          );
+        },
         enableSorting: false,
         enableHiding: false,
       },
     ],
-    [canEditar],
+    [canEditar, canConfigurar, idProcesoActivo],
   );
 
   const filtered = useMemo(() => {
@@ -311,6 +381,16 @@ export default function ProcesosList() {
         initialData={editingProceso ?? undefined}
         onSuccess={handleCloseForm}
       />
+
+      {canConfigurar && (
+        <ProcesoConfiguracionesDialog
+          proceso={configurando}
+          open={configurando != null}
+          onOpenChange={(v) => {
+            if (!v) setConfigurando(null);
+          }}
+        />
+      )}
     </>
   );
 }

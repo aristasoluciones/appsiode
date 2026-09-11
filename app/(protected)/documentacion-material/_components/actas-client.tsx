@@ -12,19 +12,19 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Container } from '@/components/common/container';
-import { ModuloEnDesarrollo } from '@/components/common/modulo-en-desarrollo';
 import {
   Toolbar,
   ToolbarActions,
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { ActasAdminDashboard } from './actas-admin-dashboard';
 import { ActasConsejoContainer } from './actas-consejo-container';
 
 /**
  * Actas circunstanciadas. Misma bifurcación que comprobaciones: el usuario de
- * consejo ve y genera sus actas; el de oficina central verá el tablero por tipo
- * de consejo (tarjeta 44), que se enchufa aquí como la otra rama.
+ * consejo ve y genera sus actas; el de oficina central ve el tablero por tipo
+ * de consejo y revisa desde ahí.
  */
 export function ActasClient() {
   const { user, isLoading } = useAuth();
@@ -48,16 +48,6 @@ export function ActasClient() {
     );
   }
 
-  if (!tieneConsejo) {
-    return (
-      <ModuloEnDesarrollo
-        titulo="Actas Circunstanciadas"
-        seccion="Documentación y Material"
-        descripcion="El tablero de actas por consejo para oficina central está en construcción."
-      />
-    );
-  }
-
   return (
     <Fragment>
       <Container>
@@ -74,17 +64,25 @@ export function ActasClient() {
                   <span>Documentación y Material</span>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <span>Actas Circunstanciadas</span>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <span>{tipoPlural}</span>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{consejoLabel}</BreadcrumbPage>
-                </BreadcrumbItem>
+                {tieneConsejo ? (
+                  <>
+                    <BreadcrumbItem>
+                      <span>Actas Circunstanciadas</span>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <span>{tipoPlural}</span>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{consejoLabel}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                ) : (
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Actas Circunstanciadas</BreadcrumbPage>
+                  </BreadcrumbItem>
+                )}
               </BreadcrumbList>
             </Breadcrumb>
           </ToolbarHeading>
@@ -93,7 +91,7 @@ export function ActasClient() {
       </Container>
 
       <Container>
-        <ActasConsejoContainer />
+        {tieneConsejo ? <ActasConsejoContainer /> : <ActasAdminDashboard />}
       </Container>
     </Fragment>
   );

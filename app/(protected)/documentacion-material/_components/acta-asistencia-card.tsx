@@ -5,6 +5,7 @@ import { AlertTriangle, SearchX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PartidoLogo } from './partido-logo';
 
 export interface IAsistenciaItem {
   /** Llave del renglón dentro del acta. */
@@ -13,6 +14,9 @@ export interface IAsistenciaItem {
   /** Cargo de la consejería o partido de la representación. */
   subtitulo: string;
   asistencia: boolean;
+  /** Solo representaciones: partido y su logotipo en el RPP. */
+  id_partido?: number | null;
+  imagen?: string | null;
 }
 
 interface ActaAsistenciaCardProps {
@@ -109,6 +113,13 @@ export function ActaAsistenciaCard({
                 onCheckedChange={() => onToggle(c.orden, !c.asistencia)}
                 disabled={readOnly}
               />
+              {(c.id_partido != null || c.imagen) && (
+                <PartidoLogo
+                  imagen={c.imagen}
+                  idPartido={c.id_partido}
+                  nombre={c.subtitulo}
+                />
+              )}
               <label
                 htmlFor={`${id}-${c.orden}`}
                 className={`flex-1 min-w-0 ${readOnly ? '' : 'cursor-pointer'}`}

@@ -55,3 +55,32 @@ export function formatFechaHora(input: string | null | undefined): string {
 
   return `${dia} ${mes} ${anio} ${hora12}:${minutos} ${meridiano}`;
 }
+
+/** Solo la fecha, con el formato del sistema: «05 may 2026». Acepta «yyyy-MM-dd» o una marca completa. */
+export function formatFecha(input: string | null | undefined): string {
+  if (!input) return '—';
+
+  const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const fecha = m
+    ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    : aFecha(input);
+  if (Number.isNaN(fecha.getTime())) return '—';
+
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${dia} ${MESES[fecha.getMonth()]} ${fecha.getFullYear()}`;
+}
+
+/** Solo la hora, con el formato del sistema: «01:27 AM». Acepta «HH:mm» o «HH:mm:ss». */
+export function formatHora(input: string | null | undefined): string {
+  if (!input) return '—';
+
+  const m = String(input)
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return '—';
+
+  const horas = Number(m[1]);
+  const meridiano = horas < 12 ? 'AM' : 'PM';
+  const hora12 = String(horas % 12 || 12).padStart(2, '0');
+  return `${hora12}:${m[2]} ${meridiano}`;
+}

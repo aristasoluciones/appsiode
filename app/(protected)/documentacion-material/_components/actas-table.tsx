@@ -10,8 +10,7 @@ import {
 } from '@tanstack/react-table';
 import { Eye, FileText, Loader2 } from 'lucide-react';
 import type { IActaResumen } from '@/types/material-electoral';
-import { formatFechaHora } from '@/lib/fechas';
-import { formatDateOnly, formatTimeOnly } from '@/lib/helpers';
+import { formatFecha, formatFechaHora, formatHora } from '@/lib/fechas';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -37,6 +36,8 @@ interface ActasTableProps {
   onVerDocumento?: (acta: IActaResumen) => void;
   /** Id del acta cuyo documento se está resolviendo, para el indicador de carga. */
   documentoPendiente: number | null;
+  /** Abre el detalle del acta anulada a la que una sustituta reemplaza. */
+  onVerSustituida?: (id: number) => void;
 }
 
 /** Qué documento se abre: el firmado cuando ya lo subió, si no el generado. */
@@ -63,6 +64,7 @@ export function ActasTable({
   onVerDetalle,
   onVerDocumento,
   documentoPendiente,
+  onVerSustituida,
 }: ActasTableProps) {
   const columns = useMemo<ColumnDef<IActaResumen>[]>(
     () => [
@@ -83,33 +85,6 @@ export function ActasTable({
         enableSorting: false,
       },
       {
-        id: 'estatus',
-        header: 'Estatus',
-        size: 130,
-        accessorFn: (row) => row.estatus,
-        cell: ({ row }) => (
-          <div
-            className={actaCerrada(row.original.estatus) ? 'opacity-60' : ''}
-          >
-            <EstatusBadge acta={row.original} />
-            {row.original.ciclos_revision > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {row.original.ciclos_revision}{' '}
-                {row.original.ciclos_revision === 1
-                  ? 'ciclo de revisión'
-                  : 'ciclos de revisión'}
-              </p>
-            )}
-          </div>
-        ),
-        meta: {
-          skeleton: (
-            <Skeleton className="w-20 h-5 rounded animate-pulse motion-reduce:animate-none" />
-          ),
-        },
-        enableSorting: true,
-      },
-      {
         id: 'creacion',
         header: 'Creada',
         size: 170,
@@ -123,6 +98,24 @@ export function ActasTable({
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               Acta #{row.original.id}
+              {row.original.id_acta_sustituida && (
+                <>
+                  {' · sustituye a '}
+                  {onVerSustituida ? (
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      onClick={() =>
+                        onVerSustituida(row.original.id_acta_sustituida!)
+                      }
+                    >
+                      #{row.original.id_acta_sustituida}
+                    </button>
+                  ) : (
+                    <>#{row.original.id_acta_sustituida}</>
+                  )}
+                </>
+              )}
             </p>
           </div>
         ),
@@ -149,9 +142,9 @@ export function ActasTable({
           return (
             <div className={actaCerrada(a.estatus) ? 'opacity-60' : ''}>
               <p className="text-sm font-medium text-foreground leading-tight">
-                {formatDateOnly(a.fecha_acta)}{' '}
+                {formatFecha(a.fecha_acta)}{' '}
                 <span className="text-muted-foreground font-normal">
-                  {formatTimeOnly(a.hora_acta)}
+                  {formatHora(a.hora_acta)}
                 </span>
               </p>
               <p
@@ -175,7 +168,7 @@ export function ActasTable({
       },
       {
         id: 'genero',
-        header: 'Generó',
+        header: 'Generado por',
         size: 200,
         accessorFn: (row) => row.usuario_genero ?? '',
         cell: ({ row }) => (
@@ -199,6 +192,33 @@ export function ActasTable({
               <Skeleton className="w-40 h-4 animate-pulse motion-reduce:animate-none" />
               <Skeleton className="w-28 h-3 animate-pulse motion-reduce:animate-none" />
             </div>
+          ),
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'estatus',
+        header: 'Estatus',
+        size: 130,
+        accessorFn: (row) => row.estatus,
+        cell: ({ row }) => (
+          <div
+            className={actaCerrada(row.original.estatus) ? 'opacity-60' : ''}
+          >
+            <EstatusBadge acta={row.original} />
+            {row.original.ciclos_revision > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {row.original.ciclos_revision}{' '}
+                {row.original.ciclos_revision === 1
+                  ? 'ciclo de revisión'
+                  : 'ciclos de revisión'}
+              </p>
+            )}
+          </div>
+        ),
+        meta: {
+          skeleton: (
+            <Skeleton className="w-20 h-5 rounded animate-pulse motion-reduce:animate-none" />
           ),
         },
         enableSorting: true,
@@ -288,7 +308,7 @@ export function ActasTable({
         enableHiding: false,
       },
     ],
-    [onVerDetalle, onVerDocumento, documentoPendiente],
+    [onVerDetalle, onVerDocumento, documentoPendiente, onVerSustituida],
   );
 
   const table = useReactTable({
@@ -420,12 +440,12 @@ function MobileCard({
           <p className="text-xs text-muted-foreground">Fecha del acta</p>
           <p className="text-foreground">
             {acta.fecha_acta
-              ? `${formatDateOnly(acta.fecha_acta)} ${formatTimeOnly(acta.hora_acta)}`
+              ? `${formatFecha(acta.fecha_acta)} ${formatHora(acta.hora_acta)}`
               : '—'}
           </p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Generó</p>
+          <p className="text-xs text-muted-foreground">Generado por</p>
           <p className="text-foreground">{acta.usuario_genero || '—'}</p>
         </div>
       </div>

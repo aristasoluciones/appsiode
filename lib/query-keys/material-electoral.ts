@@ -76,4 +76,11 @@ export const MATERIAL_ELECTORAL_KEYS = {
     ['material-electoral', 'actas', 'resumen', tipoConsejo] as const,
   /** Detalle de un acta. */
   acta: (id: KeyId) => ['material-electoral', 'actas', 'detalle', id] as const,
+
+  /** Configuración del acta (plantilla, apartados y versiones) del proceso de la sesión. */
+  actasConfiguracion: () =>
+    ['material-electoral', 'actas-configuracion'] as const,
+  /** Catálogo de marcadores de la plantilla; no cambia durante la sesión. */
+  actasMarcadores: () =>
+    ['material-electoral', 'actas-configuracion', 'marcadores'] as const,
 } as const;

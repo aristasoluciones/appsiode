@@ -23,7 +23,7 @@ export const ESTATUS_ACTA: Record<
     label: 'Generada',
     variant: 'primary',
     descripcion:
-      'El Word ya se generó. Imprímelo, recaba las firmas y sube el PDF firmado.',
+      'El acta circunstanciada ya está generada en Word. Descárgala, imprímela, recaba las firmas de quienes participaron y sube el acta firmada en PDF para enviarla a revisión.',
   },
   EN_REVISION: {
     label: 'En revisión',

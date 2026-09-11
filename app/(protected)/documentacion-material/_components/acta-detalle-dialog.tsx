@@ -19,8 +19,7 @@ import type {
   IActaObservacion,
   IActaRenglon,
 } from '@/types/material-electoral';
-import { formatFechaHora } from '@/lib/fechas';
-import { formatDateOnly, formatTimeOnly } from '@/lib/helpers';
+import { formatFecha, formatFechaHora, formatHora } from '@/lib/fechas';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,6 +33,11 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   Timeline,
   TimelineItem,
   type TTimelineTono,
@@ -45,7 +49,9 @@ import {
 } from '../_hooks/use-actas';
 import { actaCerrada, ESTATUS_ACTA } from './acta-estatus';
 import { ActaFotografiasApartado } from './acta-fotografias-apartado';
+import type { TRevisionActa } from './acta-revision-dialog';
 import { piezasConPaquetes } from './comprobacion-cantidades';
+import { PartidoLogo } from './partido-logo';
 
 /** Acta con lo mínimo que necesitan las acciones de firmar y descartar. */
 export type TActaAccion = Pick<IActa, 'id' | 'estatus' | 'archivo_firmado'>;
@@ -59,6 +65,13 @@ interface ActaDetalleDialogProps {
   onEditar: (id: number) => void;
   onSubirFirmada: (acta: TActaAccion) => void;
   onDescartar: (acta: TActaAccion) => void;
+  /** Oficina central: permiso de validar (observar y aceptar). */
+  puedeRevisar?: boolean;
+  /** Oficina central: permiso de anular un acta aceptada. */
+  puedeAnular?: boolean;
+  onRevisar?: (acta: TActaAccion, accion: TRevisionActa) => void;
+  /** Abre el detalle del acta anulada a la que esta sustituye. */
+  onVerSustituida?: (id: number) => void;
 }
 
 /** Marcador de cada movimiento del historial según el estatus al que llevó. */
@@ -83,7 +96,8 @@ function Dato({ label, children }: { label: string; children: ReactNode }) {
 /**
  * Detalle del acta: datos, participantes, renglones del corte, historial de
  * observaciones por ciclo y estatus; con las acciones que el estatus permite
- * al consejo: editar, descartar, subir el PDF firmado o volver a subirlo.
+ * al consejo (editar, descartar, subir el PDF firmado o volver a subirlo) y a
+ * oficina central (observar, aceptar y anular).
  */
 export function ActaDetalleDialog({
   idActa,
@@ -94,6 +108,10 @@ export function ActaDetalleDialog({
   onEditar,
   onSubirFirmada,
   onDescartar,
+  puedeRevisar = false,
+  puedeAnular = false,
+  onRevisar,
+  onVerSustituida,
 }: ActaDetalleDialogProps) {
   const { data: acta, isLoading } = useActa(open ? idActa : null);
   const verDocumento = useDescargarDocumentoActa();
@@ -142,10 +160,13 @@ export function ActaDetalleDialog({
   const puedeFirmar = puedeRegistrar && !!acta?.puede_firmar;
   const puedeDescartar =
     puedeRegistrar && !!acta?.puede_descartar && acta.estatus !== 'BORRADOR';
+  // Revisión de oficina central: la API dice qué admite el acta; el permiso, el usuario.
+  const muestraRevisar = puedeRevisar && !!onRevisar && !!acta?.puede_revisar;
+  const muestraAnular = puedeAnular && !!onRevisar && !!acta?.puede_anular;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col">
         <DialogHeader className="pr-8">
           <DialogTitle className="flex flex-wrap items-center gap-2">
             Acta circunstanciada{acta ? ` #${acta.id}` : ''}
@@ -161,218 +182,251 @@ export function ActaDetalleDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading || !acta ? (
-          <div className="space-y-4" aria-busy="true">
-            <Skeleton className="h-24 w-full rounded-lg" />
-            <Skeleton className="h-40 w-full rounded-lg" />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {actaCerrada(acta.estatus) && (
-              <Alert
-                variant="destructive"
-                icon="destructive"
-                appearance="light"
-              >
-                <AlertIcon>
-                  <Ban />
-                </AlertIcon>
-                <AlertTitle>
-                  {estatus?.label} por {acta.usuario_cierre || 'sin registro'}{' '}
-                  el {formatFechaHora(acta.fecha_cierre)}
-                  {acta.motivo_cierre ? `: ${acta.motivo_cierre}` : ''}
-                </AlertTitle>
-              </Alert>
-            )}
-
-            {acta.estatus === 'REQUERIDO' &&
-              acta.observaciones[0]?.observaciones && (
-                <Alert variant="warning" icon="warning" appearance="light">
+        {/* Solo el cuerpo hace scroll; cabecera y pie quedan fijos. */}
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1 -mr-1">
+          {isLoading || !acta ? (
+            <div className="space-y-4" aria-busy="true">
+              <Skeleton className="h-24 w-full rounded-lg" />
+              <Skeleton className="h-40 w-full rounded-lg" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {actaCerrada(acta.estatus) && (
+                <Alert
+                  variant="destructive"
+                  icon="destructive"
+                  appearance="light"
+                >
                   <AlertIcon>
-                    <MessageSquareWarning />
+                    <Ban />
                   </AlertIcon>
                   <AlertTitle>
-                    Oficina central requiere:{' '}
-                    {acta.observaciones[0].observaciones}
+                    {estatus?.label} por {acta.usuario_cierre || 'sin registro'}{' '}
+                    el {formatFechaHora(acta.fecha_cierre)}
+                    {acta.motivo_cierre ? `: ${acta.motivo_cierre}` : ''}
                   </AlertTitle>
                 </Alert>
               )}
 
-            {acta.id_acta_sustituida && (
-              <p className="text-xs text-muted-foreground">
-                Sustituye al acta #{acta.id_acta_sustituida}, que fue anulada.
-              </p>
-            )}
-
-            {/* ── Datos ───────────────────────────────────────────────── */}
-            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Dato label="Fecha y hora del acta">
-                {acta.fecha_acta
-                  ? `${formatDateOnly(acta.fecha_acta)} ${formatTimeOnly(acta.hora_acta)}`
-                  : '—'}
-              </Dato>
-              <Dato label="Ciudad">{acta.ciudad || '—'}</Dato>
-              <Dato label="Lugar">{acta.lugar || '—'}</Dato>
-              <Dato label="Corte de comprobaciones">
-                {formatFechaHora(acta.fecha_corte)}
-              </Dato>
-              <Dato label="Generó">
-                {acta.usuario_genero || '—'}
-                {acta.fecha_generacion && (
-                  <span className="block text-xs text-muted-foreground">
-                    {formatFechaHora(acta.fecha_generacion)}
-                  </span>
+              {acta.estatus === 'REQUERIDO' &&
+                acta.observaciones[0]?.observaciones && (
+                  <Alert variant="warning" icon="warning" appearance="light">
+                    <AlertIcon>
+                      <MessageSquareWarning />
+                    </AlertIcon>
+                    <AlertTitle>
+                      Oficina central requiere:{' '}
+                      {acta.observaciones[0].observaciones}
+                    </AlertTitle>
+                  </Alert>
                 )}
-              </Dato>
-              <Dato label="Documento generado">
-                {acta.archivo_generado ? 'Word disponible' : 'Sin generar'}
-              </Dato>
-              <Dato label="PDF firmado">
-                {acta.archivo_firmado
-                  ? `Recibido ${formatFechaHora(acta.fecha_firmado)}`
-                  : 'Pendiente'}
-              </Dato>
-              <Dato label="Plantilla">
-                Versión {acta.configuracion.version}
-              </Dato>
-            </section>
 
-            {/* ── Participantes ───────────────────────────────────────── */}
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold text-foreground">
-                Participantes
-              </h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Dato label="Presidencia">{presidencia?.nombre || '—'}</Dato>
-                <Dato label="Secretaría técnica">
-                  {secretaria?.nombre || '—'}
-                </Dato>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <ListaPersonas
-                  titulo="Consejerías electorales"
-                  items={consejerias.map((c) => ({
-                    llave: c.id ?? c.orden ?? c.nombre,
-                    nombre: c.nombre,
-                    sub: c.cargo ?? '',
-                    asistencia: !!c.asistencia,
-                  }))}
-                />
-                <ListaPersonas
-                  titulo="Representaciones de partido"
-                  items={representaciones.map((c) => ({
-                    llave: c.id ?? c.orden ?? c.nombre,
-                    nombre: c.nombre,
-                    sub: c.partido ?? '',
-                    asistencia: !!c.asistencia,
-                  }))}
-                />
-              </div>
-            </section>
-
-            {/* ── Renglones del corte ─────────────────────────────────── */}
-            <section className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Renglones del corte
-                </h3>
-                <Badge variant="secondary" appearance="light" size="sm">
-                  {acta.renglones.length}
-                </Badge>
-              </div>
-              {acta.renglones.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  El acta se generó sin comprobaciones nuevas al corte.
+              {acta.id_acta_sustituida && (
+                <p className="text-xs text-muted-foreground">
+                  Sustituye al acta{' '}
+                  {onVerSustituida ? (
+                    <button
+                      type="button"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      onClick={() => onVerSustituida(acta.id_acta_sustituida!)}
+                    >
+                      #{acta.id_acta_sustituida}
+                    </button>
+                  ) : (
+                    <>#{acta.id_acta_sustituida}</>
+                  )}
+                  , que fue anulada.
                 </p>
-              ) : (
-                <div className="space-y-3">
-                  <TablaRenglones
-                    titulo="Documentación electoral"
-                    renglones={documentacion}
+              )}
+
+              {/* ── Datos ───────────────────────────────────────────────── */}
+              <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {acta.consejo && (
+                  <Dato label="Consejo">
+                    {acta.tipo_consejo === 'D' ? 'Distrital' : 'Municipal'}{' '}
+                    {acta.id_consejo}. {acta.consejo}
+                  </Dato>
+                )}
+                <Dato label="Fecha y hora del acta">
+                  {acta.fecha_acta
+                    ? `${formatFecha(acta.fecha_acta)} ${formatHora(acta.hora_acta)}`
+                    : '—'}
+                </Dato>
+                <Dato label="Ciudad">{acta.ciudad || '—'}</Dato>
+                <Dato label="Lugar">{acta.lugar || '—'}</Dato>
+                <Dato label="Corte de comprobaciones">
+                  {formatFechaHora(acta.fecha_corte)}
+                </Dato>
+                <Dato label="Generó">
+                  {acta.usuario_genero || '—'}
+                  {acta.fecha_generacion && (
+                    <span className="block text-xs text-muted-foreground">
+                      {formatFechaHora(acta.fecha_generacion)}
+                    </span>
+                  )}
+                </Dato>
+                <Dato label="Acta firmada (PDF)">
+                  {acta.archivo_firmado
+                    ? `Recibido ${formatFechaHora(acta.fecha_firmado)}`
+                    : 'Pendiente'}
+                </Dato>
+              </section>
+
+              {/* ── Participantes ───────────────────────────────────────── */}
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Participantes
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Dato label="Presidencia">{presidencia?.nombre || '—'}</Dato>
+                  <Dato label="Secretaría técnica">
+                    {secretaria?.nombre || '—'}
+                  </Dato>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <ListaPersonas
+                    titulo="Consejerías electorales"
+                    items={consejerias.map((c) => ({
+                      llave: c.id ?? c.orden ?? c.nombre,
+                      nombre: c.nombre,
+                      sub: c.cargo ?? '',
+                      asistencia: !!c.asistencia,
+                    }))}
                   />
-                  <TablaRenglones
-                    titulo="Material electoral y útiles"
-                    renglones={material}
+                  <ListaPersonas
+                    titulo="Representaciones de partido"
+                    items={representaciones.map((c) => ({
+                      llave: c.id ?? c.orden ?? c.nombre,
+                      nombre: c.nombre,
+                      sub: c.partido ?? '',
+                      asistencia: !!c.asistencia,
+                      idPartido: c.id_partido ?? null,
+                      imagen: c.imagen ?? null,
+                    }))}
                   />
                 </div>
-              )}
-            </section>
-
-            {/* ── Fotografías ─────────────────────────────────────────── */}
-            {apartados.length > 0 && (
-              <section className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Fotografías
-                </h3>
-                {apartados.map((a) => (
-                  <ActaFotografiasApartado
-                    key={a.clave}
-                    idActa={acta.id}
-                    apartado={a}
-                    fotografias={fotosPorApartado.get(a.clave) ?? []}
-                    readOnly
-                  />
-                ))}
               </section>
-            )}
 
-            {/* ── Historial ───────────────────────────────────────────── */}
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold text-foreground">
-                Historial y observaciones
-              </h3>
-              {acta.observaciones.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Sin movimientos.
-                </p>
-              ) : (
-                <Timeline>
-                  {acta.observaciones.map((o) => (
-                    <HitoObservacion key={o.id} o={o} />
+              {/* ── Renglones del corte ─────────────────────────────────── */}
+              <section className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Renglones del corte
+                  </h3>
+                  <Badge variant="secondary" appearance="light" size="sm">
+                    {acta.renglones.length}
+                  </Badge>
+                </div>
+                {acta.renglones.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    El acta se generó sin comprobaciones nuevas al corte.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <TablaRenglones
+                      titulo="Documentación electoral"
+                      renglones={documentacion}
+                    />
+                    <TablaRenglones
+                      titulo="Material electoral y útiles"
+                      renglones={material}
+                    />
+                  </div>
+                )}
+              </section>
+
+              {/* ── Fotografías ─────────────────────────────────────────── */}
+              {apartados.length > 0 && (
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Fotografías
+                  </h3>
+                  {apartados.map((a) => (
+                    <ActaFotografiasApartado
+                      key={a.clave}
+                      idActa={acta.id}
+                      apartado={a}
+                      fotografias={fotosPorApartado.get(a.clave) ?? []}
+                      readOnly
+                    />
                   ))}
-                </Timeline>
+                </section>
               )}
-            </section>
-          </div>
-        )}
+
+              {/* ── Historial ───────────────────────────────────────────── */}
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Historial y observaciones
+                </h3>
+                {acta.observaciones.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sin movimientos.
+                  </p>
+                ) : (
+                  <Timeline>
+                    {acta.observaciones.map((o) => (
+                      <HitoObservacion key={o.id} o={o} />
+                    ))}
+                  </Timeline>
+                )}
+              </section>
+            </div>
+          )}
+        </div>
 
         <DialogFooter className="flex-wrap gap-2 sm:justify-between">
           <div className="flex flex-wrap gap-2">
             {acta && puedeImprimir && acta.archivo_generado && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => verDocumento.mutate(acta.id)}
-                disabled={verDocumento.isPending}
-              >
-                {verDocumento.isPending ? (
-                  <Loader2
-                    className="h-4 w-4 animate-spin"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <FileText className="h-4 w-4" aria-hidden="true" />
-                )}
-                Word generado
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => verDocumento.mutate(acta.id)}
+                    disabled={verDocumento.isPending}
+                  >
+                    {verDocumento.isPending ? (
+                      <Loader2
+                        className="h-4 w-4 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <FileText className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    Word generado
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Abre el acta en Word tal como la armó el sistema, para
+                  imprimirla, recabar las firmas y escanearla.
+                </TooltipContent>
+              </Tooltip>
             )}
             {acta && puedeImprimir && acta.archivo_firmado && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => verFirmada.mutate(acta.id)}
-                disabled={verFirmada.isPending}
-              >
-                {verFirmada.isPending ? (
-                  <Loader2
-                    className="h-4 w-4 animate-spin"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <FileCheck2 className="h-4 w-4" aria-hidden="true" />
-                )}
-                PDF firmado
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => verFirmada.mutate(acta.id)}
+                    disabled={verFirmada.isPending}
+                  >
+                    {verFirmada.isPending ? (
+                      <Loader2
+                        className="h-4 w-4 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <FileCheck2 className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    Acta firmada (PDF)
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Abre el PDF firmado que subió el consejo; es el documento
+                  definitivo que revisa oficina central.
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -405,6 +459,39 @@ export function ActaDetalleDialog({
                   : 'Subir PDF firmado'}
               </Button>
             )}
+            {acta && muestraAnular && (
+              <Button
+                type="button"
+                variant="outline"
+                className="text-destructive"
+                onClick={() => onRevisar!(acta, 'anular')}
+              >
+                <Ban className="h-4 w-4" aria-hidden="true" />
+                Anular
+              </Button>
+            )}
+            {acta && muestraRevisar && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onRevisar!(acta, 'observar')}
+                >
+                  <MessageSquareWarning
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  />
+                  Enviar observaciones
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => onRevisar!(acta, 'aceptar')}
+                >
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  Aceptar
+                </Button>
+              </>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -431,6 +518,9 @@ function ListaPersonas({
     nombre: string;
     sub: string;
     asistencia: boolean;
+    /** Solo representaciones: partido y su logotipo. */
+    idPartido?: number | null;
+    imagen?: string | null;
   }[];
 }) {
   const presentes = items.filter((i) => i.asistencia).length;
@@ -448,6 +538,13 @@ function ListaPersonas({
         <ul className="divide-y divide-border max-h-56 overflow-y-auto">
           {items.map((i) => (
             <li key={i.llave} className="flex items-center gap-3 px-4 py-2">
+              {(i.idPartido != null || i.imagen) && (
+                <PartidoLogo
+                  imagen={i.imagen}
+                  idPartido={i.idPartido}
+                  nombre={i.sub}
+                />
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground leading-tight">
                   {i.nombre}
