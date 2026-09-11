@@ -113,7 +113,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       disabled: false,
       permission: 'mecanismos.ver',
   },
-  { heading: 'Documentación y Material', permission: ['documentacionymaterial.articulos.ver', 'documentacionymaterial.comprobaciones.ver'] },
+  { heading: 'Documentación y Material', permission: ['documentacionymaterial.articulos.ver', 'documentacionymaterial.comprobaciones.ver', 'documentacionymaterial.actacircunstanciada.ver'] },
   {
       title: 'Artículos',
       icon: Package,
@@ -129,6 +129,14 @@ export const MENU_SIDEBAR: MenuConfig = [
       badge: 'New',
       disabled: false,
       permission: 'documentacionymaterial.comprobaciones.ver',
+  },
+  {
+      title: 'Actas Circunstanciadas',
+      icon: FilePenLine,
+      path: '/documentacion-material/actas',
+      badge: 'New',
+      disabled: false,
+      permission: 'documentacionymaterial.actacircunstanciada.ver',
   },
   { heading: 'Cómputos Electorales', permission: ['computos.monitoreo.ver','computos.resultados.ver', 'computos.voto-extranjero.ver','computos.resultados.gubernatura'] },
   {

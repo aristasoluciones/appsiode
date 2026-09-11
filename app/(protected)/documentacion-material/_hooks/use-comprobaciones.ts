@@ -1,15 +1,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  IComprobacionCapturaPayload,
+  IComprobacionCapturaResultado,
+  IComprobacionesData,
+  IComprobacionHistorial,
+} from '@/types/material-electoral';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { MATERIAL_ELECTORAL_KEYS } from '@/lib/query-keys';
-import { toastSuccess } from '@/lib/toast';
-import type {
-  IComprobacionCapturaPayload,
-  IComprobacionHistorial,
-  IComprobacionesData,
-} from '@/types/material-electoral';
+import { toastInfo, toastSuccess } from '@/lib/toast';
 
 /** Lista vacía para que la pantalla siempre reciba la misma forma de datos. */
 const SIN_DATOS: IComprobacionesData = {
@@ -100,13 +101,13 @@ export function useCapturarComprobacion() {
 
   return useMutation({
     mutationFn: async (payload: IComprobacionCapturaPayload) => {
-      const { data } = await apiClient.post(
+      const { data } = await apiClient.post<IComprobacionCapturaResultado>(
         API_ENDPOINTS.MATERIAL_ELECTORAL.COMPROBACION_CAPTURA,
         payload,
       );
       return data;
     },
-    onSuccess: (_data, payload) => {
+    onSuccess: (data, payload) => {
       queryClient.invalidateQueries({
         queryKey: MATERIAL_ELECTORAL_KEYS.comprobaciones(),
       });
@@ -118,6 +119,27 @@ export function useCapturarComprobacion() {
         ),
       });
       toastSuccess('Comprobación física guardada con éxito.');
+      sugerirActa(data);
     },
   });
+}
+
+/** Momento del último aviso de acta pendiente, para no repetirlo en cada captura. */
+let ultimoAvisoActa = 0;
+const ESPERA_AVISO_ACTA = 5 * 60_000;
+
+/**
+ * Aviso no bloqueante tras la captura: si el consejo tiene comprobaciones que
+ * ningún acta aceptada ampara, conviene revisar si toca generar una. Se avisa
+ * como mucho cada cinco minutos para no estorbar una captura larga.
+ */
+function sugerirActa(data: IComprobacionCapturaResultado | undefined) {
+  if (!data?.acta_pendiente) return;
+  const ahora = Date.now();
+  if (ahora - ultimoAvisoActa < ESPERA_AVISO_ACTA) return;
+  ultimoAvisoActa = ahora;
+  const n = data.acta_pendientes;
+  toastInfo(
+    `Tienes ${n} ${n === 1 ? 'renglón comprobado' : 'renglones comprobados'} sin acta circunstanciada aceptada. Cuando termines la comprobación, revisa en «Actas Circunstanciadas» si conviene generar una.`,
+  );
 }

@@ -65,4 +65,15 @@ export const MATERIAL_ELECTORAL_KEYS = {
   articuloImagenes: () => ['material-electoral', 'articulo-imagen'] as const,
   articuloImagen: (id: KeyId, version: number) =>
     ['material-electoral', 'articulo-imagen', id, version] as const,
+
+  /** Prefijo de las actas circunstanciadas, para refrescarlas tras cualquier escritura. */
+  actas: () => ['material-electoral', 'actas'] as const,
+  /** Actas de un consejo con su borrador, bloqueo y pendientes. */
+  actasConsejo: (tipoConsejo: string, idConsejo: KeyId) =>
+    ['material-electoral', 'actas', 'consejo', tipoConsejo, idConsejo] as const,
+  /** Resumen de oficina central por tipo de consejo. */
+  actasResumen: (tipoConsejo: string) =>
+    ['material-electoral', 'actas', 'resumen', tipoConsejo] as const,
+  /** Detalle de un acta. */
+  acta: (id: KeyId) => ['material-electoral', 'actas', 'detalle', id] as const,
 } as const;

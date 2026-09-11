@@ -250,6 +250,19 @@ export interface IComprobacionCapturaPayload {
   observaciones: string;
 }
 
+/**
+ * Lo que devuelve la captura: el renglón actualizado y, además, si el consejo
+ * tiene comprobaciones que ningún acta aceptada ampara, para sugerir un acta.
+ */
+export interface IComprobacionCapturaResultado {
+  id: number;
+  cantidad_fisica: number | null;
+  diferencia: number | null;
+  estatus: TEstatusComprobacion;
+  acta_pendiente: boolean;
+  acta_pendientes: number;
+}
+
 /** Naturaleza de cada hito de la línea de tiempo del renglón. */
 export type TComprobacionEventoTipo =
   | 'CARGA_INICIAL'
@@ -499,4 +512,261 @@ export interface IArticulosFotografiasResultado {
   sin_articulo: number;
   invalidos: number;
   articulos_sin_fotografia: number;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Actas circunstanciadas                                                     */
+/* Contrato de `/material-electoral/actas` — snake_case del API.              */
+/* -------------------------------------------------------------------------- */
+
+/** Límites que impone el API a los archivos del acta; se avisan también en pantalla. */
+export const ACTA_LIMITES = {
+  /** Fotografía de cada apartado. */
+  foto: {
+    bytes: 5 * 1024 * 1024,
+    tipos: ['image/jpeg', 'image/png', 'image/webp'] as const,
+    /** Máximo por apartado. */
+    porApartado: 50,
+  },
+  /** PDF firmado. */
+  firmada: { bytes: 20 * 1024 * 1024, tipos: ['application/pdf'] as const },
+  ciudad: { max: 150 },
+  lugar: { max: 500 },
+  motivo: { max: 2000 },
+} as const;
+
+/**
+ * Ciclo del acta, vigilado desde la base: Borrador → Generada → En revisión ⇄
+ * Requerido → Aceptada → Anulada; Descartada desde cualquiera no aceptada.
+ */
+export type TEstatusActa =
+  | 'BORRADOR'
+  | 'GENERADA'
+  | 'EN_REVISION'
+  | 'REQUERIDO'
+  | 'ACEPTADA'
+  | 'ANULADA'
+  | 'DESCARTADA';
+
+/** Persona que interviene en el acta, calcada de las aperturas de bodega. */
+export type TTipoParticipanteActa =
+  | 'PRESIDENCIA'
+  | 'SECRETARIA'
+  | 'CONSEJERIA'
+  | 'REPRESENTACION';
+
+/** Participante tal como viaja al generar y como lo devuelve el detalle. */
+export interface IActaParticipante {
+  id?: number;
+  tipo: TTipoParticipanteActa;
+  orden?: number;
+  nombre: string;
+  cargo?: string | null;
+  id_partido?: number | null;
+  partido?: string | null;
+  asistencia: boolean;
+}
+
+/** Apartado de fotografías de la configuración vigente, con el avance del acta. */
+export interface IActaApartado {
+  clave: string;
+  titulo: string;
+  descripcion: string | null;
+  minimo: number;
+  orden: number;
+  activo: boolean;
+  /** Fotografías que ya tiene el acta en este apartado. */
+  fotografias: number;
+  /** Cumple el mínimo. */
+  completo: boolean;
+}
+
+/** Fotografía del acta con sus URL firmadas (2 horas). */
+export interface IActaFotografia {
+  id: number;
+  apartado: string;
+  archivo: string;
+  orden: number;
+  fecha_registro?: string;
+  imagen_url: string | null;
+  miniatura_url: string | null;
+}
+
+/** Renglón congelado al corte: comprobación que entró en el acta. */
+export interface IActaRenglon {
+  id: number;
+  id_documento: number;
+  id_articulo: number;
+  codigo: string;
+  id_eleccion: string;
+  desc_eleccion: string | null;
+  tipo_doc: string;
+  desc_tipo: string | null;
+  desc_documento: string;
+  version: string | null;
+  numero_paquetes_cajas: number | null;
+  cantidad: number | null;
+  cantidad_fisica: number | null;
+  diferencia: number | null;
+  fecha_comprobacion: string | null;
+}
+
+/** Movimiento del historial del acta; las observaciones solo se agregan. */
+export interface IActaObservacion {
+  id: number;
+  estatus_anterior: TEstatusActa | null;
+  estatus_nuevo: TEstatusActa;
+  estatus_nuevo_desc: string;
+  observaciones: string | null;
+  id_usuario: number | null;
+  usuario: string | null;
+  fecha_registro: string;
+}
+
+/** Acta en el listado del consejo, de la más reciente a la más antigua. */
+export interface IActaResumen {
+  id: number;
+  estatus: TEstatusActa;
+  estatus_desc: string;
+  fecha_acta: string | null;
+  hora_acta: string | null;
+  ciudad: string | null;
+  lugar: string | null;
+  fecha_corte: string | null;
+  id_usuario_genero: number | null;
+  usuario_genero: string | null;
+  fecha_generacion: string | null;
+  archivo_generado: string | null;
+  archivo_firmado: string | null;
+  fecha_firmado: string | null;
+  id_acta_sustituida: number | null;
+  motivo_cierre: string | null;
+  fecha_cierre: string | null;
+  created_at: string;
+  updated_at: string | null;
+  renglones: number;
+  fotografias: number;
+  /** Veces que oficina central la regresó con observaciones. */
+  ciclos_revision: number;
+}
+
+/** Detalle completo del acta (también lo devuelven el borrador y cada escritura). */
+export interface IActa {
+  id: number;
+  id_proceso: number;
+  id_consejo: number;
+  tipo_consejo: 'D' | 'M';
+  consejo: string | null;
+  estatus: TEstatusActa;
+  estatus_desc: string;
+  editable: boolean;
+  puede_firmar: boolean;
+  puede_descartar: boolean;
+  puede_revisar: boolean;
+  puede_anular: boolean;
+  fecha_acta: string | null;
+  hora_acta: string | null;
+  ciudad: string | null;
+  lugar: string | null;
+  fecha_corte: string | null;
+  id_usuario_genero: number | null;
+  usuario_genero: string | null;
+  fecha_generacion: string | null;
+  archivo_generado: string | null;
+  archivo_firmado: string | null;
+  fecha_firmado: string | null;
+  id_acta_sustituida: number | null;
+  motivo_cierre: string | null;
+  id_usuario_cierre: number | null;
+  usuario_cierre: string | null;
+  fecha_cierre: string | null;
+  created_at: string;
+  updated_at: string | null;
+  configuracion: {
+    id: number;
+    version: number;
+    plantilla: string | null;
+    plantilla_version: number | null;
+    apartados: IActaApartado[];
+  };
+  participantes: IActaParticipante[];
+  renglones: IActaRenglon[];
+  observaciones: IActaObservacion[];
+  fotografias: IActaFotografia[];
+}
+
+/** Respuesta del listado de actas de un consejo. */
+export interface IActasConsejo {
+  consejo: { id_consejo: number; tipo_consejo: 'D' | 'M'; consejo: string };
+  actas: IActaResumen[];
+  /** Borrador abierto del consejo, si lo hay. */
+  borrador: { id: number; created_at: string; fotografias: number } | null;
+  /** Motivo por el que no se puede generar; null cuando sí se puede. */
+  bloqueo: string | null;
+  configuracion_lista: boolean;
+  /** Renglones comprobados que ningún acta aceptada ampara. */
+  pendientes: number;
+}
+
+/** Datos del generador: sirven para la vista previa, generar y regenerar. */
+export interface IActaGenerarPayload {
+  id_acta?: number;
+  /** yyyy-MM-dd */
+  fecha_acta: string;
+  /** HH:mm */
+  hora_acta: string;
+  ciudad: string;
+  lugar: string;
+  participantes: IActaParticipante[];
+  /** Confirma generar aunque al corte no haya comprobaciones nuevas. */
+  confirmar_sin_renglones?: boolean;
+}
+
+/** Respuesta al subir una fotografía: la foto y el avance por apartado. */
+export interface IActaFotografiaSubida extends IActaFotografia {
+  id_acta: number;
+  apartados: IActaApartado[];
+}
+
+/** Respuesta al quitar una fotografía. */
+export interface IActaFotografiaEliminada {
+  id: number;
+  id_acta: number;
+  apartado: string;
+  archivo: string;
+  apartados: IActaApartado[];
+}
+
+/** Consejo en el resumen de oficina central; vienen todos, aunque en ceros. */
+export interface IActasResumenConsejo {
+  tipo_consejo: 'D' | 'M';
+  id_consejo: number;
+  nombre_consejo: string;
+  total: number;
+  generadas: number;
+  en_revision: number;
+  requeridas: number;
+  aceptadas: number;
+  anuladas: number;
+  descartadas: number;
+  con_borrador: boolean;
+  ultima_generacion: string | null;
+}
+
+/** Resumen de actas por tipo de consejo que consulta la oficina central. */
+export interface IActasResumen {
+  tipo_consejo: 'D' | 'M';
+  configuracion_lista: boolean;
+  totales: {
+    consejos: number;
+    con_actas: number;
+    total: number;
+    generadas: number;
+    en_revision: number;
+    requeridas: number;
+    aceptadas: number;
+    anuladas: number;
+    descartadas: number;
+  };
+  consejos: IActasResumenConsejo[];
 }

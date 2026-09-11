@@ -81,4 +81,45 @@ export const MATERIAL_ELECTORAL = {
     '/material-electoral/articulos/fotografias/validar',
   /** Aplica las fotografías del zip a los artículos que coinciden por código. */
   ARTICULOS_FOTOGRAFIAS_IMPORTAR: '/material-electoral/articulos/fotografias',
+
+  /* Actas circunstanciadas: el consejo genera y firma la suya; oficina central la revisa. */
+
+  /** Actas del consejo (sin el borrador), más borrador, bloqueo, configuración y pendientes. */
+  ACTAS: (idConsejo: Id, tipoConsejo: 'D' | 'M') =>
+    `/material-electoral/actas${qs({ idConsejo, tipoConsejo })}`,
+  /** Resumen por consejo del tipo; exclusivo de oficina central. */
+  ACTAS_RESUMEN: (tipoConsejo: 'D' | 'M') =>
+    `/material-electoral/actas/resumen${qs({ tipoConsejo })}`,
+  /** Detalle del acta; también es la ruta de regenerar (PUT). */
+  ACTA: (id: Id) => `/material-electoral/actas/${id}`,
+  /** Crea o retoma el borrador del consejo (POST). */
+  ACTA_BORRADOR: '/material-electoral/actas/borrador',
+  /** Elimina el borrador con sus fotografías (DELETE). */
+  ACTA_BORRADOR_ELIMINAR: (id: Id) =>
+    `/material-electoral/actas/${id}/borrador`,
+  /** Word con los datos capturados y el corte al momento; no guarda nada (POST). */
+  ACTA_VISTA_PREVIA: '/material-electoral/actas/vista-previa',
+  /** Genera el acta desde el borrador (POST). */
+  ACTA_GENERAR: '/material-electoral/actas',
+  /** URL firmada del Word generado. */
+  ACTA_DOCUMENTO: (id: Id) => `/material-electoral/actas/${id}/documento`,
+  /** GET devuelve la URL firmada del PDF; PUT lo sube (form `archivo`). */
+  ACTA_FIRMADA: (id: Id) => `/material-electoral/actas/${id}/firmada`,
+  /** Sube una fotografía a un apartado (form `archivo` + `apartado`). */
+  ACTA_FOTOGRAFIAS: (id: Id) => `/material-electoral/actas/${id}/fotografias`,
+  /** Quita una fotografía del acta (DELETE). */
+  ACTA_FOTOGRAFIA: (id: Id, idFotografia: Id) =>
+    `/material-electoral/actas/${id}/fotografias/${idFotografia}`,
+  /** Orden nuevo de las fotografías de un apartado (PUT). */
+  ACTA_FOTOGRAFIAS_ORDEN: (id: Id) =>
+    `/material-electoral/actas/${id}/fotografias/orden`,
+  /** Oficina central: observaciones obligatorias; el acta pasa a Requerido. */
+  ACTA_OBSERVACIONES: (id: Id) =>
+    `/material-electoral/actas/${id}/observaciones`,
+  /** Oficina central: acepta el acta; exige el PDF firmado. */
+  ACTA_ACEPTAR: (id: Id) => `/material-electoral/actas/${id}/aceptar`,
+  /** Oficina central: anula un acta aceptada con motivo. */
+  ACTA_ANULAR: (id: Id) => `/material-electoral/actas/${id}/anular`,
+  /** Consejo: descarta su acta con motivo mientras no esté aceptada. */
+  ACTA_DESCARTAR: (id: Id) => `/material-electoral/actas/${id}/descartar`,
 } as const;
