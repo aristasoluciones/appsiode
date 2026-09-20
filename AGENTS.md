@@ -19,6 +19,7 @@ Arquitectura separada en dos repos:
 - **Autenticación:** cookies HttpOnly emitidas por el API (`AccessToken`, `RefreshToken`) + cookie CSRF. `middleware.ts` protege las rutas leyendo y verificando la expiración del JWT; el login/logout/refresh/perfil se llaman directo al API .NET desde el navegador con `authClient` (`lib/api/axios-auth.ts`); el API emite y limpia las cookies vía Set-Cookie y debe tener CORS con credenciales para el origen del frontend. El contexto de usuario y permisos vive en `providers/auth-provider.tsx`.
 - **Configuración:** `.env` local (plantilla en `.env.example`); `.env.staging` para `npm run build:staging`. Variables clave: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_BASE_PATH`.
 - **Comandos:** `npm run dev` · `npm run build` · `npm run lint` · `npm run format` (Prettier con ordenado de imports y clases Tailwind).
+- **Especificación de módulos:** cada módulo nuevo tiene su propuesta en `apisiode/docs/<MODULO>_PROPUESTA.md` (sección 5 permisos, 6.2 contrato de endpoints, 7 frontend: archivos, hooks, pantallas por tipo de usuario, diálogos y patrones). Se lee completa antes de construir; la tarjeta del tablero resume, no sustituye.
 - **Bóveda Obsidian del proyecto:** `h:\Mi unidad\Bovedas Obsidian\developer\01 Proyectos IEPC\Sistema Integral de Órganos Desconcentrados\` — documentación funcional, tablero y bitácora. Accesible por ruta absoluta desde cualquier terminal. Archivos clave: `📋 SIODE.md` (hub) y `Tablero SIODE.md` (Kanban).
 
 ## Estructura
@@ -48,8 +49,40 @@ siode/
 - **Errores en pantalla:** el cliente de queries ya muestra un toast con el mensaje del API ante cualquier fallo. Si una pantalla muestra el error en su propia alerta, declara `meta: { silenciarToast: true }` en la query o mutación para no duplicar el aviso.
 - **Tipos:** interfaces con prefijo `I` (`IBodega`) y tipos con `T` (`TComponenteFoto`) en `types/<dominio>.ts`; los payloads llevan sufijo `Payload`. Nada de `any` en las respuestas del API.
 - **Componentes:** `'use client'` solo donde hace falta interactividad; las páginas (`page.tsx`) se mantienen como server components que montan el cliente del módulo.
-- **Archivos y nombres:** archivos en `kebab-case.tsx`, componentes en `PascalCase`, hooks `useAlgo`. Formularios con react-hook-form + esquema Zod.
+- **Archivos y nombres:** archivos en `kebab-case.tsx`, componentes en `PascalCase`, hooks `useAlgo`. Formularios con react-hook-form + esquema Zod (ver «Buenas prácticas de React y Next.js»).
 - **UI:** reutiliza los componentes de `components/ui/` (Metronic) antes de crear uno nuevo; textos de interfaz en español.
+
+### Buenas prácticas de React y Next.js
+
+Se aplican cuando el código las pide: **no se crea una abstracción, un hook o un `useMemo` por si acaso**. Aplican a todo lo nuevo; lo ya construido no se refactoriza salvo que se toque.
+
+**Componentes**
+
+- Un componente hace una cosa; tope orientativo de **~300 líneas**. Al rebasarlo se parte por responsabilidad (tabla, filtros, diálogo, formulario), no por trozos del JSX.
+- La lógica que no es visual (cálculos derivados, normalizaciones, formato) va a un hook o a `_lib/` del módulo; el componente conserva el estado de interfaz y el JSX.
+- El estado derivado **no se guarda en `useState`**: se calcula en el render, con `useMemo` solo si el cálculo es pesado. `useEffect` solo para sincronizar con algo externo (DOM, suscripciones); nunca para «reaccionar» a datos que ya trae una query.
+- `useCallback` y `memo` solo con una razón medible (lista larga, hijo costoso); por omisión no se usan.
+- Props explícitas y tipadas; sin props de bolsa (`data: any`, `config: Record<string, unknown>`). A partir de ~7 props se agrupan en un objeto tipado.
+- Un formulario = un esquema **Zod** + un `useForm` con `zodResolver`, con los mismos límites que la API. Zod es el estándar para todo lo nuevo; los formularios que aún usan yup (bodegas, roles, sesiones, usuarios) se migran solo cuando se modifiquen.
+- Los diálogos reciben `open`, `onOpenChange` y la entidad que editan; no leen estado global.
+
+**Next.js (App Router)**
+
+- `error.tsx` y `loading.tsx` por módulo, reutilizando la alerta y los esqueletos de carga existentes; `metadata` en cada `page.tsx`.
+- Navegación con `Link` y `useRouter`; nada de `window.location`. Imágenes propias del sistema con `next/image`.
+- Route handlers en `app/api/` solo cuando el navegador no puede llamar al API directo (proxys que ya existen); no se agregan por comodidad.
+- Módulos pesados (Excel, gráficas, PDF) con `dynamic()` para no cargarlos en la primera pintura.
+
+**Rendimiento y accesibilidad, lo mínimo**
+
+- Listas de más de ~200 filas con paginación o virtualización; nunca render completo de miles de filas.
+- Todo control con texto visible o `aria-label`; foco visible; diálogos con título; los estatus se comunican con texto y color, nunca solo con color.
+
+**Calidad**
+
+- Textos de interfaz que se repiten en más de un componente del módulo van a `_lib/textos.ts`.
+- Sin `console.log` en código entregado; `eslint-disable` solo con comentario del porqué.
+- Comentarios solo para el porqué de una decisión no evidente; nunca narran el JSX.
 
 ## Sistemas legacy (fuente para recuperar lógica)
 
@@ -92,7 +125,7 @@ SIODE reescribe dos sistemas anteriores que siguen siendo la referencia funciona
 
 Edita `Tablero SIODE.md` (ruta: `h:\Mi unidad\Bovedas Obsidian\developer\01 Proyectos IEPC\Sistema Integral de Órganos Desconcentrados\Tablero SIODE.md`). **Corta la línea completa** de su sección actual (`## Backlog`, `## Listo para trabajar`, `## En curso` o `## En revisión`) y **pégala dentro de `## Hecho`**, añadiendo al final `✅ YYYY-MM-DD` y el detalle del cambio en el comentario oculto `%%d:…%%` (una viñeta por `<br>`). La tarjeta debe quedar **únicamente** en `## Hecho`. Si el trabajo no tenía tarjeta, créala directamente en `## Hecho`.
 
-Etiquetas de la tarjeta, en este orden: **ámbito `#frontend`** (el de este repo; usa `#general` si el cambio abarca backend y frontend) + **módulo** (`#sesiones`, `#bodegas`, `#documentacion`, `#recoleccion`, `#computos`, `#pmdc`, o `#general` si es transversal, como infraestructura o autenticación).
+Etiquetas de la tarjeta, en este orden: **ámbito `#frontend`** (el de este repo; usa `#general` si el cambio abarca backend y frontend) + **módulo** (`#sesiones`, `#bodegas`, `#documentacion`, `#mecanismos`, `#computos`, `#pmdc`, o `#general` si es transversal, como infraestructura o autenticación).
 
 ```
 - [x] #frontend #bodegas Descripción 🛫 2026-08-12 📅 2026-08-12 🔼 ✅ 2026-08-12 %%d:detalle%%
