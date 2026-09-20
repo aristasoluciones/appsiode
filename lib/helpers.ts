@@ -72,7 +72,11 @@ export function getFirstBackendError(error: unknown): string | null {
   if (data.errors && typeof data.errors === 'object') {
     for (const key of Object.keys(data.errors)) {
       const msgs = data.errors[key];
-      if (Array.isArray(msgs) && msgs.length > 0 && typeof msgs[0] === 'string') {
+      if (
+        Array.isArray(msgs) &&
+        msgs.length > 0 &&
+        typeof msgs[0] === 'string'
+      ) {
         return msgs[0];
       }
       if (typeof msgs === 'string' && msgs.trim() !== '') {
@@ -167,7 +171,10 @@ export function formatDateTime(input: Date | string | number): string {
  * ('YYYY-MM-DD'). Para objetos Date, usa los métodos locales (que ya están en
  * la zona horaria del usuario y no presentan el desfase).
  */
-export function formatDateOnly(input: Date | string | number | null | undefined, locale: string = 'es-MX'): string {
+export function formatDateOnly(
+  input: Date | string | number | null | undefined,
+  locale: string = 'es-MX',
+): string {
   if (input == null) return '';
   if (input instanceof Date) {
     return input.toLocaleDateString(locale);
@@ -179,7 +186,11 @@ export function formatDateOnly(input: Date | string | number | null | undefined,
   if (match) {
     const [, y, m, d] = match;
     const date = new Date(Number(y), Number(m) - 1, Number(d));
-    return date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+    return date.toLocaleDateString(locale, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   }
   // Fallback: intentar con Date (puede tener desfase, pero es la mejor opción)
   const date = new Date(str);
@@ -206,7 +217,9 @@ export function formatTimeOnly(input: string | null | undefined): string {
  * Devuelve la porción 'YYYY-MM-DD' de una fecha ISO sin aplicar conversión de zona
  * horaria. Útil para pasar a inputs de tipo 'date' o a APIs que esperan solo fecha.
  */
-export function toIsoDateOnly(input: Date | string | number | null | undefined): string {
+export function toIsoDateOnly(
+  input: Date | string | number | null | undefined,
+): string {
   if (input == null) return '';
   if (input instanceof Date) {
     const y = input.getFullYear();
@@ -222,4 +235,14 @@ export function toIsoDateOnly(input: Date | string | number | null | undefined):
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+const MONEDA_MXN = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+});
+
+/** Importe en pesos mexicanos; nulo o indefinido se muestra como guion. */
+export function formatMoneda(valor: number | null | undefined): string {
+  return valor == null ? '—' : MONEDA_MXN.format(valor);
 }

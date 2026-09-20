@@ -70,3 +70,30 @@ export function nombreDeRespuesta(
   const simple = /filename="?([^";]+)"?/i.exec(disposition);
   return simple ? simple[1] : respaldo;
 }
+
+/** Peso de un archivo en B, KB o MB, para avisos en pantalla. */
+export function pesoLegible(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Revisa extensión y peso antes de enviar un archivo; devuelve el mensaje
+ * para el usuario o `null` si pasa. La validación autoritativa es del API.
+ */
+export function validarArchivo(
+  archivo: File,
+  limites: { extensiones: readonly string[]; bytes: number },
+): string | null {
+  const extension = archivo.name
+    .slice(archivo.name.lastIndexOf('.'))
+    .toLowerCase();
+  if (!limites.extensiones.includes(extension)) {
+    return `El archivo debe ser ${limites.extensiones.join(' o ')}.`;
+  }
+  if (archivo.size > limites.bytes) {
+    return `El archivo pesa ${pesoLegible(archivo.size)} y el máximo permitido es ${pesoLegible(limites.bytes)}.`;
+  }
+  return null;
+}

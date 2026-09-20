@@ -138,6 +138,9 @@ export interface IMecanismoLista extends IMecanismoCedulaBase {
   total_casillas: number;
   /** Casillas del consejo que consulta dentro de la ruta compartida; 0 para oficina central. */
   casillas_propias: number;
+  /** «1234 B1, 1234 C1»: las casillas del consejo que consulta; nulo para oficina central sin consejo. */
+  casillas_propias_texto: string | null;
+  secciones_propias: string | null;
   municipios: string | null;
   consejos_texto: string | null;
   total_consejos: number;
@@ -198,6 +201,8 @@ export interface IMecanismo extends IMecanismoCedulaBase {
   total_casillas: number;
   casillas: IMecanismoCasilla[];
   consejos: IMecanismoConsejo[];
+  /** Cambios del mecanismo y de los informes de sus consejos, del más antiguo al más reciente. */
+  historial: IMecanismoHistorial[];
 }
 
 /** Renglón del seguimiento de oficina central: un consejo del tipo, aunque vaya en ceros. */
@@ -534,6 +539,9 @@ export interface ICedulaConsejo extends IMecanismoCedulaBase {
   casillas_texto: string | null;
   total_casillas: number;
   casillas_propias: number;
+  /** «1234 B1, 1234 C1»: las casillas del consejo dentro de la ruta. */
+  casillas_propias_texto: string | null;
+  secciones_propias: string | null;
   tiene_propuesta: boolean;
   fecha_propuesta: string | null;
   tiene_aprobada: boolean;
@@ -592,6 +600,9 @@ export interface ICedulaBandeja extends IMecanismoCedulaBase {
   tipo_desc: string;
   numero: number;
   revisa_mecanismo: boolean;
+  casillas_texto: string | null;
+  /** Casillas del consejo del renglón dentro de la ruta, en texto. */
+  casillas_propias_texto: string | null;
   tiene_propuesta: boolean;
   fecha_propuesta: string | null;
   tiene_aprobada: boolean;
@@ -636,6 +647,12 @@ export interface IMecanismoHistorial {
   fecha: string;
   id_usuario: number | null;
   usuario: string;
+  /** Solo en el detalle del mecanismo: MECANISMO o INFORME (cambio de un consejo). */
+  entidad?: 'MECANISMO' | 'INFORME';
+  /** MECANISMO: id del mecanismo; INFORME: id de la revisión del consejo. */
+  id_entidad?: number;
+  tipo_consejo?: TTipoConsejoChar | null;
+  id_consejo?: number | null;
 }
 
 /** Detalle de la cédula: el mecanismo, las revisiones (todas o la propia) y el historial. */
