@@ -1,9 +1,12 @@
 'use client';
 
-import { JSX, useCallback } from 'react';
+import { JSX, useCallback, useMemo } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { MENU_SIDEBAR } from '@/config/layout-1.config';
 import { MenuConfig, MenuItem } from '@/config/types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/providers/auth-provider';
 import {
   AccordionMenu,
   AccordionMenuClassNames,
@@ -16,19 +19,38 @@ import {
 } from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { useAuth } from '@/providers/auth-provider';
 
 export function SidebarMenu() {
   const pathname = usePathname();
   const { hasPermission } = useAuth();
 
-  // Memoize matchPath to prevent unnecessary re-renders
+  // Rutas del menú que cubren la actual; el ítem activo es el de la ruta más
+  // larga, para que «/mecanismos» no se marque estando en «/mecanismos/cedulas».
+  const rutaActiva = useMemo(() => {
+    const cubre = (path: string) =>
+      path === pathname || pathname.startsWith(`${path}/`);
+    let mejor = '';
+    const recorrer = (items: MenuConfig) => {
+      for (const item of items) {
+        if (
+          item.path &&
+          item.path !== '/layout-1' &&
+          item.path.length > 1 &&
+          cubre(item.path) &&
+          item.path.length > mejor.length
+        ) {
+          mejor = item.path;
+        }
+        if (item.children) recorrer(item.children);
+      }
+    };
+    recorrer(MENU_SIDEBAR);
+    return mejor;
+  }, [pathname]);
+
   const matchPath = useCallback(
-    (path: string): boolean =>
-      path === pathname || (path.length > 1 && pathname.startsWith(path) && path !== '/layout-1'),
-    [pathname],
+    (path: string): boolean => path === rutaActiva,
+    [rutaActiva],
   );
 
   // Global classNames for consistent styling
@@ -207,7 +229,12 @@ export function SidebarMenu() {
       >
         <span data-slot="accordion-menu-title">{item.title}</span>
         {item.disabled && (
-          <Badge variant="secondary" appearance="outline" size="lg" className="ms-auto me-[-10px]">
+          <Badge
+            variant="secondary"
+            appearance="outline"
+            size="lg"
+            className="ms-auto me-[-10px]"
+          >
             Soon
           </Badge>
         )}

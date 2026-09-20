@@ -6,7 +6,6 @@ import type {
   IEstudioAcusarPayload,
   IEstudioConsejo,
   IEstudioProponerPayload,
-  IEstudioPropuesta,
   IEstudiosAvance,
   IMotivoPayload,
   TTipoConsejoChar,
@@ -120,14 +119,14 @@ export function useProponerEstudio() {
 
   return useMutation({
     mutationFn: async ({ id_df, archivo }: IEstudioProponerPayload) => {
-      const { data } = await apiClient.post<IEstudioPropuesta>(
+      const { data } = await apiClient.post<IEstudio>(
         API_ENDPOINTS.MECANISMOS.ESTUDIO_PROPONER,
         armarFormData(archivo, { id_df }),
         MULTIPART,
       );
       return data;
     },
-    onSuccess: ({ estudio }) => {
+    onSuccess: (estudio) => {
       guardarEstudioEnCache(queryClient, estudio);
       toastSuccess(
         'Estudio propuesto; los consejos del distrito ya pueden acusar.',
@@ -142,14 +141,14 @@ export function useReemplazarPropuestaEstudio() {
 
   return useMutation({
     mutationFn: async ({ id, archivo }: { id: number; archivo: File }) => {
-      const { data } = await apiClient.put<IEstudioPropuesta>(
+      const { data } = await apiClient.put<IEstudio>(
         API_ENDPOINTS.MECANISMOS.ESTUDIO_PROPUESTA(id),
         armarFormData(archivo),
         MULTIPART,
       );
       return data;
     },
-    onSuccess: ({ estudio }) => {
+    onSuccess: (estudio) => {
       guardarEstudioEnCache(queryClient, estudio);
       toastSuccess(
         'Documento reemplazado; los consejos deberán acusar de nuevo.',

@@ -9,7 +9,6 @@ import type {
   ICedulaInformarPayload,
   ICedulaObservacionesPayload,
   ICedulaProponerPayload,
-  ICedulaPropuesta,
   ICedulaReemplazarPayload,
   ICedulasDocumentosResultado,
   ICedulasDocumentosValidacion,
@@ -153,14 +152,14 @@ export function useProponerCedula() {
       costo_ine,
       archivo,
     }: ICedulaProponerPayload) => {
-      const { data } = await apiClient.post<ICedulaPropuesta>(
+      const { data } = await apiClient.post<IMecanismo>(
         API_ENDPOINTS.MECANISMOS.CEDULA_PROPONER,
         armarFormData(archivo, { id_mecanismo, costo_ine }),
         MULTIPART,
       );
       return data;
     },
-    onSuccess: ({ mecanismo }) => {
+    onSuccess: (mecanismo) => {
       invalidarCedulas(queryClient, mecanismo.id);
       toastSuccess('Cédula propuesta; los consejos ya pueden informar.');
     },
@@ -179,14 +178,14 @@ export function useReemplazarPropuestaCedula() {
       id: number;
       payload: ICedulaReemplazarPayload;
     }) => {
-      const { data } = await apiClient.put<ICedulaPropuesta>(
+      const { data } = await apiClient.put<IMecanismo>(
         API_ENDPOINTS.MECANISMOS.CEDULA_PROPUESTA(id),
         armarFormData(payload.archivo, { costo_ine: payload.costo_ine }),
         MULTIPART,
       );
       return data;
     },
-    onSuccess: ({ mecanismo }) => {
+    onSuccess: (mecanismo) => {
       invalidarCedulas(queryClient, mecanismo.id);
       toastSuccess(
         'Propuesta reemplazada; los consejos deberán informar de nuevo.',

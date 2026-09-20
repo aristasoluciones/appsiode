@@ -662,12 +662,6 @@ export interface ICedula {
   historial: IMecanismoHistorial[];
 }
 
-/** Respuesta de proponer o reemplazar: el mecanismo y, si hubo, el PDF que se retiró. */
-export interface ICedulaPropuesta {
-  mecanismo: IMecanismo;
-  archivo_anterior: string | null;
-}
-
 export interface ICedulaProponerPayload {
   id_mecanismo: number;
   costo_ine: number;
@@ -843,12 +837,6 @@ export interface IEstudiosAvanceResumen {
 export interface IEstudiosAvance {
   resumen: IEstudiosAvanceResumen;
   distritos: IEstudioAvanceDistrito[];
-}
-
-/** Respuesta de proponer o reemplazar: el estudio y, si hubo, el PDF que se retiró. */
-export interface IEstudioPropuesta {
-  estudio: IEstudio;
-  archivo_anterior: string | null;
 }
 
 export interface IEstudioProponerPayload {
