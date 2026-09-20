@@ -13,7 +13,7 @@ import type {
 } from '@/types/mecanismos';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { abrirEnPestana, armarFormData, MULTIPART } from '@/lib/archivos';
+import { armarFormData, MULTIPART } from '@/lib/archivos';
 import { getDataAuditoria } from '@/lib/auditoria';
 import { MECANISMOS_KEYS } from '@/lib/query-keys';
 import { toastSuccess } from '@/lib/toast';
@@ -224,8 +224,8 @@ export function useAnularEstudio() {
 
 // ---------------------------------------------------------------- Documentos
 
-/** URL firmada (30 minutos) del PDF propuesto o del aprobado; se abre en otra pestaña. */
-export function useDescargarDocumentoEstudio() {
+/** URL firmada (30 minutos) del PDF propuesto o del aprobado, para el visor en ventana. */
+export function useUrlDocumentoEstudio() {
   return useMutation({
     mutationFn: async ({
       id,
@@ -241,6 +241,5 @@ export function useDescargarDocumentoEstudio() {
       );
       return data;
     },
-    onSuccess: (url) => abrirEnPestana(url),
   });
 }

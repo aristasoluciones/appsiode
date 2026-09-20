@@ -22,7 +22,7 @@ import type {
 } from '@/types/mecanismos';
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { abrirEnPestana, armarFormData, MULTIPART } from '@/lib/archivos';
+import { armarFormData, MULTIPART } from '@/lib/archivos';
 import { getDataAuditoria } from '@/lib/auditoria';
 import { MECANISMOS_KEYS } from '@/lib/query-keys';
 import { toastSuccess } from '@/lib/toast';
@@ -329,8 +329,8 @@ export function useAnularCedula() {
 
 // ---------------------------------------------------------------- Documentos
 
-/** URL firmada (30 minutos) del PDF propuesto o del aprobado; se abre en otra pestaña. */
-export function useDescargarDocumentoCedula() {
+/** URL firmada (30 minutos) del PDF propuesto o del aprobado, para el visor en ventana. */
+export function useUrlDocumentoCedula() {
   return useMutation({
     mutationFn: async ({
       id,
@@ -346,7 +346,6 @@ export function useDescargarDocumentoCedula() {
       );
       return data;
     },
-    onSuccess: (url) => abrirEnPestana(url),
   });
 }
 

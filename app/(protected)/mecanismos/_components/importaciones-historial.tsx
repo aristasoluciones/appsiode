@@ -1,30 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Undo2 } from 'lucide-react';
+import { Undo2 } from 'lucide-react';
 import type { IImportacion, TImportacionTipo } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { getFirstBackendError } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
 import { ErrorState } from '@/components/common/error-state';
 import { EstadoVacio } from '@/components/common/estado-vacio';
 import {
   useImportacionesMecanismos,
   useRevertirImportacionMecanismos,
 } from '../_hooks/use-mecanismos-importaciones';
-import { MECANISMOS_LIMITES } from '../_lib/limites';
+import { MotivoDialog } from './motivo-dialog';
 
 const TIPO_TEXTO: Record<TImportacionTipo, string> = {
   MECANISMOS: 'Archivo del INE',
@@ -148,87 +138,36 @@ function RevertirDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const revertir = useRevertirImportacionMecanismos();
-  const [motivo, setMotivo] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const limpio = motivo.trim();
-  const invalido =
-    limpio.length < MECANISMOS_LIMITES.motivo.min ||
-    limpio.length > MECANISMOS_LIMITES.motivo.max;
-
-  function confirmar() {
-    if (!importacion || invalido) return;
-    setError(null);
-    revertir.mutate(
-      { id: importacion.id, motivo: limpio },
-      {
-        onSuccess: () => {
-          setMotivo('');
-          onOpenChange(false);
-        },
-        onError: (err) =>
-          setError(
-            getFirstBackendError(err) ?? 'No se pudo revertir la importación.',
-          ),
-      },
-    );
-  }
-
   return (
-    <Dialog
+    <MotivoDialog
       open={!!importacion}
-      onOpenChange={(v) => !revertir.isPending && onOpenChange(v)}
-    >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Revertir la importación #{importacion?.id}</DialogTitle>
-          <DialogDescription>
-            Los mecanismos que creó se eliminan y los que actualizó vuelven a su
-            estado anterior. No se puede revertir si alguno ya tiene informe o
-            cédula.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor="revertir-motivo">
-            Motivo <span className="text-destructive">*</span>
-          </Label>
-          <Textarea
-            id="revertir-motivo"
-            rows={3}
-            value={motivo}
-            maxLength={MECANISMOS_LIMITES.motivo.max}
-            onChange={(e) => setMotivo(e.target.value)}
-            placeholder="Al menos 10 caracteres."
-            disabled={revertir.isPending}
-          />
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={revertir.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={confirmar}
-            disabled={invalido || revertir.isPending}
-          >
-            {revertir.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Undo2 className="h-4 w-4" aria-hidden="true" />
-            )}
-            Revertir
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      onOpenChange={(v) => {
+        setError(null);
+        onOpenChange(v);
+      }}
+      titulo={`Revertir la importación #${importacion?.id ?? ''}`}
+      descripcion="Los mecanismos que creó se eliminan y los que actualizó vuelven a su estado anterior. No se puede revertir si alguno ya tiene informe o cédula."
+      accion="Revertir"
+      icono={<Undo2 className="h-4 w-4" aria-hidden="true" />}
+      pendiente={revertir.isPending}
+      error={error}
+      onConfirmar={(motivo) => {
+        if (!importacion) return;
+        setError(null);
+        revertir.mutate(
+          { id: importacion.id, motivo },
+          {
+            onSuccess: () => onOpenChange(false),
+            onError: (err) =>
+              setError(
+                getFirstBackendError(err) ??
+                  'No se pudo revertir la importación.',
+              ),
+          },
+        );
+      }}
+    />
   );
 }

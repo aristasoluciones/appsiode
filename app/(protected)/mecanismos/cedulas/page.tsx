@@ -1,13 +1,12 @@
-import { Metadata } from 'next';
-import { ModuloEnDesarrollo } from '@/components/common/modulo-en-desarrollo';
+import type { Metadata } from 'next';
+import { CedulasClient } from '../_components/cedulas-client';
 
 export const metadata: Metadata = {
-  title: 'Cédulas',
-  description: 'Cédulas de los mecanismos de recolección.',
+  title: 'Cédulas | SIODE',
+  description:
+    'Cédulas de los mecanismos de recolección: propuesta del INE, informe del consejo, aprobación y cierre.',
 };
 
 export default function CedulasPage() {
-  return (
-    <ModuloEnDesarrollo titulo="Cédulas" seccion="Mecanismos de Recolección" />
-  );
+  return <CedulasClient />;
 }

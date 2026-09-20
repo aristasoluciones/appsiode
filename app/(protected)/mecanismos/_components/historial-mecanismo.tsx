@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  CheckCircle2,
   Coins,
+  FileText,
   History,
   MessageSquareText,
   Power,
@@ -52,6 +54,19 @@ const CAMPOS: Record<
     tono: 'advertencia',
   },
   ACTIVO: { titulo: 'Estatus', icono: <Power />, tono: 'peligro' },
+  ESTATUS: {
+    titulo: 'Estatus de la cédula',
+    icono: <History />,
+    tono: 'primario',
+  },
+  DOCUMENTO: { titulo: 'Documento', icono: <FileText />, tono: 'info' },
+  COSTO_COTIZADO: {
+    titulo: 'Costo cotizado',
+    icono: <Coins />,
+    tono: 'info',
+    moneda: true,
+  },
+  ACUSE: { titulo: 'Acuse', icono: <CheckCircle2 />, tono: 'exito' },
 };
 
 function valor(h: IMecanismoHistorial, v: string | null): string {

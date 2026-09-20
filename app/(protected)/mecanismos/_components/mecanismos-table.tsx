@@ -12,18 +12,13 @@ import { Eye, FilePen, Pencil } from 'lucide-react';
 import type { IMecanismoLista } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { BotonAccion } from '@/components/common/boton-accion';
 import { TIPO_MECANISMO_CORTO } from '../_lib/estatus';
 import {
   CaeTexto,
@@ -50,35 +45,6 @@ interface MecanismosTableProps extends MecanismoAcciones {
 const sk = (w: string) => (
   <Skeleton className={`${w} h-4 animate-pulse motion-reduce:animate-none`} />
 );
-
-function Accion({
-  etiqueta,
-  onClick,
-  disabled,
-  children,
-}: {
-  etiqueta: string;
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label={etiqueta}
-          onClick={onClick}
-          disabled={disabled}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{etiqueta}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 export function MecanismosTable({
   modo,
@@ -293,25 +259,28 @@ export function MecanismosTable({
           return (
             <div className="flex items-center justify-end gap-1">
               {onInformar && (
-                <Accion
+                <BotonAccion
                   etiqueta="Informar mecanismo"
                   onClick={() => onInformar(m)}
                 >
                   <FilePen className="h-4 w-4" aria-hidden="true" />
-                </Accion>
+                </BotonAccion>
               )}
               {onEditar && (
-                <Accion
+                <BotonAccion
                   etiqueta="Editar mecanismo"
                   onClick={() => onEditar(m)}
                   disabled={!m.activo}
                 >
                   <Pencil className="h-4 w-4" aria-hidden="true" />
-                </Accion>
+                </BotonAccion>
               )}
-              <Accion etiqueta="Ver detalle" onClick={() => onVerDetalle(m)}>
+              <BotonAccion
+                etiqueta="Ver detalle"
+                onClick={() => onVerDetalle(m)}
+              >
                 <Eye className="h-4 w-4 text-primary" aria-hidden="true" />
-              </Accion>
+              </BotonAccion>
             </div>
           );
         },
