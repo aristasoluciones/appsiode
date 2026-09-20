@@ -1,5 +1,6 @@
 import type {
   TCedulaEstatus,
+  TEstudioEstatus,
   TTipoConsejoChar,
   TTipoMecanismo,
 } from '@/types/mecanismos';
@@ -23,6 +24,18 @@ export const ESTATUS_CEDULA: Record<
   APROBADA: { label: 'Aprobada', variant: 'warning' },
   CERRADA: { label: 'Cerrada', variant: 'success' },
   ANULADA: { label: 'Anulada', variant: 'destructive' },
+};
+
+/** Etiqueta y color de cada estatus del estudio de factibilidad; «Sin estudio» cubre el distrito sin propuesta. */
+export const ESTATUS_ESTUDIO: Record<
+  TEstudioEstatus | 'SIN_ESTUDIO',
+  { label: string; variant: TVariant }
+> = {
+  SIN_ESTUDIO: { label: 'Sin estudio', variant: 'secondary' },
+  PROPUESTO: { label: 'Propuesto', variant: 'primary' },
+  APROBADO: { label: 'Aprobado', variant: 'warning' },
+  CERRADO: { label: 'Cerrado', variant: 'success' },
+  ANULADO: { label: 'Anulado', variant: 'destructive' },
 };
 
 /** Nombre corto del tipo de mecanismo para tablas y tarjetas. */

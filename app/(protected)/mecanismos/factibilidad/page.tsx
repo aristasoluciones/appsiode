@@ -1,16 +1,12 @@
-import { Metadata } from 'next';
-import { ModuloEnDesarrollo } from '@/components/common/modulo-en-desarrollo';
+import type { Metadata } from 'next';
+import { EstudiosClient } from '../_components/estudios-client';
 
 export const metadata: Metadata = {
-  title: 'Estudios de Factibilidad',
-  description: 'Estudios de factibilidad de los mecanismos de recolección.',
+  title: 'Estudios de Factibilidad | SIODE',
+  description:
+    'Estudios de factibilidad de los mecanismos de recolección por distrito federal: propuesta, acuses de los consejos y aprobación.',
 };
 
 export default function FactibilidadPage() {
-  return (
-    <ModuloEnDesarrollo
-      titulo="Estudios de Factibilidad"
-      seccion="Mecanismos de Recolección"
-    />
-  );
+  return <EstudiosClient />;
 }
