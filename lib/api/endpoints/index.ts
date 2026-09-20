@@ -6,6 +6,7 @@ import { AUTH } from './auth';
 import { BODEGAS } from './bodegas';
 import { CATALOGOS } from './catalogos';
 import { MATERIAL_ELECTORAL } from './material-electoral';
+import { MECANISMOS } from './mecanismos';
 import { PROCESOS } from './procesos';
 import { ROLES } from './roles';
 import { SESIONES } from './sesiones';
@@ -21,7 +22,19 @@ export const API_ENDPOINTS = {
   BODEGAS,
   APERTURAS_BODEGAS,
   MATERIAL_ELECTORAL,
+  MECANISMOS,
 } as const;
 
-export { APERTURAS_BODEGAS, AUTH, BODEGAS, CATALOGOS, MATERIAL_ELECTORAL, PROCESOS, ROLES, SESIONES, USUARIOS };
+export {
+  APERTURAS_BODEGAS,
+  AUTH,
+  BODEGAS,
+  CATALOGOS,
+  MATERIAL_ELECTORAL,
+  MECANISMOS,
+  PROCESOS,
+  ROLES,
+  SESIONES,
+  USUARIOS,
+};
 export type { Id } from './_shared';

@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDeviceName } from '@/hooks/use-device-name';
 import { useAuth } from '@/providers/auth-provider';
+import { AccesoGuard } from '@/components/common/acceso-guard';
 import { ScreenLoader } from '@/components/common/screen-loader';
 import { Layout1 } from '@/components/layouts/layout-1';
-import { useDeviceName } from '@/hooks/use-device-name';
+
 export default function ProtectedLayout({
   children,
 }: {
@@ -25,7 +27,13 @@ export default function ProtectedLayout({
       return;
     }
     // Capturista (idRol=1) o roles con acceso limitado por consejo: redirigir solo dentro de /sesiones si no es su consejo asignado
-    if (!isLoading && isAuthenticated && parseInt(user?.idConsejo ?? '0') > 0 && user?.tipoConsejo && pathname.startsWith('/sesiones')) {
+    if (
+      !isLoading &&
+      isAuthenticated &&
+      parseInt(user?.idConsejo ?? '0') > 0 &&
+      user?.tipoConsejo &&
+      pathname.startsWith('/sesiones')
+    ) {
       const targetBase = `/sesiones/${user?.tipoConsejo.toLowerCase()}/${user?.idConsejo}`;
       if (!pathname.startsWith(targetBase)) {
         router.replace(targetBase);
@@ -50,5 +58,10 @@ export default function ProtectedLayout({
     return <ScreenLoader />;
   }
 
-  return user ? <Layout1>{children}</Layout1> : null;
+  // El guard exige, por URL, el mismo permiso que el menú declara para la ruta.
+  return user ? (
+    <Layout1>
+      <AccesoGuard>{children}</AccesoGuard>
+    </Layout1>
+  ) : null;
 }
