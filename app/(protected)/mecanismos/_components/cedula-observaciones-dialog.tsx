@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ContadorCaracteres } from '@/components/common/contador-caracteres';
 import { useAcusarCedula, useCerrarCedula } from '../_hooks/use-cedulas';
 import { claveMecanismo } from '../_lib/estatus';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
@@ -28,14 +29,14 @@ interface CedulaObservacionesDialogProps {
 
 const TEXTOS = {
   acusar: {
-    titulo: 'Acusar cédula aprobada',
+    titulo: 'Acuse de la cédula aprobada',
     descripcion:
       'Con el acuse el consejo confirma que recibió la cédula aprobada y su costo autorizado. Las observaciones son opcionales.',
     accion: 'Registrar acuse',
     icono: <CheckCheck className="h-4 w-4" aria-hidden="true" />,
   },
   cerrar: {
-    titulo: 'Cerrar cédula',
+    titulo: 'Cierre de la cédula',
     descripcion:
       'La cédula aprobada queda cerrada y ya no admite informes ni acuses; solo podrá anularse con motivo. Las observaciones son opcionales.',
     accion: 'Cerrar cédula',
@@ -78,10 +79,10 @@ export function CedulaObservacionesDialog({
     <Dialog open={open} onOpenChange={(v) => !pendiente && onOpenChange(v)}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            {t.titulo} · {claveMecanismo(cedula)}
-          </DialogTitle>
-          <DialogDescription>{t.descripcion}</DialogDescription>
+          <DialogTitle>{t.titulo}</DialogTitle>
+          <DialogDescription>
+            {claveMecanismo(cedula)}. {t.descripcion}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
           <Label htmlFor="cedula-observaciones">Observaciones</Label>
@@ -92,6 +93,10 @@ export function CedulaObservacionesDialog({
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             disabled={pendiente}
+          />
+          <ContadorCaracteres
+            valor={texto}
+            max={MECANISMOS_LIMITES.observaciones.max}
           />
         </div>
         <DialogFooter>

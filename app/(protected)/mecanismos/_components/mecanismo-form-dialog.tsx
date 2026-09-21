@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import {
   useCrearMecanismo,
   useEditarMecanismo,
@@ -150,7 +151,7 @@ export function MecanismoFormDialog({
       >
         <DialogHeader>
           <DialogTitle>
-            {editando ? 'Editar mecanismo' : 'Nuevo mecanismo'}
+            {editando ? 'Edición del mecanismo' : 'Nuevo mecanismo'}
           </DialogTitle>
           <DialogDescription>
             {editando
@@ -194,6 +195,7 @@ export function MecanismoFormDialog({
                         <span className="text-destructive">*</span>
                       </FormLabel>
                       <Select
+                        indicatorVisibility={false}
                         value={field.value}
                         onValueChange={cambiarDistrito}
                         disabled={bloqueado || tieneCedula || cargandoMarco}
@@ -228,6 +230,7 @@ export function MecanismoFormDialog({
                         Tipo <span className="text-destructive">*</span>
                       </FormLabel>
                       <Select
+                        indicatorVisibility={false}
                         value={field.value}
                         onValueChange={field.onChange}
                         disabled={bloqueado || tieneCedula}
@@ -301,6 +304,7 @@ export function MecanismoFormDialog({
           </Form>
         </DialogBody>
 
+        <LeyendaObligatorios />
         <DialogFooter>
           <Button
             type="button"

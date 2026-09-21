@@ -131,7 +131,7 @@ export function ImportarMecanismosDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Importar el archivo del INE</DialogTitle>
+          <DialogTitle>Archivo del INE</DialogTitle>
           <DialogDescription>
             {!enCarga &&
               'Cargas del archivo del INE hechas en el proceso. Solo se puede revertir la más reciente.'}

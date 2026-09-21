@@ -67,7 +67,7 @@ export function EstudioVentanas({
       <MotivoDialog
         open={ventana?.tipo === 'anular'}
         onOpenChange={cerrar}
-        titulo={`Anular estudio · ${ventana?.tipo === 'anular' ? ventana.distrito.df : ''}`}
+        titulo={`Anulación del estudio · ${ventana?.tipo === 'anular' ? ventana.distrito.df : ''}`}
         descripcion="El estudio se anula con sus acuses; el distrito podrá recibir un estudio nuevo. Lo capturado queda en el historial."
         accion="Anular estudio"
         icono={<Ban className="h-4 w-4" aria-hidden="true" />}

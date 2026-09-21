@@ -80,7 +80,7 @@ export function CedulaVentanas({ ventana, onChange }: CedulaVentanasProps) {
       <MotivoDialog
         open={ventana?.tipo === 'anular'}
         onOpenChange={cerrar}
-        titulo={`Anular cédula · ${cedula ? claveMecanismo(cedula) : ''}`}
+        titulo={`Anulación de la cédula · ${cedula ? claveMecanismo(cedula) : ''}`}
         descripcion="La cédula se anula desde cualquier estatus, incluida la cerrada. El mecanismo podrá recibir una propuesta nueva; lo capturado queda en el historial."
         accion="Anular cédula"
         icono={<Ban className="h-4 w-4" aria-hidden="true" />}

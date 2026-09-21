@@ -181,7 +181,7 @@ export function CedulasDocumentosDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Cargar documentos de cédula</DialogTitle>
+          <DialogTitle>Documentos de cédula por zip</DialogTitle>
           <DialogDescription>
             {!enCarga && 'Cargas de PDF de cédula hechas en el proceso.'}
             {enCarga &&

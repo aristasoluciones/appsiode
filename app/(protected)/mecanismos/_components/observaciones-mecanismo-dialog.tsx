@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ContadorCaracteres } from '@/components/common/contador-caracteres';
 import { useGuardarObservacionesMecanismo } from '../_hooks/use-mecanismos';
 import { claveMecanismo } from '../_lib/estatus';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
@@ -56,10 +57,10 @@ export function ObservacionesMecanismoDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Observaciones · {claveMecanismo(mecanismo)}</DialogTitle>
+          <DialogTitle>Observaciones del mecanismo</DialogTitle>
           <DialogDescription>
-            Nota técnica de oficina central sobre el mecanismo. Déjala vacía
-            para retirarla.
+            {claveMecanismo(mecanismo)}. Nota técnica de oficina central sobre
+            el mecanismo. Déjala vacía para retirarla.
           </DialogDescription>
         </DialogHeader>
 
@@ -74,9 +75,10 @@ export function ObservacionesMecanismoDialog({
             placeholder="Ajustes de ruta, incidencias, acuerdos con el INE..."
             disabled={guardar.isPending}
           />
-          <p className="text-xs text-muted-foreground text-right tabular-nums">
-            {texto.length} / {MECANISMOS_LIMITES.observaciones.max}
-          </p>
+          <ContadorCaracteres
+            valor={texto}
+            max={MECANISMOS_LIMITES.observaciones.max}
+          />
         </div>
 
         <DialogFooter>

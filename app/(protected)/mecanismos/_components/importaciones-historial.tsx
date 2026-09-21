@@ -147,7 +147,7 @@ function RevertirDialog({
         setError(null);
         onOpenChange(v);
       }}
-      titulo={`Revertir la importación #${importacion?.id ?? ''}`}
+      titulo={`Reversión de la importación #${importacion?.id ?? ''}`}
       descripcion="Los mecanismos que creó se eliminan y los que actualizó vuelven a su estado anterior. No se puede revertir si alguno ya tiene informe o cédula."
       accion="Revertir"
       icono={<Undo2 className="h-4 w-4" aria-hidden="true" />}

@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ContadorCaracteres } from '@/components/common/contador-caracteres';
+import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import { useAcusarEstudio } from '../_hooks/use-estudios';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
 
@@ -66,10 +68,9 @@ export function AcusarEstudioDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            Acusar {etapaTexto} · {objetivo.df}
-          </DialogTitle>
+          <DialogTitle>Acuse de {etapaTexto}</DialogTitle>
           <DialogDescription>
+            {objetivo.df}.{' '}
             {objetivo.etapa === 1
               ? 'Con el acuse el consejo confirma que revisó el estudio propuesto. Cuando todos los consejos del distrito acusen, oficina central podrá aprobarlo.'
               : 'Con el acuse el consejo confirma que recibió el estudio aprobado. El último acuse cierra el estudio.'}
@@ -89,11 +90,16 @@ export function AcusarEstudioDialog({
             aria-invalid={tocado && invalido}
             disabled={acusar.isPending}
           />
+          <ContadorCaracteres
+            valor={texto}
+            max={MECANISMOS_LIMITES.observaciones.max}
+          />
           {tocado && invalido && (
             <p className="text-sm text-destructive" role="alert">
               Las observaciones del acuse son obligatorias.
             </p>
           )}
+          <LeyendaObligatorios />
         </div>
         <DialogFooter>
           <Button

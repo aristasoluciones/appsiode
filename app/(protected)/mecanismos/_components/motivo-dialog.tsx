@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ContadorCaracteres } from '@/components/common/contador-caracteres';
+import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
 
 interface MotivoDialogProps {
@@ -78,6 +80,10 @@ export function MotivoDialog({
             aria-invalid={tocado && invalido}
             disabled={pendiente}
           />
+          <ContadorCaracteres
+            valor={motivo}
+            max={MECANISMOS_LIMITES.motivo.max}
+          />
           {tocado && invalido && (
             <p className="text-sm text-destructive" role="alert">
               El motivo debe tener entre {MECANISMOS_LIMITES.motivo.min} y{' '}
@@ -89,6 +95,7 @@ export function MotivoDialog({
               {error}
             </p>
           )}
+          <LeyendaObligatorios />
         </div>
         <DialogFooter>
           <Button

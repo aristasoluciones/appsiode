@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import { SelectorArchivo } from '@/components/common/selector-archivo';
 import {
   useAprobarCedula,
@@ -44,21 +45,21 @@ interface ProponerCedulaDialogProps {
 
 const TEXTOS = {
   proponer: {
-    titulo: 'Proponer cédula',
+    titulo: 'Propuesta de cédula',
     descripcion:
       'Sube el PDF de la cédula que entrega el INE y captura su costo. Los consejos vinculados podrán informarla.',
     costo: 'Costo INE (MXN)',
     accion: 'Proponer',
   },
   reemplazar: {
-    titulo: 'Reemplazar propuesta',
+    titulo: 'Reemplazo de la propuesta',
     descripcion:
       'Sustituye el PDF propuesto, el costo INE o ambos. Los consejos que ya informaron deberán informar de nuevo.',
     costo: 'Costo INE (MXN)',
     accion: 'Reemplazar',
   },
   aprobar: {
-    titulo: 'Aprobar cédula',
+    titulo: 'Aprobación de cédula',
     descripcion:
       'Sube el PDF aprobado por el INE y el costo máximo autorizado. Los consejos podrán acusar de recibido.',
     costo: 'Costo autorizado (MXN)',
@@ -145,10 +146,10 @@ export function ProponerCedulaDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>
-            {t.titulo} · {claveMecanismo(cedula)}
-          </DialogTitle>
-          <DialogDescription>{t.descripcion}</DialogDescription>
+          <DialogTitle>{t.titulo}</DialogTitle>
+          <DialogDescription>
+            {claveMecanismo(cedula)}. {t.descripcion}
+          </DialogDescription>
         </DialogHeader>
 
         <DialogBody className="space-y-4">
@@ -218,6 +219,7 @@ export function ProponerCedulaDialog({
           </div>
         </DialogBody>
 
+        <LeyendaObligatorios />
         <DialogFooter>
           <Button
             variant="outline"

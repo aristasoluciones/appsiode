@@ -43,6 +43,7 @@ function SelectConsejo({
 }) {
   return (
     <Select
+      indicatorVisibility={false}
       value={value || NINGUNO}
       onValueChange={(v) => onChange(v === NINGUNO ? '' : v)}
       disabled={disabled || opciones.length === 0}

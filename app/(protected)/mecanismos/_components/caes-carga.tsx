@@ -172,6 +172,7 @@ export function CaesCarga({
           <div className="flex flex-wrap items-center gap-3">
             {modo === 'asignacion' && (
               <Select
+                indicatorVisibility={false}
                 value={idConsejo}
                 onValueChange={setIdConsejo}
                 disabled={disabled || ocupado}

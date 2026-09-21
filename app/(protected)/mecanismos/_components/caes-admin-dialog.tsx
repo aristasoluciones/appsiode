@@ -129,6 +129,7 @@ export function CaesAdminDialog({
               </TabsContent>
               <TabsContent value="historial" className="mt-4 space-y-3">
                 <Select
+                  indicatorVisibility={false}
                   value={tipoHistorial}
                   onValueChange={(v) => setTipoHistorial(v as TImportacionTipo)}
                 >

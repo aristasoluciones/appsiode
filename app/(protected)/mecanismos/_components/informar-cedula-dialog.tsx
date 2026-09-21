@@ -27,6 +27,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ContadorCaracteres } from '@/components/common/contador-caracteres';
+import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import { useInformarCedula } from '../_hooks/use-cedulas';
 import { claveMecanismo } from '../_lib/estatus';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
@@ -111,9 +113,10 @@ export function InformarCedulaDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Informar cédula · {claveMecanismo(cedula)}</DialogTitle>
+          <DialogTitle>Informe de la cédula</DialogTitle>
           <DialogDescription>
-            Costo INE propuesto: {formatMoneda(cedula.costo_ine)}.{' '}
+            {claveMecanismo(cedula)}. Costo INE propuesto:{' '}
+            {formatMoneda(cedula.costo_ine)}.{' '}
             {cedula.estatus === 'INFORMADA'
               ? 'Ya informaste esta cédula; puedes corregir lo capturado.'
               : 'Revisa el PDF propuesto y captura lo que el consejo informa.'}
@@ -172,6 +175,10 @@ export function InformarCedulaDialog({
                       disabled={guardando}
                     />
                   </FormControl>
+                  <ContadorCaracteres
+                    valor={field.value}
+                    max={MECANISMOS_LIMITES.observaciones.max}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -179,6 +186,7 @@ export function InformarCedulaDialog({
           </form>
         </Form>
 
+        <LeyendaObligatorios />
         <DialogFooter>
           <Button
             type="button"

@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ContadorCaracteres } from '@/components/common/contador-caracteres';
+import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import { useInformarMecanismo, useMecanismo } from '../_hooks/use-mecanismos';
 import { claveMecanismo } from '../_lib/estatus';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
@@ -150,8 +152,9 @@ export function InformarMecanismoDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Informar {claveMecanismo(mecanismo)}</DialogTitle>
+          <DialogTitle>Informe del mecanismo</DialogTitle>
           <DialogDescription>
+            {claveMecanismo(mecanismo)}.{' '}
             {mecanismo.informado
               ? `Informado el ${formatFechaHora(mecanismo.fecha_informe)}. Cada cambio queda en el historial.`
               : 'Captura lo que el consejo informa sobre este mecanismo.'}
@@ -279,6 +282,10 @@ export function InformarMecanismoDialog({
                         disabled={guardando}
                       />
                     </FormControl>
+                    <ContadorCaracteres
+                      valor={field.value}
+                      max={MECANISMOS_LIMITES.observaciones.max}
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -295,6 +302,7 @@ export function InformarMecanismoDialog({
           />
         </DialogBody>
 
+        <LeyendaObligatorios />
         <DialogFooter>
           <Button
             type="button"

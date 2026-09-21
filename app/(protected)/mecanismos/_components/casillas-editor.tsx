@@ -115,6 +115,7 @@ export function CasillasEditor({
             render={({ field }) => (
               <FormItem className="col-span-2 sm:col-span-1">
                 <Select
+                  indicatorVisibility={false}
                   value={String(field.value ?? '')}
                   onValueChange={field.onChange}
                   disabled={disabled}

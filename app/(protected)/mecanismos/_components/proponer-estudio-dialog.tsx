@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import { SelectorArchivo } from '@/components/common/selector-archivo';
 import {
   useAprobarEstudio,
@@ -47,19 +48,19 @@ interface ProponerEstudioDialogProps {
 
 const TEXTOS = {
   proponer: {
-    titulo: 'Proponer estudio de factibilidad',
+    titulo: 'Propuesta del estudio',
     descripcion:
       'Sube el PDF del estudio del distrito federal. Se crea un acuse para cada consejo del distrito.',
     accion: 'Proponer',
   },
   reemplazar: {
-    titulo: 'Reemplazar el estudio propuesto',
+    titulo: 'Reemplazo del estudio propuesto',
     descripcion:
       'Sustituye el PDF mientras el estudio siga propuesto. Los consejos deberán acusar de nuevo.',
     accion: 'Reemplazar',
   },
   aprobar: {
-    titulo: 'Aprobar estudio de factibilidad',
+    titulo: 'Aprobación del estudio',
     descripcion:
       'Sube el PDF aprobado. Solo procede cuando todos los consejos del distrito acusaron la propuesta.',
     accion: 'Aprobar',
@@ -118,11 +119,11 @@ export function ProponerEstudioDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>
-            {t.titulo}
-            {modo !== 'proponer' && distrito ? ` · ${distrito.df}` : ''}
-          </DialogTitle>
-          <DialogDescription>{t.descripcion}</DialogDescription>
+          <DialogTitle>{t.titulo}</DialogTitle>
+          <DialogDescription>
+            {modo !== 'proponer' && distrito ? `${distrito.df}. ` : ''}
+            {t.descripcion}
+          </DialogDescription>
         </DialogHeader>
 
         <DialogBody className="space-y-4">
@@ -140,7 +141,12 @@ export function ProponerEstudioDialog({
               <Label>
                 Distrito federal <span className="text-destructive">*</span>
               </Label>
-              <Select value={idDf} onValueChange={setIdDf} disabled={pendiente}>
+              <Select
+                indicatorVisibility={false}
+                value={idDf}
+                onValueChange={setIdDf}
+                disabled={pendiente}
+              >
                 <SelectTrigger aria-label="Distrito federal">
                   <SelectValue placeholder="Elige el distrito" />
                 </SelectTrigger>
@@ -179,6 +185,7 @@ export function ProponerEstudioDialog({
           </div>
         </DialogBody>
 
+        <LeyendaObligatorios />
         <DialogFooter>
           <Button
             variant="outline"
