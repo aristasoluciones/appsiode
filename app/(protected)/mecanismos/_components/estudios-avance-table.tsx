@@ -2,7 +2,6 @@
 
 import { Ban, Eye, FileCheck2, FilePlus2, Replace } from 'lucide-react';
 import type { IEstudioAvanceDistrito } from '@/types/mecanismos';
-import { formatFechaHora } from '@/lib/fechas';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BotonAccion } from '@/components/common/boton-accion';
@@ -202,6 +201,8 @@ export function EstudiosAvanceTable(props: EstudiosAvanceTableProps) {
                         <EstudioDocumentos
                           tienePropuesta={!!d.fecha_propuesta}
                           tieneAprobada={!!d.fecha_aprobacion}
+                          fechaPropuesta={d.fecha_propuesta}
+                          fechaAprobada={d.fecha_aprobacion}
                           onVer={(cual) => onVerDocumento(d, cual)}
                           pendiente={
                             documentoPendiente?.id === d.id
@@ -227,8 +228,7 @@ export function EstudiosAvanceTable(props: EstudiosAvanceTableProps) {
                 <div className="text-center">Consejos</div>
                 <div className="col-span-2">Acuses de la propuesta</div>
                 <div className="col-span-2">Acuses de la aprobación</div>
-                <div>Documentos</div>
-                <div>Fechas</div>
+                <div className="col-span-2">Documentos</div>
                 <div className="text-right">Acciones</div>
               </div>
               {isLoading
@@ -287,11 +287,13 @@ export function EstudiosAvanceTable(props: EstudiosAvanceTableProps) {
                           </span>
                         )}
                       </div>
-                      <div>
+                      <div className="col-span-2">
                         {d.id ? (
                           <EstudioDocumentos
                             tienePropuesta={!!d.fecha_propuesta}
                             tieneAprobada={!!d.fecha_aprobacion}
+                            fechaPropuesta={d.fecha_propuesta}
+                            fechaAprobada={d.fecha_aprobacion}
                             onVer={(cual) => onVerDocumento(d, cual)}
                             pendiente={
                               documentoPendiente?.id === d.id
@@ -303,18 +305,6 @@ export function EstudiosAvanceTable(props: EstudiosAvanceTableProps) {
                         ) : (
                           '—'
                         )}
-                      </div>
-                      <div className="text-[0.6875rem] text-muted-foreground leading-tight">
-                        {d.fecha_propuesta && (
-                          <p>Prop. {formatFechaHora(d.fecha_propuesta)}</p>
-                        )}
-                        {d.fecha_aprobacion && (
-                          <p>Aprob. {formatFechaHora(d.fecha_aprobacion)}</p>
-                        )}
-                        {d.fecha_cierre && (
-                          <p>Cierre {formatFechaHora(d.fecha_cierre)}</p>
-                        )}
-                        {!d.fecha_propuesta && '—'}
                       </div>
                       <Acciones d={d} {...props} />
                     </div>

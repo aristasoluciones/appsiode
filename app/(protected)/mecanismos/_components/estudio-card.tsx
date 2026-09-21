@@ -5,6 +5,7 @@ import type { IEstudioConsejo, TEstudioEstatus } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { TextoExpandible } from '@/components/common/texto-expandible';
 import { ESTATUS_ESTUDIO } from '../_lib/estatus';
 
 export type TCualDocumento = 'propuesta' | 'aprobada';
@@ -22,12 +23,17 @@ export function EstudioBadge({ estatus }: { estatus: TEstudioEstatus | null }) {
 export function EstudioDocumentos({
   tienePropuesta,
   tieneAprobada,
+  fechaPropuesta,
+  fechaAprobada,
   onVer,
   pendiente,
   compacto = false,
 }: {
   tienePropuesta: boolean;
   tieneAprobada: boolean;
+  /** Con fecha, cada botón la muestra debajo. */
+  fechaPropuesta?: string | null;
+  fechaAprobada?: string | null;
   onVer?: (cual: TCualDocumento) => void;
   pendiente: TCualDocumento | null;
   compacto?: boolean;
@@ -39,27 +45,37 @@ export function EstudioDocumentos({
     cual: TCualDocumento,
     etiqueta: string,
     Icono: typeof FileText,
+    fecha?: string | null,
   ) => (
-    <Button
-      variant="outline"
-      size="sm"
-      className={compacto ? 'h-7 px-2 text-xs' : ''}
-      onClick={() => onVer(cual)}
-      disabled={pendiente === cual}
-      aria-label={`Ver PDF ${etiqueta.toLowerCase()}`}
-    >
-      {pendiente === cual ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-      ) : (
-        <Icono className="h-3.5 w-3.5" aria-hidden="true" />
+    <div className="flex flex-col items-start gap-0.5">
+      <Button
+        variant="outline"
+        size="sm"
+        className={compacto ? 'h-7 px-2 text-xs' : ''}
+        onClick={() => onVer(cual)}
+        disabled={pendiente === cual}
+        aria-label={`Ver PDF ${etiqueta.toLowerCase()}`}
+      >
+        {pendiente === cual ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+        ) : (
+          <Icono className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
+        {etiqueta}
+      </Button>
+      {fecha && (
+        <span className="text-[0.6875rem] text-muted-foreground tabular-nums">
+          {formatFechaHora(fecha)}
+        </span>
       )}
-      {etiqueta}
-    </Button>
+    </div>
   );
   return (
     <div className="flex flex-wrap gap-1">
-      {tienePropuesta && boton('propuesta', 'Propuesto', FileText)}
-      {tieneAprobada && boton('aprobada', 'Aprobado', FileCheck2)}
+      {tienePropuesta &&
+        boton('propuesta', 'Propuesta', FileText, fechaPropuesta)}
+      {tieneAprobada &&
+        boton('aprobada', 'Aprobada', FileCheck2, fechaAprobada)}
     </div>
   );
 }
@@ -101,7 +117,9 @@ function Acuse({
         </p>
       )}
       {observaciones && (
-        <p className="text-sm text-foreground">{observaciones}</p>
+        <p className="text-sm text-foreground text-justify">
+          <TextoExpandible texto={observaciones} />
+        </p>
       )}
     </div>
   );

@@ -3,6 +3,7 @@
 import type { IMecanismo } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { formatMoneda } from '@/lib/helpers';
+import { useAuth } from '@/providers/auth-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/common/error-state';
+import { TextoExpandible } from '@/components/common/texto-expandible';
 import { useMecanismo } from '../_hooks/use-mecanismos';
 import { claveMecanismo, nombreConsejo } from '../_lib/estatus';
 import { HistorialMecanismo } from './historial-mecanismo';
@@ -39,7 +41,7 @@ function Dato({
   return (
     <div>
       <p className="text-xs text-muted-foreground">{etiqueta}</p>
-      <p className="text-sm text-foreground">{children ?? '—'}</p>
+      <p className="text-sm text-foreground text-justify">{children ?? '—'}</p>
     </div>
   );
 }
@@ -111,6 +113,17 @@ export function MecanismoDetalleDialog({
 }
 
 function Detalle({ m }: { m: IMecanismo }) {
+  const { user } = useAuth();
+  // El consejo solo ve su propia revisión; oficina central ve todos los consejos vinculados.
+  const propio = Number(user?.idConsejo) > 0;
+  const consejos = propio
+    ? m.consejos.filter(
+        (c) =>
+          c.tipo_consejo === user?.tipoConsejo &&
+          c.id_consejo === Number(user?.idConsejo),
+      )
+    : m.consejos;
+
   return (
     <>
       <Seccion titulo="Ruta">
@@ -157,9 +170,9 @@ function Detalle({ m }: { m: IMecanismo }) {
         )}
       </Seccion>
 
-      <Seccion titulo="Consejos vinculados">
+      <Seccion titulo={propio ? 'Informe del consejo' : 'Consejos vinculados'}>
         <div className="space-y-2">
-          {m.consejos.map((c) => (
+          {consejos.map((c) => (
             <div
               key={c.id}
               className="rounded-md border border-border p-3 space-y-2"
@@ -197,7 +210,7 @@ function Detalle({ m }: { m: IMecanismo }) {
                   {c.observaciones_informe && (
                     <div className="col-span-full">
                       <Dato etiqueta="Observaciones">
-                        {c.observaciones_informe}
+                        <TextoExpandible texto={c.observaciones_informe} />
                       </Dato>
                     </div>
                   )}
@@ -239,8 +252,8 @@ function Detalle({ m }: { m: IMecanismo }) {
 
       {m.observaciones_admin && (
         <Seccion titulo="Observaciones de oficina central">
-          <p className="text-sm text-foreground whitespace-pre-line">
-            {m.observaciones_admin}
+          <p className="text-sm text-foreground whitespace-pre-line text-justify">
+            <TextoExpandible texto={m.observaciones_admin} />
           </p>
           <p className="text-xs text-muted-foreground">
             {formatFechaHora(m.observaciones_admin_fecha)}

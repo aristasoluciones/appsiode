@@ -38,33 +38,47 @@ import { MECANISMOS_LIMITES } from '../_lib/limites';
 import { CaesDialog } from './caes-dialog';
 import { HistorialMecanismo } from './historial-mecanismo';
 
-/** Mismos límites que la API, repetidos solo para avisar antes de enviar. */
-const informeSchema = z.object({
-  cae_folio: z.string().max(MECANISMOS_LIMITES.caeFolio.max),
-  cae_nombre: z.string(),
-  costo: z
-    .string()
-    .trim()
-    .refine(
-      (v) =>
-        v === '' ||
-        (!Number.isNaN(Number(v)) &&
-          Number(v) >= MECANISMOS_LIMITES.costo.min &&
-          Number(v) <= MECANISMOS_LIMITES.costo.max),
-      {
-        message: `El costo debe estar entre 0 y ${MECANISMOS_LIMITES.costo.max.toLocaleString('es-MX')}.`,
-      },
-    ),
-  observaciones: z
-    .string()
-    .trim()
-    .min(1, { message: 'Captura las observaciones del informe.' })
-    .max(MECANISMOS_LIMITES.observaciones.max, {
-      message: `Las observaciones no deben exceder ${MECANISMOS_LIMITES.observaciones.max} caracteres.`,
-    }),
-});
+/**
+ * Mismos límites que la API, repetidos solo para avisar antes de enviar. El CAE
+ * y el costo son obligatorios según las banderas del consejo, por eso el
+ * esquema se arma con ellas.
+ */
+function crearInformeSchema(capturaCosto: boolean, asignaCae: boolean) {
+  return z.object({
+    cae_folio: z
+      .string()
+      .max(MECANISMOS_LIMITES.caeFolio.max)
+      .refine((v) => !asignaCae || v !== '', {
+        message: 'Elige el CAE que atiende el mecanismo.',
+      }),
+    cae_nombre: z.string(),
+    costo: z
+      .string()
+      .trim()
+      .refine((v) => !capturaCosto || v !== '', {
+        message: 'Captura el costo estimado.',
+      })
+      .refine(
+        (v) =>
+          v === '' ||
+          (!Number.isNaN(Number(v)) &&
+            Number(v) >= MECANISMOS_LIMITES.costo.min &&
+            Number(v) <= MECANISMOS_LIMITES.costo.max),
+        {
+          message: `El costo debe estar entre 0 y ${MECANISMOS_LIMITES.costo.max.toLocaleString('es-MX')}.`,
+        },
+      ),
+    observaciones: z
+      .string()
+      .trim()
+      .min(1, { message: 'Captura las observaciones del informe.' })
+      .max(MECANISMOS_LIMITES.observaciones.max, {
+        message: `Las observaciones no deben exceder ${MECANISMOS_LIMITES.observaciones.max} caracteres.`,
+      }),
+  });
+}
 
-type TInformeForm = z.infer<typeof informeSchema>;
+type TInformeForm = z.infer<ReturnType<typeof crearInformeSchema>>;
 
 interface InformarMecanismoDialogProps {
   mecanismo: IMecanismoLista | null;
@@ -95,7 +109,7 @@ export function InformarMecanismoDialog({
   const { data: detalle } = useMecanismo(open ? (mecanismo?.id ?? null) : null);
 
   const form = useForm<TInformeForm>({
-    resolver: zodResolver(informeSchema),
+    resolver: zodResolver(crearInformeSchema(capturaCosto, asignaCae)),
     mode: 'onSubmit',
     defaultValues: {
       cae_folio: '',
@@ -186,7 +200,10 @@ export function InformarMecanismoDialog({
                   name="cae_folio"
                   render={() => (
                     <FormItem>
-                      <FormLabel>CAE que atiende el mecanismo</FormLabel>
+                      <FormLabel>
+                        CAE que atiende el mecanismo{' '}
+                        <span className="text-destructive">*</span>
+                      </FormLabel>
                       <div className="flex flex-wrap items-center gap-2">
                         <FormControl>
                           <Input
@@ -245,7 +262,10 @@ export function InformarMecanismoDialog({
                   name="costo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Costo estimado (MXN)</FormLabel>
+                      <FormLabel>
+                        Costo estimado (MXN){' '}
+                        <span className="text-destructive">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -290,6 +310,7 @@ export function InformarMecanismoDialog({
                   </FormItem>
                 )}
               />
+              <LeyendaObligatorios />
             </form>
           </Form>
 
@@ -302,7 +323,6 @@ export function InformarMecanismoDialog({
           />
         </DialogBody>
 
-        <LeyendaObligatorios />
         <DialogFooter>
           <Button
             type="button"

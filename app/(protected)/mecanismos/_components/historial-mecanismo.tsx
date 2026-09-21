@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import {
   CheckCircle2,
+  ChevronDown,
   Coins,
   FileText,
   History,
@@ -13,7 +15,15 @@ import {
 import type { IMecanismoHistorial } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { formatMoneda } from '@/lib/helpers';
+import { useAuth } from '@/providers/auth-provider';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { TextoExpandible } from '@/components/common/texto-expandible';
 import {
   Timeline,
   TimelineItem,
@@ -89,54 +99,92 @@ export function HistorialMecanismo({
   titulo = 'Historial',
   vacio = 'Sin cambios registrados.',
 }: HistorialMecanismoProps) {
+  // Solo oficina central distingue de qué consejo es cada cambio; el consejo ve únicamente los suyos.
+  const { user } = useAuth();
+  const mostrarConsejo = !(Number(user?.idConsejo) > 0);
+  // Cerrado por omisión: el historial es consulta, no lo primero que se necesita.
+  const [abierto, setAbierto] = useState(false);
+
   return (
-    <section className="space-y-3">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <History className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-        {titulo}
-      </h3>
-      {!historial ? (
-        <div className="space-y-2" aria-busy="true">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      ) : historial.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{vacio}</p>
-      ) : (
-        <Timeline>
-          {[...historial].reverse().map((h) => {
-            const campo = CAMPOS[h.campo] ?? {
-              titulo: h.campo,
-              icono: <History />,
-              tono: 'neutro' as const,
-            };
-            return (
-              <TimelineItem
-                key={h.id}
-                icono={campo.icono}
-                tono={campo.tono}
-                titulo={campo.titulo}
-                fecha={formatFechaHora(h.fecha)}
-              >
-                <p className="text-sm text-foreground">
-                  <span className="text-muted-foreground line-through decoration-muted-foreground/60">
-                    {valor(h, h.valor_anterior)}
-                  </span>
-                  {' → '}
-                  {valor(h, h.valor_nuevo)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {h.usuario || 'Sistema'}
-                  {h.entidad === 'INFORME' && h.tipo_consejo && (
-                    <> · {nombreConsejo(h.tipo_consejo, h.id_consejo)}</>
-                  )}
-                  {h.texto && <> · {h.texto}</>}
-                </p>
-              </TimelineItem>
-            );
-          })}
-        </Timeline>
-      )}
-    </section>
+    <Collapsible open={abierto} onOpenChange={setAbierto}>
+      <section className="space-y-3">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 text-sm font-semibold text-foreground hover:text-primary"
+          >
+            <History
+              className="h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            {titulo}
+            {historial && (
+              <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                ({historial.length})
+              </span>
+            )}
+            <ChevronDown
+              className={[
+                'h-4 w-4 ml-auto text-muted-foreground transition-transform',
+                abierto ? 'rotate-180' : '',
+              ].join(' ')}
+              aria-hidden="true"
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          {!historial ? (
+            <div className="space-y-2" aria-busy="true">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : historial.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{vacio}</p>
+          ) : (
+            <ScrollArea viewportClassName="max-h-80 pr-3">
+              <Timeline>
+                {[...historial].reverse().map((h) => {
+                  const campo = CAMPOS[h.campo] ?? {
+                    titulo: h.campo,
+                    icono: <History />,
+                    tono: 'neutro' as const,
+                  };
+                  return (
+                    <TimelineItem
+                      key={h.id}
+                      icono={campo.icono}
+                      tono={campo.tono}
+                      titulo={campo.titulo}
+                      fecha={formatFechaHora(h.fecha)}
+                    >
+                      <p className="text-sm text-foreground text-justify">
+                        <TextoExpandible
+                          texto={valor(h, h.valor_anterior)}
+                          className="text-muted-foreground line-through decoration-muted-foreground/60"
+                        />
+                        {' → '}
+                        <TextoExpandible texto={valor(h, h.valor_nuevo)} />
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {h.usuario || 'Sistema'}
+                        {mostrarConsejo &&
+                          h.entidad === 'INFORME' &&
+                          h.tipo_consejo && (
+                            <>
+                              {' '}
+                              · {nombreConsejo(h.tipo_consejo, h.id_consejo)}
+                            </>
+                          )}
+                        {h.texto && <> · {h.texto}</>}
+                      </p>
+                    </TimelineItem>
+                  );
+                })}
+              </Timeline>
+            </ScrollArea>
+          )}
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
   );
 }

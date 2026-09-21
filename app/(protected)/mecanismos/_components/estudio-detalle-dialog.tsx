@@ -12,8 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/common/error-state';
+import { TextoExpandible } from '@/components/common/texto-expandible';
 import { useEstudio } from '../_hooks/use-estudios';
 import { nombreConsejo } from '../_lib/estatus';
 import { EstudioBadge } from './estudio-card';
@@ -106,51 +108,65 @@ export function EstudioDetalleDialog({
                     ? 'Acuses del consejo'
                     : 'Acuses por consejo'}
                 </h3>
-                {e.acuses.map((a) => (
-                  <div
-                    key={a.id}
-                    className="rounded-md border border-border p-3 space-y-2"
-                  >
-                    <p className="text-sm font-medium text-foreground">
-                      {nombreConsejo(a.tipo_consejo, a.id_consejo, a.consejo)}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {(
-                        [
-                          ['Propuesta', a.fecha_etapa1, a.observaciones_etapa1],
-                          [
-                            'Aprobación',
-                            a.fecha_etapa2,
-                            a.observaciones_etapa2,
-                          ],
-                        ] as const
-                      ).map(([titulo, fecha, obs]) => (
-                        <div key={titulo} className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                              {titulo}
-                            </span>
-                            <Badge
-                              variant={fecha ? 'success' : 'secondary'}
-                              appearance="light"
-                              size="sm"
-                            >
-                              {fecha ? 'Acusado' : 'Pendiente'}
-                            </Badge>
-                          </div>
-                          {fecha && (
-                            <p className="text-xs text-muted-foreground">
-                              {formatFechaHora(fecha)}
-                            </p>
+                <ScrollArea viewportClassName="max-h-72 pr-3">
+                  <div className="space-y-2">
+                    {e.acuses.map((a) => (
+                      <div
+                        key={a.id}
+                        className="rounded-md border border-border p-3 space-y-2"
+                      >
+                        <p className="text-sm font-medium text-foreground">
+                          {nombreConsejo(
+                            a.tipo_consejo,
+                            a.id_consejo,
+                            a.consejo,
                           )}
-                          {obs && (
-                            <p className="text-sm text-foreground">{obs}</p>
-                          )}
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {(
+                            [
+                              [
+                                'Propuesta',
+                                a.fecha_etapa1,
+                                a.observaciones_etapa1,
+                              ],
+                              [
+                                'Aprobación',
+                                a.fecha_etapa2,
+                                a.observaciones_etapa2,
+                              ],
+                            ] as const
+                          ).map(([titulo, fecha, obs]) => (
+                            <div key={titulo} className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {titulo}
+                                </span>
+                                <Badge
+                                  variant={fecha ? 'success' : 'secondary'}
+                                  appearance="light"
+                                  size="sm"
+                                >
+                                  {fecha ? 'Acusado' : 'Pendiente'}
+                                </Badge>
+                              </div>
+                              {fecha && (
+                                <p className="text-xs text-muted-foreground">
+                                  {formatFechaHora(fecha)}
+                                </p>
+                              )}
+                              {obs && (
+                                <p className="text-sm text-foreground text-justify">
+                                  <TextoExpandible texto={obs} />
+                                </p>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </ScrollArea>
               </section>
 
               <HistorialMecanismo

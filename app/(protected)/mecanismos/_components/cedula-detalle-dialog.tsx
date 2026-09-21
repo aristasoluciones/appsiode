@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/common/error-state';
+import { TextoExpandible } from '@/components/common/texto-expandible';
 import { useCedula } from '../_hooks/use-cedulas';
 import { claveMecanismo, nombreConsejo } from '../_lib/estatus';
 import { tonoDiferencia } from './cedula-card';
@@ -38,7 +39,7 @@ function Dato({
   return (
     <div>
       <p className="text-xs text-muted-foreground">{etiqueta}</p>
-      <p className="text-sm text-foreground">{children ?? '—'}</p>
+      <p className="text-sm text-foreground text-justify">{children ?? '—'}</p>
     </div>
   );
 }
@@ -182,7 +183,7 @@ export function CedulaDetalleDialog({
                       {r.observaciones_cedula && (
                         <div className="col-span-full">
                           <Dato etiqueta="Observaciones del informe">
-                            {r.observaciones_cedula}
+                            <TextoExpandible texto={r.observaciones_cedula} />
                           </Dato>
                         </div>
                       )}
@@ -191,7 +192,11 @@ export function CedulaDetalleDialog({
                           <Dato
                             etiqueta={`Acuse · ${formatFechaHora(r.fecha_acuse)}`}
                           >
-                            {r.observaciones_acuse || 'Sin observaciones'}
+                            <TextoExpandible
+                              texto={
+                                r.observaciones_acuse || 'Sin observaciones'
+                              }
+                            />
                           </Dato>
                         </div>
                       )}
