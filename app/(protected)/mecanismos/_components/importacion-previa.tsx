@@ -15,7 +15,7 @@ import {
 import { TIPO_MECANISMO_CORTO } from '../_lib/estatus';
 import { CargaResumen, EfectoBadge } from './carga-resumen';
 
-/** Vista previa del archivo del INE: cifras, avisos, renglones rechazados y una muestra de los mecanismos. */
+/** Vista previa del formato de importación: cifras, avisos, renglones rechazados y una muestra de los mecanismos. */
 export function ImportacionPrevia({
   validacion: v,
 }: {

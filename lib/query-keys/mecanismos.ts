@@ -48,6 +48,9 @@ export const MECANISMOS_KEYS = {
 
   /** Prefijo del historial de importaciones, para refrescarlo tras una carga o una reversión. */
   importaciones: () => ['mecanismos', 'importaciones'] as const,
+  /** Llave de las mutaciones de carga (revisar y aplicar), para saber si hay una en curso. */
+  importacionesEnCurso: () =>
+    ['mecanismos', 'importaciones', 'en-curso'] as const,
   importacionesTipo: (tipo: string) =>
     ['mecanismos', 'importaciones', tipo] as const,
   /** Una página del detalle de una importación; cuelga del mismo prefijo. */
@@ -71,30 +74,16 @@ export const MECANISMOS_KEYS = {
   configuracionTipo: (tipoConsejo: string) =>
     ['mecanismos', 'configuracion', tipoConsejo] as const,
 
-  /* Cédulas. */
+  /* Cédula: URL firmada del PDF de un mecanismo. */
 
-  /** Prefijo de las cédulas (consejo, resumen, bandeja y detalle). */
-  cedulas: () => ['mecanismos', 'cedulas'] as const,
-  cedulasConsejo: (tipoConsejo: string, idConsejo: KeyId) =>
-    ['mecanismos', 'cedulas', 'consejo', tipoConsejo, idConsejo] as const,
-  cedulasResumen: (tipoConsejo: string) =>
-    ['mecanismos', 'cedulas', 'resumen', tipoConsejo] as const,
-  cedulasGeneral: (
-    tipoConsejo: string,
-    estatus: string,
-    diferencia: string,
-    idConsejo: KeyId,
-  ) =>
-    [
-      'mecanismos',
-      'cedulas',
-      'general',
-      tipoConsejo,
-      estatus,
-      diferencia,
-      idConsejo,
-    ] as const,
-  cedula: (id: KeyId) => ['mecanismos', 'cedulas', 'detalle', id] as const,
+  /** Prefijo de las URL firmadas de cédula, para retirarlas tras una carga o un zip. */
+  cedulas: () => ['mecanismos', 'cedula'] as const,
+  cedulaArchivo: (id: KeyId) => ['mecanismos', 'cedula', id] as const,
+
+  /* Observaciones del informe. */
+
+  /** Catálogo de tipos de observación; no cambia durante la sesión. */
+  observacionesTipos: () => ['mecanismos', 'observaciones-tipos'] as const,
 
   /* Estudios de factibilidad. */
 

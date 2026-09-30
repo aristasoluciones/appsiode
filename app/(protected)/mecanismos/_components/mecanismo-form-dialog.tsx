@@ -113,8 +113,11 @@ export function MecanismoFormDialog({
     [marco, idDf],
   );
 
+  // Con cédula cargada o informe del consejo el territorio queda fijo (misma regla que el API).
   const tieneCedula =
-    editando && !!mecanismo && mecanismo.cedula_estatus !== 'SIN_CEDULA';
+    editando &&
+    !!mecanismo &&
+    (mecanismo.tiene_cedula || mecanismo.estatus === 'INFORMADO');
 
   function cambiarDistrito(valor: string) {
     form.setValue('id_df', valor);
@@ -172,8 +175,8 @@ export function MecanismoFormDialog({
                 <AlertCircle />
               </AlertIcon>
               <AlertTitle>
-                El mecanismo ya tiene cédula: el distrito federal, el tipo y el
-                número no se pueden cambiar.
+                El mecanismo ya tiene cédula o fue informado: el distrito
+                federal, el tipo y el número no se pueden cambiar.
               </AlertTitle>
             </Alert>
           )}

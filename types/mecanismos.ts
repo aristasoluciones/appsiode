@@ -8,23 +8,20 @@ export type TTipoConsejoChar = 'D' | 'M';
 /** Tipos de mecanismo del catálogo (`cat.mecanismos_tipos`). */
 export type TTipoMecanismo = 'DAT' | 'CRYT_FIJO' | 'CRYT_ITINERANTE';
 
-/** Estatus de la cédula del mecanismo, compartida por sus consejos. */
-export type TCedulaEstatus =
-  | 'SIN_CEDULA'
-  | 'PROPUESTA'
-  | 'INFORMADA'
-  | 'APROBADA'
-  | 'CERRADA'
-  | 'ANULADA';
+/** Estatus del mecanismo según el consejo que lo informa; solo avanza al marcar «Informar». */
+export type TMecanismoEstatus = 'SIN_INFORMAR' | 'INFORMADO';
 
-/** Estatus de la revisión de la cédula por cada consejo. */
-export type TRevisionEstatus = 'PENDIENTE' | 'INFORMADA' | 'ACUSADA';
+/** Tipos de observación del informe (`cat.mecanismos_observaciones_tipos`). */
+export type TObservacionTipo =
+  | 'SIN_OBSERVACIONES'
+  | 'COSTO'
+  | 'DOMICILIO'
+  | 'DESTINO'
+  | 'CASILLA_SECCION'
+  | 'RUTA';
 
 /** Estatus del estudio de factibilidad de un distrito federal. */
 export type TEstudioEstatus = 'PROPUESTO' | 'APROBADO' | 'CERRADO' | 'ANULADO';
-
-/** Filtro de diferencia (costo cotizado menos costo INE) de la bandeja de cédulas. */
-export type TDiferenciaFiltro = 'igual' | 'mayor' | 'menor';
 
 /** Tipos de carga que guarda el historial de importaciones. */
 export type TImportacionTipo =
@@ -81,7 +78,26 @@ export interface IMecanismoCasilla {
   en_catalogo: boolean;
 }
 
-/** Consejo vinculado al mecanismo con su informe y su revisión de la cédula. */
+/** Tipo de observación del catálogo, para el combo del informe. */
+export interface IMecanismoObservacionTipo {
+  clave: TObservacionTipo;
+  descripcion: string;
+}
+
+/** Observación registrada por el consejo que informa; solo se agregan, nunca se editan. */
+export interface IMecanismoObservacion {
+  id: number;
+  tipo: TObservacionTipo;
+  tipo_desc: string;
+  /** Nulo solo con `SIN_OBSERVACIONES`. */
+  observaciones: string | null;
+  /** Ese guardado marcó «Informar». */
+  informo: boolean;
+  usuario: string;
+  fecha: string;
+}
+
+/** Consejo vinculado al mecanismo con su informe y sus observaciones. */
 export interface IMecanismoConsejo {
   id: number;
   tipo_consejo: TTipoConsejoChar;
@@ -92,29 +108,30 @@ export interface IMecanismoConsejo {
   cae_folio: string | null;
   cae_nombre: string | null;
   costo_estimado: number | null;
-  observaciones_informe: string | null;
   fecha_informe: string | null;
   informe_estatus_desc: 'Sin informar' | 'Informado';
-  estatus: TRevisionEstatus;
+  estatus: TMecanismoEstatus;
   estatus_desc: string;
-  costo_cotizado: number | null;
-  diferencia: number | null;
-  observaciones_cedula: string | null;
-  fecha_cedula: string | null;
-  observaciones_acuse: string | null;
-  fecha_acuse: string | null;
+  /** Solo en el detalle del mecanismo, de la más antigua a la más reciente. */
+  observaciones: IMecanismoObservacion[];
 }
 
-/** Datos de la cédula que viven en el mecanismo (un PDF compartido por sus consejos). */
-export interface IMecanismoCedulaBase {
-  cedula_estatus: TCedulaEstatus;
-  cedula_estatus_desc: string;
+/** Cédula y estatus del mecanismo, iguales en la lista y en el detalle. */
+export interface IMecanismoEstadoBase {
+  /** Del formato de importación; referencia del mecanismo. */
   costo_ine: number | null;
-  costo_autorizado: number | null;
+  tiene_cedula: boolean;
+  cedula_fecha: string | null;
+  /** Estatus según el consejo que informa. */
+  estatus: TMecanismoEstatus;
+  estatus_desc: string;
+  total_observaciones: number;
+  ultima_observacion_tipo: TObservacionTipo | null;
+  ultima_observacion_fecha: string | null;
 }
 
 /** Renglón de la lista de mecanismos: consejo (los que informa) u oficina central (todos). */
-export interface IMecanismoLista extends IMecanismoCedulaBase {
+export interface IMecanismoLista extends IMecanismoEstadoBase {
   id: number;
   id_df: number;
   df: string | null;
@@ -156,7 +173,6 @@ export interface IMecanismoLista extends IMecanismoCedulaBase {
   /** Nulo sin CAE; falso cuando el CAE congelado ya no está activo en el catálogo. */
   cae_activo: boolean | null;
   costo_estimado: number | null;
-  observaciones_informe: string | null;
   fecha_informe: string | null;
   /** Banderas efectivas del consejo que consulta; nulas para oficina central. */
   captura_costo: boolean | null;
@@ -167,7 +183,7 @@ export interface IMecanismoLista extends IMecanismoCedulaBase {
 }
 
 /** Detalle del mecanismo con consejos y casillas; también lo devuelve cada escritura. */
-export interface IMecanismo extends IMecanismoCedulaBase {
+export interface IMecanismo extends IMecanismoEstadoBase {
   id: number;
   id_proceso: number;
   id_df: number;
@@ -187,13 +203,6 @@ export interface IMecanismo extends IMecanismoCedulaBase {
   observaciones_admin_fecha: string | null;
   id_importacion: number | null;
   activo: boolean;
-  archivo_propuesta: string | null;
-  fecha_propuesta: string | null;
-  archivo_aprobada: string | null;
-  fecha_aprobacion: string | null;
-  fecha_cierre: string | null;
-  motivo_anulacion: string | null;
-  fecha_anulacion: string | null;
   created_at: string;
   updated_at: string | null;
   secciones: string | null;
@@ -221,14 +230,10 @@ export interface IMecanismoSeguimiento {
   porcentaje_informados: number;
   con_cae: number;
   costo_estimado: number;
-  cedulas: number;
-  cedulas_sin_cedula: number;
-  cedulas_propuestas: number;
-  cedulas_informadas: number;
-  cedulas_aprobadas: number;
-  cedulas_cerradas: number;
-  cedulas_anuladas: number;
-  revisiones_informadas: number;
+  con_cedula: number;
+  sin_cedula: number;
+  /** Mecanismos con al menos una observación registrada. */
+  con_observaciones: number;
   ultimo_informe: string | null;
   caes_activos: number;
 }
@@ -277,20 +282,27 @@ export interface IMecanismoObservacionesPayload {
   observaciones: string | null;
 }
 
-/** Informe del consejo que revisa: el folio del CAE es obligatorio solo si el consejo asigna CAE. */
+/**
+ * Informe del consejo que revisa: cada guardado agrega una observación. Con
+ * `informar` (solo con `SIN_OBSERVACIONES`) se capturan costo y CAE según las
+ * banderas del consejo y el estatus pasa a `INFORMADO`.
+ */
 export interface IMecanismoInformarPayload {
+  tipo_observacion: TObservacionTipo;
+  observaciones?: string | null;
+  informar: boolean;
   cae_folio?: string | null;
   costo?: number | null;
-  observaciones: string;
 }
 
+/** URL firmada del PDF de la cédula, para el visor y la descarga. */
 export interface IMotivoPayload {
   motivo: string;
 }
 
-// ---------------------------------------------------------------- Importación del archivo del INE
+// ---------------------------------------------------------------- Importación del formato (armado desde las cédulas del INE)
 
-/** Renglón del archivo del INE tal como se previsualiza: una casilla y su mecanismo. */
+/** Renglón del formato tal como se previsualiza: una casilla y su mecanismo. */
 export interface IMecanismoImportacionFila {
   fila: number;
   id_df: number | null;
@@ -340,7 +352,7 @@ export interface IMecanismoImportacionAgrupado {
   casillas: IMecanismoImportacionCasilla[];
 }
 
-/** Vista previa de la importación del archivo del INE, sin guardar nada. */
+/** Vista previa de la importación del formato, sin guardar nada. */
 export interface IMecanismosImportacionValidacion {
   total: number;
   validas: number;
@@ -523,121 +535,50 @@ export interface IMecanismoConfiguracionPayload {
   asigna_cae: boolean | null;
 }
 
-// ---------------------------------------------------------------- Cédulas
+// ---------------------------------------------------------------- Cédulas por zip
 
-/** Cédula vista por el consejo: una por mecanismo vinculado, con la acción que admite. */
-export interface ICedulaConsejo extends IMecanismoCedulaBase {
-  /** Id del mecanismo; la cédula se identifica por él. */
+/** Un PDF del zip, desarmado por su nombre y emparejado con su mecanismo por número. */
+export interface ICedulaDocumento {
+  archivo: string;
+  id_dl: number | null;
+  id_mun: number | null;
+  id_df: number | null;
+  tipo: string | null;
+  numero: number | null;
+  id_mecanismo: number | null;
+  /** El mecanismo ya tenía cédula; nulo si no se emparejó. */
+  tiene_cedula: boolean | null;
+  /** NUEVO (se creará el mecanismo), CARGA (sin cédula previa), REEMPLAZA o RECHAZADO. */
+  efecto: 'NUEVO' | 'CARGA' | 'REEMPLAZA' | 'RECHAZADO';
+  error: string | null;
+}
+
+/** Vista previa del zip de cédulas, sin guardar nada. */
+export interface ICedulasDocumentosValidacion {
+  total_archivos: number;
+  validos: number;
+  /** Mecanismos que reciben su primera cédula. */
+  cargan: number;
+  reemplazan: number;
+  mecanismos_nuevos: number;
+  rechazados: number;
+  omitidos: number;
+  /** Mecanismos del proceso que seguirán sin cédula después de la carga. */
+  mecanismos_sin_cedula: number;
+  documentos: ICedulaDocumento[];
+}
+
+/** Resultado de la carga del zip aplicada. */
+export interface ICedulasDocumentosResultado {
   id: number;
-  id_revision: number;
-  id_df: number;
-  df: string | null;
-  tipo: TTipoMecanismo;
-  tipo_desc: string;
-  numero: number;
-  revisa_mecanismo: boolean;
-  casillas_texto: string | null;
-  total_casillas: number;
-  casillas_propias: number;
-  /** «1234 B1, 1234 C1»: las casillas del consejo dentro de la ruta. */
-  casillas_propias_texto: string | null;
-  secciones_propias: string | null;
-  tiene_propuesta: boolean;
-  fecha_propuesta: string | null;
-  tiene_aprobada: boolean;
-  fecha_aprobacion: string | null;
-  fecha_cierre: string | null;
-  observaciones_cierre: string | null;
-  motivo_anulacion: string | null;
-  fecha_anulacion: string | null;
-  estatus: TRevisionEstatus;
-  estatus_desc: string;
-  costo_cotizado: number | null;
-  diferencia: number | null;
-  observaciones_cedula: string | null;
-  fecha_cedula: string | null;
-  observaciones_acuse: string | null;
-  fecha_acuse: string | null;
-  captura_costo: boolean;
-  puede_informar: boolean;
-  puede_acusar: boolean;
+  aplicados: number;
+  creados: number;
+  reemplazados: number;
+  rechazados: number;
+  items: ICedulaDocumento[];
 }
 
-/** Resumen de oficina central: un consejo del tipo con sus cédulas por estatus. */
-export interface ICedulasResumenConsejo {
-  id_consejo: number;
-  tipo_consejo: TTipoConsejoChar;
-  consejo: string;
-  captura_costo: boolean;
-  cedulas: number;
-  sin_cedula: number;
-  propuestas: number;
-  informadas: number;
-  aprobadas: number;
-  cerradas: number;
-  anuladas: number;
-  revisiones_informadas: number;
-  revisiones_acusadas: number;
-  pendientes_de_informar: number;
-  pendientes_de_acusar: number;
-  costo_ine: number;
-  costo_cotizado: number;
-  diferencia: number;
-  costo_autorizado: number;
-  ultimo_informe: string | null;
-}
-
-/** Renglón de la bandeja general: la revisión de un consejo sobre la cédula de un mecanismo. */
-export interface ICedulaBandeja extends IMecanismoCedulaBase {
-  id: number;
-  id_revision: number;
-  tipo_consejo: TTipoConsejoChar;
-  id_consejo: number;
-  consejo: string | null;
-  id_df: number;
-  df: string | null;
-  tipo: TTipoMecanismo;
-  tipo_desc: string;
-  numero: number;
-  revisa_mecanismo: boolean;
-  casillas_texto: string | null;
-  /** Casillas del consejo del renglón dentro de la ruta, en texto. */
-  casillas_propias_texto: string | null;
-  tiene_propuesta: boolean;
-  fecha_propuesta: string | null;
-  tiene_aprobada: boolean;
-  fecha_aprobacion: string | null;
-  fecha_cierre: string | null;
-  fecha_anulacion: string | null;
-  estatus: TRevisionEstatus;
-  estatus_desc: string;
-  costo_cotizado: number | null;
-  diferencia: number | null;
-  observaciones_cedula: string | null;
-  fecha_cedula: string | null;
-  observaciones_acuse: string | null;
-  fecha_acuse: string | null;
-}
-
-/** Revisión de un consejo dentro del detalle de la cédula. */
-export interface ICedulaRevision {
-  id: number;
-  tipo_consejo: TTipoConsejoChar;
-  id_consejo: number;
-  consejo: string | null;
-  revisa_mecanismo: boolean;
-  captura_costo: boolean;
-  estatus: TRevisionEstatus;
-  estatus_desc: string;
-  costo_cotizado: number | null;
-  diferencia: number | null;
-  observaciones_cedula: string | null;
-  fecha_cedula: string | null;
-  observaciones_acuse: string | null;
-  fecha_acuse: string | null;
-}
-
-/** Renglón del historial de una cédula, un estudio o un informe. */
+/** Renglón del historial de un mecanismo, de un informe o de un estudio. */
 export interface IMecanismoHistorial {
   id: number;
   campo: string;
@@ -653,79 +594,6 @@ export interface IMecanismoHistorial {
   id_entidad?: number;
   tipo_consejo?: TTipoConsejoChar | null;
   id_consejo?: number | null;
-}
-
-/** Detalle de la cédula: el mecanismo, las revisiones (todas o la propia) y el historial. */
-export interface ICedula {
-  mecanismo: IMecanismo;
-  revisiones: ICedulaRevision[];
-  historial: IMecanismoHistorial[];
-}
-
-export interface ICedulaProponerPayload {
-  id_mecanismo: number;
-  costo_ine: number;
-  archivo: File;
-}
-
-/** Reemplazo de la propuesta: el PDF, el costo INE o ambos. */
-export interface ICedulaReemplazarPayload {
-  costo_ine?: number | null;
-  archivo?: File | null;
-}
-
-export interface ICedulaAprobarPayload {
-  costo_autorizado: number;
-  archivo: File;
-}
-
-/** El consejo informa su costo cotizado (si captura costo) y observaciones. */
-export interface ICedulaInformarPayload {
-  costo_cotizado?: number | null;
-  observaciones: string;
-}
-
-/** Observaciones del acuse del consejo o del cierre de oficina central. */
-export interface ICedulaObservacionesPayload {
-  observaciones?: string | null;
-}
-
-/** Un PDF del zip, desarmado y emparejado con su mecanismo. */
-export interface ICedulaDocumento {
-  archivo: string;
-  id_dl: number | null;
-  id_mun: number | null;
-  id_df: number | null;
-  tipo: string | null;
-  numero: number | null;
-  id_mecanismo: number | null;
-  cedula_estatus: TCedulaEstatus | null;
-  /** NUEVO (se creará el mecanismo), PROPONE, REEMPLAZA o RECHAZADO. */
-  efecto: 'NUEVO' | 'PROPONE' | 'REEMPLAZA' | 'RECHAZADO';
-  error: string | null;
-}
-
-/** Vista previa del zip de cédulas. */
-export interface ICedulasDocumentosValidacion {
-  total_archivos: number;
-  validos: number;
-  proponen: number;
-  reemplazan: number;
-  mecanismos_nuevos: number;
-  rechazados: number;
-  omitidos: number;
-  mecanismos_sin_cedula: number;
-  documentos: ICedulaDocumento[];
-}
-
-/** Resultado de la carga del zip aplicada. */
-export interface ICedulasDocumentosResultado {
-  id: number;
-  aplicados: number;
-  creados: number;
-  rechazados: number;
-  archivos_anteriores: string[];
-  items: ICedulaDocumento[];
 }
 
 // ---------------------------------------------------------------- Estudios de factibilidad

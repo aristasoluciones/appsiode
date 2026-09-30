@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Loader2, UserRoundSearch, X } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import type { ICae, IMecanismoLista } from '@/types/mecanismos';
-import { formatFechaHora } from '@/lib/fechas';
-import { useAuth } from '@/providers/auth-provider';
+import type { IMecanismoLista, TObservacionTipo } from '@/types/mecanismos';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,61 +25,43 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ContadorCaracteres } from '@/components/common/contador-caracteres';
 import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
-import { useInformarMecanismo, useMecanismo } from '../_hooks/use-mecanismos';
-import { claveMecanismo } from '../_lib/estatus';
+import {
+  useInformarMecanismo,
+  useMecanismo,
+  useObservacionesTipos,
+} from '../_hooks/use-mecanismos';
+import {
+  AYUDA_TIPO_OBSERVACION,
+  claveMecanismo,
+  TIPO_SIN_OBSERVACIONES,
+} from '../_lib/estatus';
+import {
+  crearInformeSchema,
+  informeAPayload,
+  informeInicial,
+  type TInformeForm,
+} from '../_lib/informe-form';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
-import { CaesDialog } from './caes-dialog';
-import { HistorialMecanismo } from './historial-mecanismo';
-
-/**
- * Mismos límites que la API, repetidos solo para avisar antes de enviar. El CAE
- * y el costo son obligatorios según las banderas del consejo, por eso el
- * esquema se arma con ellas.
- */
-function crearInformeSchema(capturaCosto: boolean, asignaCae: boolean) {
-  return z.object({
-    cae_folio: z
-      .string()
-      .max(MECANISMOS_LIMITES.caeFolio.max)
-      .refine((v) => !asignaCae || v !== '', {
-        message: 'Elige el CAE que atiende el mecanismo.',
-      }),
-    cae_nombre: z.string(),
-    costo: z
-      .string()
-      .trim()
-      .refine((v) => !capturaCosto || v !== '', {
-        message: 'Captura el costo estimado.',
-      })
-      .refine(
-        (v) =>
-          v === '' ||
-          (!Number.isNaN(Number(v)) &&
-            Number(v) >= MECANISMOS_LIMITES.costo.min &&
-            Number(v) <= MECANISMOS_LIMITES.costo.max),
-        {
-          message: `El costo debe estar entre 0 y ${MECANISMOS_LIMITES.costo.max.toLocaleString('es-MX')}.`,
-        },
-      ),
-    observaciones: z
-      .string()
-      .trim()
-      .min(1, { message: 'Captura las observaciones del informe.' })
-      .max(MECANISMOS_LIMITES.observaciones.max, {
-        message: `Las observaciones no deben exceder ${MECANISMOS_LIMITES.observaciones.max} caracteres.`,
-      }),
-  });
-}
-
-type TInformeForm = z.infer<ReturnType<typeof crearInformeSchema>>;
+import {
+  InformarCheckCampo,
+  InformeCaeCampo,
+  InformeCostoCampo,
+} from './informe-campos';
+import { ObservacionesLista } from './observaciones-lista';
 
 interface InformarMecanismoDialogProps {
   mecanismo: IMecanismoLista | null;
-  /** Banderas efectivas del consejo: deciden qué campos se piden. */
+  /** Banderas efectivas del consejo: deciden qué se pide al informar. */
   capturaCosto: boolean;
   asignaCae: boolean;
   open: boolean;
@@ -90,9 +69,11 @@ interface InformarMecanismoDialogProps {
 }
 
 /**
- * Informe del consejo sobre el mecanismo que revisa. El CAE no se escribe:
- * se elige de la lista de activos y queda en solo lectura, con el historial
- * de cambios a la vista.
+ * Informe del consejo sobre el mecanismo que revisa. Cada guardado agrega una
+ * observación tipificada, tantas como el consejo considere; con cualquier tipo
+ * puede marcar «Informar», que pide costo y CAE según la configuración del
+ * consejo y deja el mecanismo en Informado. No se abre sin cédula ni con el
+ * mecanismo ya informado: lo registrado se consulta en el detalle.
  */
 export function InformarMecanismoDialog({
   mecanismo,
@@ -101,61 +82,51 @@ export function InformarMecanismoDialog({
   open,
   onOpenChange,
 }: InformarMecanismoDialogProps) {
-  const { user } = useAuth();
   const informar = useInformarMecanismo();
-  const [selectorAbierto, setSelectorAbierto] = useState(false);
-
-  // El detalle trae el historial del informe; solo se pide con la ventana abierta.
+  const { data: tipos, isLoading: cargandoTipos } = useObservacionesTipos(open);
+  // El detalle trae las observaciones previas; solo se pide con la ventana abierta.
   const { data: detalle } = useMecanismo(open ? (mecanismo?.id ?? null) : null);
 
   const form = useForm<TInformeForm>({
     resolver: zodResolver(crearInformeSchema(capturaCosto, asignaCae)),
     mode: 'onSubmit',
-    defaultValues: {
-      cae_folio: '',
-      cae_nombre: '',
-      costo: '',
-      observaciones: '',
-    },
+    defaultValues: informeInicial(null),
   });
 
   useEffect(() => {
     if (!open) return;
-    form.reset({
-      cae_folio: mecanismo?.cae_folio ?? '',
-      cae_nombre: mecanismo?.cae_nombre ?? '',
-      costo:
-        mecanismo?.costo_estimado != null
-          ? String(mecanismo.costo_estimado)
-          : '',
-      observaciones: mecanismo?.observaciones_informe ?? '',
-    });
+    form.reset(informeInicial(mecanismo));
   }, [open, mecanismo, form]);
 
   if (!mecanismo) return null;
 
   const guardando = informar.isPending;
-  const caeFolio = form.watch('cae_folio');
-  const caeNombre = form.watch('cae_nombre');
+  const tipo = form.watch('tipo_observacion');
+  const marcaInformar = form.watch('informar');
+  const sinObservaciones = tipo === TIPO_SIN_OBSERVACIONES;
+  const ayuda = AYUDA_TIPO_OBSERVACION[tipo as TObservacionTipo];
+  const observaciones = detalle?.consejos.find(
+    (c) => c.revisa_mecanismo,
+  )?.observaciones;
 
-  function elegirCae(cae: ICae) {
-    form.setValue('cae_folio', cae.folio, { shouldDirty: true });
-    form.setValue('cae_nombre', cae.nombre_completo, { shouldDirty: true });
-    setSelectorAbierto(false);
+  function cambiarTipo(valor: string) {
+    form.setValue('tipo_observacion', valor, { shouldDirty: true });
+    form.clearErrors('observaciones');
   }
 
   function guardar(valores: TInformeForm) {
     informar.mutate(
       {
         id: mecanismo!.id,
-        payload: {
-          cae_folio: asignaCae && valores.cae_folio ? valores.cae_folio : null,
-          costo:
-            capturaCosto && valores.costo !== '' ? Number(valores.costo) : null,
-          observaciones: valores.observaciones,
-        },
+        payload: informeAPayload(valores, capturaCosto, asignaCae),
       },
-      { onSuccess: () => onOpenChange(false) },
+      {
+        // Una observación deja la ventana abierta y limpia para la siguiente; informar la cierra.
+        onSuccess: () =>
+          valores.informar
+            ? onOpenChange(false)
+            : form.reset(informeInicial(mecanismo)),
+      },
     );
   }
 
@@ -168,10 +139,9 @@ export function InformarMecanismoDialog({
         <DialogHeader>
           <DialogTitle>Informe del mecanismo</DialogTitle>
           <DialogDescription>
-            {claveMecanismo(mecanismo)}.{' '}
-            {mecanismo.informado
-              ? `Informado el ${formatFechaHora(mecanismo.fecha_informe)}. Cada cambio queda en el historial.`
-              : 'Captura lo que el consejo informa sobre este mecanismo.'}
+            {claveMecanismo(mecanismo)}. Registra tantas observaciones como
+            consideres, una por guardado. Si deseas informar el mecanismo,
+            habilita el check «Informar el mecanismo».
           </DialogDescription>
         </DialogHeader>
 
@@ -194,96 +164,43 @@ export function InformarMecanismoDialog({
               onSubmit={form.handleSubmit(guardar)}
               className="space-y-4"
             >
-              {asignaCae && (
-                <FormField
-                  control={form.control}
-                  name="cae_folio"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel>
-                        CAE que atiende el mecanismo{' '}
-                        <span className="text-destructive">*</span>
-                      </FormLabel>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <FormControl>
-                          <Input
-                            readOnly
-                            value={caeFolio ? `${caeFolio} · ${caeNombre}` : ''}
-                            placeholder="Sin CAE asignado"
-                            className="flex-1 min-w-56 bg-muted/40"
-                            aria-label="CAE asignado"
-                          />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setSelectorAbierto(true)}
-                          disabled={guardando}
-                        >
-                          <UserRoundSearch
-                            className="h-4 w-4"
-                            aria-hidden="true"
-                          />
-                          {caeFolio ? 'Cambiar' : 'Elegir CAE'}
-                        </Button>
-                        {caeFolio && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Quitar el CAE"
-                            disabled={guardando}
-                            onClick={() => {
-                              form.setValue('cae_folio', '', {
-                                shouldDirty: true,
-                              });
-                              form.setValue('cae_nombre', '', {
-                                shouldDirty: true,
-                              });
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                      <FormDescription>
-                        Se elige de la lista de CAE activos del consejo; no se
-                        captura a mano.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {capturaCosto && (
-                <FormField
-                  control={form.control}
-                  name="costo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Costo estimado (MXN){' '}
-                        <span className="text-destructive">*</span>
-                      </FormLabel>
+              <FormField
+                control={form.control}
+                name="tipo_observacion"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Tipo de observación{' '}
+                      <span className="text-destructive">*</span>
+                    </FormLabel>
+                    <Select
+                      indicatorVisibility={false}
+                      value={field.value}
+                      onValueChange={cambiarTipo}
+                      disabled={guardando || cargandoTipos}
+                    >
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          inputMode="decimal"
-                          min={MECANISMOS_LIMITES.costo.min}
-                          max={MECANISMOS_LIMITES.costo.max}
-                          step="0.01"
-                          placeholder="0.00"
-                          disabled={guardando}
-                          className="max-w-56"
-                        />
+                        <SelectTrigger aria-label="Tipo de observación">
+                          <SelectValue
+                            placeholder={
+                              cargandoTipos ? 'Cargando...' : 'Elige el tipo'
+                            }
+                          />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+                      <SelectContent>
+                        {(tipos ?? []).map((t) => (
+                          <SelectItem key={t.clave} value={t.clave}>
+                            {t.descripcion}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {ayuda && <FormDescription>{ayuda}</FormDescription>}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -291,14 +208,21 @@ export function InformarMecanismoDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Observaciones <span className="text-destructive">*</span>
+                      Observaciones{' '}
+                      {!sinObservaciones && (
+                        <span className="text-destructive">*</span>
+                      )}
                     </FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
                         rows={4}
                         maxLength={MECANISMOS_LIMITES.observaciones.max}
-                        placeholder="Ruta, condiciones del traslado, acuerdos con el CAE..."
+                        placeholder={
+                          sinObservaciones
+                            ? 'Opcional: algún comentario para el registro.'
+                            : 'Describe la observación de este tipo.'
+                        }
                         disabled={guardando}
                       />
                     </FormControl>
@@ -310,17 +234,20 @@ export function InformarMecanismoDialog({
                   </FormItem>
                 )}
               />
+
+              <InformarCheckCampo form={form} disabled={guardando} />
+
+              {marcaInformar && asignaCae && (
+                <InformeCaeCampo form={form} disabled={guardando} />
+              )}
+              {marcaInformar && capturaCosto && (
+                <InformeCostoCampo form={form} disabled={guardando} />
+              )}
               <LeyendaObligatorios />
             </form>
           </Form>
 
-          <HistorialMecanismo
-            historial={detalle?.historial?.filter(
-              (h) => h.entidad !== 'MECANISMO',
-            )}
-            titulo="Historial del informe"
-            vacio="Todavía no hay cambios registrados en el informe."
-          />
+          <ObservacionesLista observaciones={observaciones} />
         </DialogBody>
 
         <DialogFooter>
@@ -341,21 +268,10 @@ export function InformarMecanismoDialog({
             {guardando && (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             )}
-            Guardar informe
+            {marcaInformar ? 'Informar mecanismo' : 'Guardar observación'}
           </Button>
         </DialogFooter>
       </DialogContent>
-
-      {asignaCae && user && (
-        <CaesDialog
-          open={selectorAbierto}
-          onOpenChange={setSelectorAbierto}
-          tipoConsejo={user.tipoConsejo as 'D' | 'M'}
-          idConsejo={Number(user.idConsejo)}
-          onSeleccionar={elegirCae}
-          folioActual={caeFolio || null}
-        />
-      )}
     </Dialog>
   );
 }

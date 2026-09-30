@@ -122,7 +122,7 @@ export function MecanismosAdminDashboard() {
             onClick={() => setVentana('importar')}
           >
             <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-            Archivo del INE
+            Cargas masivas
           </Button>
           <Button
             variant="outline"

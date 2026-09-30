@@ -6,7 +6,7 @@ type TipoConsejo = 'D' | 'M';
  * Mecanismos de recolección. Una sola API para consejo y oficina central: el
  * consejo de escritura sale del token y las consultas con `idConsejo`/`tipoConsejo`
  * las usa oficina central para ver lo que ve un consejo. Las cargas masivas
- * (archivo del INE, CAE, zip de cédulas) son solo para roles administrador.
+ * (formato de importación, CAE, zip de cédulas) son solo para roles administrador.
  */
 export const MECANISMOS = {
   /* Mecanismos: lista, detalle y vía principal de oficina central. */
@@ -51,7 +51,7 @@ export const MECANISMOS = {
   SEGUIMIENTO: (tipoConsejo: TipoConsejo) =>
     `/mecanismos/seguimiento${qs({ tipoConsejo })}`,
 
-  /* Importación del archivo del INE (solo roles administrador). */
+  /* Importación del formato, armado desde las cédulas del INE (solo roles administrador). */
 
   /** Revisa el archivo y devuelve la vista previa, sin guardar nada (form `archivo`). */
   IMPORTAR_VALIDAR: '/mecanismos/importaciones/validar',
@@ -103,47 +103,16 @@ export const MECANISMOS = {
   CONFIGURACION_CONSEJO: (tipoConsejo: TipoConsejo, idConsejo: Id) =>
     `/mecanismos/configuracion/${tipoConsejo}/${idConsejo}`,
 
-  /* Cédulas: una por mecanismo, compartida por sus consejos. */
+  /* Cédula: un PDF por mecanismo, sin estatus propio. */
 
-  /** Cédulas del consejo, una por mecanismo vinculado, con la acción que admite cada una. */
-  CEDULAS: (idConsejo: Id, tipoConsejo: TipoConsejo) =>
-    `/mecanismos/cedulas${qs({ idConsejo, tipoConsejo })}`,
-  /** Propone la cédula de un mecanismo (form `id_mecanismo`, `costo_ine`, `archivo`). */
-  CEDULA_PROPONER: '/mecanismos/cedulas',
-  /** Resumen por consejo del tipo; exclusivo de oficina central. */
-  CEDULAS_RESUMEN: (tipoConsejo: TipoConsejo) =>
-    `/mecanismos/cedulas/resumen${qs({ tipoConsejo })}`,
-  /** Bandeja general de oficina central con filtros de estatus, diferencia y consejo. */
-  CEDULAS_GENERAL: (
-    tipoConsejo: TipoConsejo,
-    filtros: { estatus?: string; diferencia?: string; idConsejo?: Id } = {},
-  ) =>
-    `/mecanismos/cedulas/general${qs({
-      tipoConsejo,
-      estatus: filtros.estatus,
-      diferencia: filtros.diferencia,
-      idConsejo: filtros.idConsejo,
-    })}`,
-  /** Detalle de la cédula del mecanismo: revisiones e historial. */
-  CEDULA: (id: Id) => `/mecanismos/cedulas/${id}`,
-  /** GET devuelve la URL firmada del PDF propuesto; PUT lo reemplaza (form `archivo` y/o `costo_ine`). */
-  CEDULA_PROPUESTA: (id: Id) => `/mecanismos/cedulas/${id}/propuesta`,
-  /** URL firmada del PDF aprobado. */
-  CEDULA_APROBADA: (id: Id) => `/mecanismos/cedulas/${id}/aprobada`,
-  /** El consejo informa costo cotizado y observaciones (PUT). */
-  CEDULA_INFORME: (id: Id) => `/mecanismos/cedulas/${id}/informe`,
-  /** Oficina central aprueba con PDF y costo autorizado (form `archivo`, `costo_autorizado`). */
-  CEDULA_APROBAR: (id: Id) => `/mecanismos/cedulas/${id}/aprobar`,
-  /** El consejo acusa la cédula aprobada (POST `{ observaciones }`). */
-  CEDULA_ACUSE: (id: Id) => `/mecanismos/cedulas/${id}/acuse`,
-  /** Oficina central cierra la cédula aprobada (POST `{ observaciones }`). */
-  CEDULA_CERRAR: (id: Id) => `/mecanismos/cedulas/${id}/cerrar`,
-  /** Anula la cédula desde cualquier estatus (POST `{ motivo }`). */
-  CEDULA_ANULAR: (id: Id) => `/mecanismos/cedulas/${id}/anular`,
-  /** Revisa el zip de PDF y devuelve el emparejamiento por nombre, sin guardar (form `archivo`). */
-  CEDULAS_DOCUMENTOS_VALIDAR: '/mecanismos/cedulas/documentos/validar',
-  /** Aplica el zip: sube los PDF y deja las cédulas en Propuesta (form `archivo`). */
-  CEDULAS_DOCUMENTOS: '/mecanismos/cedulas/documentos',
+  /** GET devuelve `{ url, nombre_descarga }` con la URL firmada del PDF; PUT lo carga o reemplaza (form `archivo`). */
+  CEDULA: (id: Id) => `/mecanismos/${id}/cedula`,
+  /** Revisa el zip de PDF y devuelve el emparejamiento por número de mecanismo, sin guardar (form `archivo`). */
+  IMPORTAR_CEDULAS_VALIDAR: '/mecanismos/importaciones/cedulas/validar',
+  /** Aplica el zip: carga o reemplaza la cédula de cada mecanismo emparejado (form `archivo`). */
+  IMPORTAR_CEDULAS: '/mecanismos/importaciones/cedulas',
+  /** Catálogo de tipos de observación del informe (`{ clave, descripcion }[]`). */
+  OBSERVACIONES_TIPOS: '/mecanismos/observaciones/tipos',
 
   /* Estudios de factibilidad: uno por distrito federal, con acuses por consejo. */
 
@@ -169,22 +138,9 @@ export const MECANISMOS = {
 
   /* Reportes en Excel. El consejo solo exporta lo suyo. */
 
-  /** Mecanismos del tipo de consejo; exclusivo de oficina central. */
+  /** Mecanismos del tipo de consejo con estatus, costo, CAE, cédula y observaciones; exclusivo de oficina central. */
   REPORTE_MECANISMOS: (tipoConsejo: TipoConsejo) =>
     `/mecanismos/reportes/mecanismos${qs({ tipoConsejo })}`,
-  /** Cédulas de un consejo. */
-  REPORTE_CEDULAS_CONSEJO: (idConsejo: Id, tipoConsejo: TipoConsejo) =>
-    `/mecanismos/reportes/cedulas/consejo${qs({ idConsejo, tipoConsejo })}`,
-  /** Cédulas generales con los filtros de la bandeja; exclusivo de oficina central. */
-  REPORTE_CEDULAS_GENERAL: (
-    tipoConsejo: TipoConsejo,
-    filtros: { estatus?: string; diferencia?: string } = {},
-  ) =>
-    `/mecanismos/reportes/cedulas/general${qs({
-      tipoConsejo,
-      estatus: filtros.estatus,
-      diferencia: filtros.diferencia,
-    })}`,
   /** Estudios de factibilidad: avance por distrito y acuses; exclusivo de oficina central. */
   REPORTE_ESTUDIOS: '/mecanismos/reportes/estudios',
 } as const;

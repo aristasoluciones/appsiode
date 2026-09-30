@@ -62,7 +62,6 @@ export function useGuardarConfiguracionConsejo() {
       queryClient.invalidateQueries({
         queryKey: MECANISMOS_KEYS.seguimiento(),
       });
-      queryClient.invalidateQueries({ queryKey: MECANISMOS_KEYS.cedulas() });
       toastSuccess('Configuración guardada.');
     },
   });

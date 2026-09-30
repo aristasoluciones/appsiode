@@ -23,8 +23,8 @@ interface VisorPdfDialogProps {
 }
 
 /**
- * Visor de PDF en ventana. La URL firmada pasa por `/api/pdf-proxy` para que
- * el navegador la muestre en línea (el almacenamiento la sirve como descarga).
+ * Visor de PDF en ventana. Recibe una URL firmada en línea (Content-Disposition
+ * inline), que el iframe muestra directo sin pasar por el servidor de Next.
  */
 export function VisorPdfDialog({
   open,
@@ -34,7 +34,7 @@ export function VisorPdfDialog({
   url,
   cargando = false,
 }: VisorPdfDialogProps) {
-  const src = url ? `/api/pdf-proxy?url=${encodeURIComponent(url)}` : null;
+  const src = url;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -2,17 +2,17 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import type { IMecanismoSeguimiento } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { formatMoneda } from '@/lib/helpers';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EstadoVacio } from '@/components/common/estado-vacio';
 import { PaginacionSimple } from '@/components/common/paginacion-simple';
+import { Porcentaje, rutaConsejo, SeguimientoCard } from './seguimiento-card';
 
-/** Filtro por estado del informe: todos los mecanismos informados, o con pendientes. */
+/** Filtro por estado del informe: todos los mecanismos informados, con pendientes, o sin mecanismos. */
 export type TFiltroInforme = 'informados' | 'sin_informar' | 'sin_mecanismos';
 
 /** Un consejo está «informado» cuando todos sus mecanismos tienen informe. */
@@ -30,18 +30,7 @@ interface SeguimientoTableProps {
   acciones?: React.ReactNode;
 }
 
-function rutaConsejo(c: IMecanismoSeguimiento) {
-  return `/mecanismos/consejos/${c.tipo_consejo === 'D' ? 'distritales' : 'municipales'}/${c.id_consejo}`;
-}
-
-function Porcentaje({ valor }: { valor: number }) {
-  const tono = valor >= 100 ? 'success' : valor > 0 ? 'warning' : 'secondary';
-  return (
-    <Badge variant={tono} appearance="light" size="sm" className="tabular-nums">
-      {valor}%
-    </Badge>
-  );
-}
+const COLUMNAS = 'grid grid-cols-[3fr_repeat(9,1fr)_2fr] gap-2 items-center';
 
 /** Un consejo del tipo por renglón, aunque vaya en ceros; el nombre lleva a su vista. */
 export function SeguimientoTable({
@@ -151,62 +140,42 @@ export function SeguimientoTable({
           <div className="md:hidden p-3 space-y-3">
             {isLoading
               ? Array.from({ length: 4 }, (_, i) => (
-                  <Skeleton key={i} className="h-36 rounded-lg" />
+                  <Skeleton key={i} className="h-40 rounded-lg" />
                 ))
               : paginados.map((c) => (
-                  <Link
+                  <SeguimientoCard
                     key={c.id_consejo}
-                    href={rutaConsejo(c)}
-                    className="block"
-                  >
-                    <article className="border border-border rounded-lg p-4 space-y-3 bg-card">
-                      <header className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            #{c.id_consejo} · {tipoTexto}
-                          </p>
-                          <h3 className="text-base font-semibold text-foreground mt-0.5 truncate">
-                            {c.consejo}
-                          </h3>
-                        </div>
-                        <Porcentaje valor={c.porcentaje_informados} />
-                      </header>
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        {[
-                          ['Mecanismos', c.mecanismos],
-                          ['Informados', c.informados],
-                          ['Con CAE', c.con_cae],
-                        ].map(([l, v]) => (
-                          <div key={l} className="rounded-md p-2 bg-muted/50">
-                            <span className="block text-base font-bold tabular-nums">
-                              {v}
-                            </span>
-                            <span className="text-[0.625rem] text-muted-foreground">
-                              {l}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <footer className="flex items-center justify-between pt-2 border-t border-border text-xs text-muted-foreground">
-                        <span>
-                          Costo estimado {formatMoneda(c.costo_estimado)}
-                        </span>
-                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                      </footer>
-                    </article>
-                  </Link>
+                    c={c}
+                    tipoTexto={tipoTexto}
+                  />
                 ))}
           </div>
 
           <div className="hidden md:block overflow-x-auto">
-            <div className="min-w-[980px]">
-              <div className="grid grid-cols-12 gap-2 items-center py-2 px-3 text-xs font-medium text-muted-foreground border-b border-border bg-muted/40">
-                <div className="col-span-3">Consejo</div>
+            <div className="min-w-[1180px]">
+              <div
+                className={`${COLUMNAS} py-2 px-3 text-xs font-medium text-muted-foreground border-b border-border bg-muted/40`}
+              >
+                <div>Consejo</div>
                 <div className="text-center">Mecanismos</div>
                 <div className="text-center">DAT</div>
                 <div className="text-center">CRyT</div>
-                <div className="text-center">Informados</div>
+                <div className="text-center" title="Informados / sin informar">
+                  Informados
+                </div>
                 <div className="text-center">Avance</div>
+                <div
+                  className="text-center"
+                  title="Mecanismos con cédula / sin cédula"
+                >
+                  Cédula
+                </div>
+                <div
+                  className="text-center"
+                  title="Mecanismos con al menos una observación"
+                >
+                  Con observ.
+                </div>
                 <div
                   className="text-center"
                   title="Mecanismos que informa el consejo con CAE asignado"
@@ -219,30 +188,27 @@ export function SeguimientoTable({
                 >
                   Costo estimado
                 </div>
-                <div className="col-span-2 text-right">Último informe</div>
+                <div className="text-right">Último informe</div>
               </div>
               {isLoading
                 ? Array.from({ length: 6 }, (_, i) => (
-                    <div
-                      key={i}
-                      className="grid grid-cols-12 gap-2 items-center py-2 px-3"
-                    >
-                      <div className="col-span-3 space-y-1.5">
+                    <div key={i} className={`${COLUMNAS} py-2 px-3`}>
+                      <div className="space-y-1.5">
                         <Skeleton className="h-4 w-40" />
                         <Skeleton className="h-3 w-28" />
                       </div>
-                      {Array.from({ length: 7 }, (_, j) => (
+                      {Array.from({ length: 9 }, (_, j) => (
                         <Skeleton key={j} className="h-4 w-10 mx-auto" />
                       ))}
-                      <Skeleton className="col-span-2 h-3 w-28 ml-auto" />
+                      <Skeleton className="h-3 w-28 ml-auto" />
                     </div>
                   ))
                 : paginados.map((c) => (
                     <div
                       key={c.id_consejo}
-                      className="grid grid-cols-12 gap-2 items-center py-2 px-3 text-sm border-b border-border last:border-b-0 hover:bg-accent/30 transition-colors"
+                      className={`${COLUMNAS} py-2 px-3 text-sm border-b border-border last:border-b-0 hover:bg-accent/30 transition-colors`}
                     >
-                      <div className="col-span-3 min-w-0">
+                      <div className="min-w-0">
                         <Link
                           href={rutaConsejo(c)}
                           className="font-medium text-foreground truncate block hover:text-primary focus-visible:outline-none focus-visible:underline"
@@ -271,12 +237,22 @@ export function SeguimientoTable({
                         <Porcentaje valor={c.porcentaje_informados} />
                       </div>
                       <div className="text-center tabular-nums">
+                        {c.con_cedula}
+                        <span className="text-xs text-muted-foreground">
+                          {' '}
+                          / {c.sin_cedula}
+                        </span>
+                      </div>
+                      <div className="text-center tabular-nums">
+                        {c.con_observaciones}
+                      </div>
+                      <div className="text-center tabular-nums">
                         {c.con_cae}
                       </div>
                       <div className="text-right tabular-nums">
                         {formatMoneda(c.costo_estimado)}
                       </div>
-                      <div className="col-span-2 text-right text-xs text-muted-foreground">
+                      <div className="text-right text-xs text-muted-foreground">
                         {c.ultimo_informe
                           ? formatFechaHora(c.ultimo_informe)
                           : '—'}

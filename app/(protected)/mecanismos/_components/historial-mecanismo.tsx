@@ -65,17 +65,12 @@ const CAMPOS: Record<
   },
   ACTIVO: { titulo: 'Estatus', icono: <Power />, tono: 'peligro' },
   ESTATUS: {
-    titulo: 'Estatus de la cédula',
+    titulo: 'Estatus',
     icono: <History />,
     tono: 'primario',
   },
   DOCUMENTO: { titulo: 'Documento', icono: <FileText />, tono: 'info' },
-  COSTO_COTIZADO: {
-    titulo: 'Costo cotizado',
-    icono: <Coins />,
-    tono: 'info',
-    moneda: true,
-  },
+  CEDULA: { titulo: 'Cédula', icono: <FileText />, tono: 'info' },
   ACUSE: { titulo: 'Acuse', icono: <CheckCircle2 />, tono: 'exito' },
 };
 

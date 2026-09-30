@@ -89,15 +89,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       permission: 'bodegas.aperturas.ver',
   },
   { heading: 'Mecanismos de Recolección', permission: 'mecanismos.ver'},
-  { 
-      title: 'Cédulas',
-      icon: FilePenLine,
-      path: '/mecanismos/cedulas',
-      badge: 'New',
-      disabled: false,
-      permission: 'mecanismos.cedulas.ver',
-  },
-  { 
+  {
       title: 'Estudios de Factibilidad',
       icon: FilePenLine,
       path: '/mecanismos/factibilidad',

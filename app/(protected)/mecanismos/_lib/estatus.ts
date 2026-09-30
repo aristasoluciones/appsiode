@@ -1,6 +1,7 @@
 import type {
-  TCedulaEstatus,
   TEstudioEstatus,
+  TMecanismoEstatus,
+  TObservacionTipo,
   TTipoConsejoChar,
   TTipoMecanismo,
 } from '@/types/mecanismos';
@@ -13,17 +14,32 @@ type TVariant =
   | 'info'
   | 'destructive';
 
-/** Etiqueta y color de cada estatus de la cédula, iguales en listas y detalles. */
-export const ESTATUS_CEDULA: Record<
-  TCedulaEstatus,
+/** Etiqueta y color del estatus del mecanismo, iguales en listas y detalles. */
+export const ESTATUS_MECANISMO: Record<
+  TMecanismoEstatus,
   { label: string; variant: TVariant }
 > = {
-  SIN_CEDULA: { label: 'Sin cédula', variant: 'secondary' },
-  PROPUESTA: { label: 'Propuesta', variant: 'primary' },
-  INFORMADA: { label: 'Informada', variant: 'info' },
-  APROBADA: { label: 'Aprobada', variant: 'warning' },
-  CERRADA: { label: 'Cerrada', variant: 'success' },
-  ANULADA: { label: 'Anulada', variant: 'destructive' },
+  SIN_INFORMAR: { label: 'Sin informar', variant: 'secondary' },
+  INFORMADO: { label: 'Informado', variant: 'success' },
+};
+
+/** Tipo de observación con el que se informa el mecanismo; es el único que habilita el check. */
+export const TIPO_SIN_OBSERVACIONES: TObservacionTipo = 'SIN_OBSERVACIONES';
+
+/** Ayuda de los tipos que la necesitan, bajo el combo del informe. */
+export const AYUDA_TIPO_OBSERVACION: Partial<Record<TObservacionTipo, string>> =
+  {
+    RUTA: 'Tiempo, distancia y vía del traslado: terrestre, aérea o marítima.',
+  };
+
+/** Etiqueta corta de cada tipo de observación, para la lista cuando el catálogo aún no carga. */
+export const TIPO_OBSERVACION_CORTO: Record<TObservacionTipo, string> = {
+  SIN_OBSERVACIONES: 'Sin observaciones',
+  COSTO: 'Costo',
+  DOMICILIO: 'Domicilio',
+  DESTINO: 'Destino',
+  CASILLA_SECCION: 'Casilla / sección',
+  RUTA: 'Ruta',
 };
 
 /** Etiqueta y color de cada estatus del estudio de factibilidad; «Sin estudio» cubre el distrito sin propuesta. */

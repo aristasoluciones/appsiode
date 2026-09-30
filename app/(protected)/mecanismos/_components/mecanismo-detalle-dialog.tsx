@@ -21,7 +21,8 @@ import { TextoExpandible } from '@/components/common/texto-expandible';
 import { useMecanismo } from '../_hooks/use-mecanismos';
 import { claveMecanismo, nombreConsejo } from '../_lib/estatus';
 import { HistorialMecanismo } from './historial-mecanismo';
-import { CedulaBadge } from './mecanismo-card';
+import { CedulaBadge, InformeBadge } from './mecanismo-celdas';
+import { ObservacionesLista } from './observaciones-lista';
 
 interface MecanismoDetalleDialogProps {
   idMecanismo: number | null;
@@ -61,7 +62,7 @@ function Seccion({
   );
 }
 
-/** Ficha completa del mecanismo: ruta, casillas, consejos con su informe, cédula e historial. */
+/** Ficha completa del mecanismo: ruta, casillas, consejos con su informe y observaciones, cédula e historial. */
 export function MecanismoDetalleDialog({
   idMecanismo,
   open,
@@ -186,35 +187,31 @@ function Detalle({ m }: { m: IMecanismo }) {
                     Informa el mecanismo
                   </Badge>
                 )}
-                <Badge
-                  variant={c.fecha_informe ? 'success' : 'secondary'}
-                  appearance="light"
-                  size="sm"
-                >
-                  {c.informe_estatus_desc}
-                </Badge>
+                {c.revisa_mecanismo && <InformeBadge m={c} />}
               </div>
               {c.revisa_mecanismo && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <Dato etiqueta="CAE">
-                    {c.cae_folio ? `${c.cae_folio} · ${c.cae_nombre}` : null}
-                  </Dato>
-                  <Dato etiqueta="Costo estimado">
-                    {c.costo_estimado != null
-                      ? formatMoneda(c.costo_estimado)
-                      : null}
-                  </Dato>
-                  <Dato etiqueta="Informado">
-                    {c.fecha_informe ? formatFechaHora(c.fecha_informe) : null}
-                  </Dato>
-                  {c.observaciones_informe && (
-                    <div className="col-span-full">
-                      <Dato etiqueta="Observaciones">
-                        <TextoExpandible texto={c.observaciones_informe} />
-                      </Dato>
-                    </div>
-                  )}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <Dato etiqueta="CAE">
+                      {c.cae_folio ? `${c.cae_folio} · ${c.cae_nombre}` : null}
+                    </Dato>
+                    <Dato etiqueta="Costo estimado">
+                      {c.costo_estimado != null
+                        ? formatMoneda(c.costo_estimado)
+                        : null}
+                    </Dato>
+                    <Dato etiqueta="Informado">
+                      {c.fecha_informe
+                        ? formatFechaHora(c.fecha_informe)
+                        : null}
+                    </Dato>
+                  </div>
+                  <ObservacionesLista
+                    observaciones={c.observaciones ?? []}
+                    titulo="Observaciones"
+                    vacio="Sin observaciones registradas."
+                  />
+                </>
               )}
             </div>
           ))}
@@ -224,30 +221,17 @@ function Detalle({ m }: { m: IMecanismo }) {
       <Seccion titulo="Cédula">
         <div className="flex flex-wrap items-center gap-2">
           <CedulaBadge m={m} />
-          {m.fecha_propuesta && (
+          {m.tiene_cedula && m.cedula_fecha && (
             <span className="text-xs text-muted-foreground">
-              Propuesta {formatFechaHora(m.fecha_propuesta)}
+              Cargada {formatFechaHora(m.cedula_fecha)}
             </span>
           )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <Dato etiqueta="Costo INE">
+          <Dato etiqueta="Costo INE (referencia)">
             {m.costo_ine != null ? formatMoneda(m.costo_ine) : null}
           </Dato>
-          <Dato etiqueta="Costo autorizado">
-            {m.costo_autorizado != null
-              ? formatMoneda(m.costo_autorizado)
-              : null}
-          </Dato>
-          <Dato etiqueta="Aprobada">
-            {m.fecha_aprobacion ? formatFechaHora(m.fecha_aprobacion) : null}
-          </Dato>
         </div>
-        {m.motivo_anulacion && (
-          <p className="text-sm text-destructive">
-            Anulada {formatFechaHora(m.fecha_anulacion)}: {m.motivo_anulacion}
-          </p>
-        )}
       </Seccion>
 
       {m.observaciones_admin && (

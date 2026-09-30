@@ -5,7 +5,7 @@
 export const MECANISMOS_LIMITES = {
   /** PDF de cédula o de estudio: un solo límite para todos los casos. */
   pdf: { bytes: 10 * 1024 * 1024, tipos: ['application/pdf'] as const },
-  /** Archivo del INE, listado de CAE y Excel de asignación. */
+  /** Formato de importación, listado de CAE y Excel de asignación. */
   excel: {
     bytes: 5 * 1024 * 1024,
     extensiones: ['.xlsx', '.csv'] as const,

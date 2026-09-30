@@ -50,7 +50,7 @@ const EFECTO: Record<
   RECHAZADO: { label: 'Rechazado', variant: 'destructive' },
   ASIGNA: { label: 'Asigna', variant: 'success' },
   RETIRA: { label: 'Retira', variant: 'warning' },
-  PROPONE: { label: 'Propone', variant: 'success' },
+  CARGA: { label: 'Carga', variant: 'success' },
   REEMPLAZA: { label: 'Reemplaza', variant: 'info' },
 };
 

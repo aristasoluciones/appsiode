@@ -17,8 +17,8 @@ import {
 import { MotivoDialog } from './motivo-dialog';
 
 const TIPO_TEXTO: Record<TImportacionTipo, string> = {
-  MECANISMOS: 'Archivo del INE',
-  CEDULAS: 'Documentos de cédula',
+  MECANISMOS: 'Formato de importación',
+  CEDULAS: 'Cédulas por zip',
   CAES: 'Listado de CAE',
   CAES_ASIGNACION: 'Asignación de CAE',
 };
@@ -27,7 +27,7 @@ interface ImportacionesHistorialProps {
   tipo: TImportacionTipo;
   /** Solo se consulta con el apartado a la vista. */
   activo: boolean;
-  /** Solo la carga del archivo del INE admite reversión. */
+  /** Solo la carga del formato de importación admite reversión. */
   puedeRevertir?: boolean;
 }
 
@@ -148,7 +148,7 @@ function RevertirDialog({
         onOpenChange(v);
       }}
       titulo={`Reversión de la importación #${importacion?.id ?? ''}`}
-      descripcion="Los mecanismos que creó se eliminan y los que actualizó vuelven a su estado anterior. No se puede revertir si alguno ya tiene informe o cédula."
+      descripcion="Los mecanismos que creó se eliminan y los que actualizó vuelven a su estado anterior. No se puede revertir si alguno ya tiene observaciones, informe o cédula."
       accion="Revertir"
       icono={<Undo2 className="h-4 w-4" aria-hidden="true" />}
       pendiente={revertir.isPending}

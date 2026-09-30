@@ -10,6 +10,7 @@ import type {
   IMecanismoInformarPayload,
   IMecanismoLista,
   IMecanismoObservacionesPayload,
+  IMecanismoObservacionTipo,
   IMecanismoPayload,
   IMecanismoSeguimiento,
   IMecanismoTipo,
@@ -41,6 +42,21 @@ export function useMecanismosTipos(incluirInactivos = false) {
     queryFn: async () => {
       const { data } = await apiClient.get<IMecanismoTipo[]>(
         API_ENDPOINTS.MECANISMOS.TIPOS(incluirInactivos),
+      );
+      return data ?? [];
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+/** Tipos de observación del informe; se piden solo con la ventana de informe abierta. */
+export function useObservacionesTipos(habilitado = true) {
+  return useQuery({
+    enabled: habilitado,
+    queryKey: MECANISMOS_KEYS.observacionesTipos(),
+    queryFn: async () => {
+      const { data } = await apiClient.get<IMecanismoObservacionTipo[]>(
+        API_ENDPOINTS.MECANISMOS.OBSERVACIONES_TIPOS,
       );
       return data ?? [];
     },
@@ -159,11 +175,10 @@ export function useSeguimiento(
 // ---------------------------------------------------------------- Escrituras
 
 /**
- * Cualquier escritura sobre un mecanismo rehace las listas, el seguimiento y
- * las cédulas (comparten el mismo registro). El detalle se deja en caché con
- * lo que devolvió el servidor, sin volver a pedirlo.
+ * Cualquier escritura sobre un mecanismo rehace las listas y el seguimiento.
+ * El detalle se deja en caché con lo que devolvió el servidor, sin volver a pedirlo.
  */
-function guardarMecanismoEnCache(
+export function guardarMecanismoEnCache(
   queryClient: ReturnType<typeof useQueryClient>,
   mecanismo: IMecanismo,
 ) {
@@ -173,7 +188,6 @@ function guardarMecanismoEnCache(
     predicate: (q) => q.queryKey[2] !== 'detalle',
   });
   queryClient.invalidateQueries({ queryKey: MECANISMOS_KEYS.seguimiento() });
-  queryClient.invalidateQueries({ queryKey: MECANISMOS_KEYS.cedulas() });
 }
 
 /** Alta de un mecanismo por oficina central, con consejos y casillas. */
@@ -195,7 +209,7 @@ export function useCrearMecanismo() {
   });
 }
 
-/** Edición del mecanismo; el territorio no cambia si ya tiene cédula informada. */
+/** Edición del mecanismo; el territorio no cambia si el consejo ya lo informó. */
 export function useEditarMecanismo() {
   const queryClient = useQueryClient();
 
@@ -298,8 +312,10 @@ export function useGuardarObservacionesMecanismo() {
 }
 
 /**
- * Informe del consejo que revisa el mecanismo: CAE, costo estimado y
- * observaciones según su configuración. El CAE queda congelado en el mecanismo.
+ * Informe del consejo que revisa el mecanismo: cada guardado agrega una
+ * observación tipificada; con «Informar» captura costo y CAE (según la
+ * configuración del consejo) y el estatus pasa a Informado. El CAE queda
+ * congelado en el mecanismo.
  */
 export function useInformarMecanismo() {
   const queryClient = useQueryClient();
@@ -318,11 +334,15 @@ export function useInformarMecanismo() {
       );
       return data;
     },
-    onSuccess: (mecanismo) => {
+    onSuccess: (mecanismo, { payload }) => {
       guardarMecanismoEnCache(queryClient, mecanismo);
-      // El informe cambia cuántos mecanismos atiende cada CAE.
-      queryClient.invalidateQueries({ queryKey: MECANISMOS_KEYS.caes() });
-      toastSuccess('Informe guardado.');
+      if (payload.informar) {
+        // El informe cambia cuántos mecanismos atiende cada CAE.
+        queryClient.invalidateQueries({ queryKey: MECANISMOS_KEYS.caes() });
+      }
+      toastSuccess(
+        payload.informar ? 'Mecanismo informado.' : 'Observación registrada.',
+      );
     },
   });
 }
