@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -11,6 +11,7 @@ import {
 import { History, SquarePen } from 'lucide-react';
 import type { IComprobacionDocumento } from '@/types/material-electoral';
 import { formatFechaHora } from '@/lib/fechas';
+import { formatNumero } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -25,7 +26,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ArticuloFoto } from './articulo-foto';
-import { enPaquetesCajas } from './comprobacion-cantidades';
+import { diferenciaConSigno, enPaquetesCajas } from './comprobacion-cantidades';
 import { ESTATUS_COMPROBACION } from './comprobacion-estatus';
 
 /** Diferencia con signo y color; `null` mientras el renglón no se captura. */
@@ -41,7 +42,7 @@ function Diferencia({ valor }: { valor: number | null }) {
         : 'text-warning';
   return (
     <span className={`text-sm font-semibold ${color}`}>
-      {valor > 0 ? `+${valor}` : valor}
+      {diferenciaConSigno(valor)}
     </span>
   );
 }
@@ -55,6 +56,27 @@ interface ComprobacionesTableProps {
   onCapturar?: (documento: IComprobacionDocumento) => void;
   /** Abre el historial del renglón; ausente = sin permiso para el detalle. */
   onHistorial?: (documento: IComprobacionDocumento) => void;
+  /** Cambia con los filtros en pantalla; al cambiar, el listado vuelve a la primera página. */
+  filtrosClave?: string;
+  /** Renglón recién guardado: se lleva a su página, se desplaza la vista y se resalta. */
+  resaltadoId?: number | null;
+}
+
+/** Desplaza la vista hasta el renglón (fila de la tabla o tarjeta móvil visible). */
+function desplazarHasta(id: number) {
+  const reducido = window.matchMedia(
+    '(prefers-reduced-motion: reduce)',
+  ).matches;
+  document
+    .querySelectorAll<HTMLElement>(`[data-comprobacion="${id}"]`)
+    .forEach((el) => {
+      // Solo hay uno visible: la tabla en escritorio o la tarjeta en celular.
+      if (el.getClientRects().length === 0) return;
+      (el.closest('tr') ?? el).scrollIntoView({
+        block: 'center',
+        behavior: reducido ? 'auto' : 'smooth',
+      });
+    });
 }
 
 export function ComprobacionesTable({
@@ -64,6 +86,8 @@ export function ComprobacionesTable({
   headerContent,
   onCapturar,
   onHistorial,
+  filtrosClave,
+  resaltadoId = null,
 }: ComprobacionesTableProps) {
   const columns = useMemo<ColumnDef<IComprobacionDocumento>[]>(
     () => [
@@ -73,7 +97,10 @@ export function ComprobacionesTable({
         size: 420,
         accessorFn: (row) => `${row.codigo} ${row.desc_documento}`,
         cell: ({ row }) => (
-          <div className="flex w-full items-start gap-3">
+          <div
+            className="flex w-full items-start gap-3"
+            data-comprobacion={row.original.id}
+          >
             {/* Solo hay miniatura cuando el artículo tiene fotografía; sin ella
                 no se reserva espacio. */}
             <ArticuloFoto
@@ -138,7 +165,7 @@ export function ComprobacionesTable({
           return (
             <div className="text-right">
               <span className="text-sm font-semibold text-foreground">
-                {row.original.cantidad ?? 0}
+                {formatNumero(row.original.cantidad ?? 0)}
               </span>
               {paquetes && (
                 <p className="text-xs text-muted-foreground leading-tight whitespace-nowrap">
@@ -169,7 +196,7 @@ export function ComprobacionesTable({
               <span className="text-sm text-muted-foreground">—</span>
             ) : (
               <span className="text-sm font-semibold text-foreground">
-                {row.original.cantidad_fisica}
+                {formatNumero(row.original.cantidad_fisica)}
               </span>
             )}
           </div>
@@ -252,13 +279,18 @@ export function ComprobacionesTable({
       {
         id: 'estatus',
         header: 'Estatus',
-        size: 128,
+        size: 170,
         accessorFn: (row) => ESTATUS_COMPROBACION[row.estatus]?.label ?? '',
         cell: ({ row }) => {
           const estatus = ESTATUS_COMPROBACION[row.original.estatus];
           if (!estatus) return null;
           return (
-            <Badge variant={estatus.variant} appearance="light" size="sm">
+            <Badge
+              variant={estatus.variant}
+              appearance="light"
+              size="md"
+              className="px-2.5"
+            >
               {estatus.label}
             </Badge>
           );
@@ -328,7 +360,46 @@ export function ComprobacionesTable({
     getSortedRowModel: getSortedRowModel(),
     getRowId: (row) => String(row.id),
     initialState: { pagination: { pageSize: 20 } },
+    // Al guardar una captura se recargan los datos; sin esto la tabla regresaría
+    // a la primera página. Los reinicios se controlan abajo.
+    autoResetPageIndex: false,
+    // La selección solo se usa para resaltar el renglón recién guardado.
+    enableRowSelection: () => false,
+    state: {
+      rowSelection: resaltadoId != null ? { [String(resaltadoId)]: true } : {},
+    },
   });
+
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const pageCount = table.getPageCount();
+  const sorting = table.getState().sorting;
+
+  // Cambiar filtros u orden sí regresa a la primera página.
+  useEffect(() => {
+    table.setPageIndex(0);
+  }, [filtrosClave, sorting, table]);
+
+  // Si el listado se acorta (p. ej. el renglón salió del filtro de estatus),
+  // la página no debe quedar fuera de rango.
+  useEffect(() => {
+    if (pageIndex > 0 && pageIndex >= pageCount) {
+      table.setPageIndex(Math.max(0, pageCount - 1));
+    }
+  }, [pageIndex, pageCount, table]);
+
+  // Lleva a la página del renglón guardado; con un orden activo pudo moverse.
+  useEffect(() => {
+    if (resaltadoId == null) return;
+    const indice = table
+      .getPrePaginationRowModel()
+      .rows.findIndex((r) => r.original.id === resaltadoId);
+    if (indice >= 0) table.setPageIndex(Math.floor(indice / pageSize));
+  }, [resaltadoId, data, pageSize, table]);
+
+  // Corre después de pintar la página correcta.
+  useEffect(() => {
+    if (resaltadoId != null) desplazarHasta(resaltadoId);
+  }, [resaltadoId, pageIndex]);
 
   return (
     <>
@@ -347,6 +418,7 @@ export function ComprobacionesTable({
             <MobileCard
               key={row.id}
               row={row}
+              resaltado={row.id === resaltadoId}
               onCapturar={onCapturar}
               onHistorial={onHistorial}
             />
@@ -360,7 +432,11 @@ export function ComprobacionesTable({
           recordCount={data.length}
           isLoading={isLoading}
           emptyMessage={emptyContent}
-          tableClassNames={{ edgeCell: 'px-5' }}
+          tableClassNames={{
+            edgeCell: 'px-5',
+            bodyRow:
+              'transition-colors duration-700 motion-reduce:transition-none data-[state=selected]:bg-primary/10',
+          }}
         >
           <Card>
             <CardHeader className="flex-wrap gap-3 py-5">
@@ -390,19 +466,33 @@ export function ComprobacionesTable({
 
 function MobileCard({
   row,
+  resaltado,
   onCapturar,
   onHistorial,
 }: {
   row: IComprobacionDocumento;
+  resaltado: boolean;
   onCapturar?: (documento: IComprobacionDocumento) => void;
   onHistorial?: (documento: IComprobacionDocumento) => void;
 }) {
   const estatus = ESTATUS_COMPROBACION[row.estatus];
   return (
-    <article className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3 bg-white dark:bg-gray-800">
+    <article
+      data-comprobacion={row.id}
+      className={`border rounded-lg p-4 space-y-3 bg-white dark:bg-gray-800 transition-colors duration-700 motion-reduce:transition-none ${
+        resaltado
+          ? 'border-primary ring-2 ring-primary/30'
+          : 'border-gray-200 dark:border-gray-700'
+      }`}
+    >
       <header className="space-y-1">
         {estatus && (
-          <Badge variant={estatus.variant} appearance="light" size="sm">
+          <Badge
+            variant={estatus.variant}
+            appearance="light"
+            size="md"
+            className="px-2.5"
+          >
             {estatus.label}
           </Badge>
         )}
@@ -434,7 +524,7 @@ function MobileCard({
         <div className="rounded-md bg-gray-50 dark:bg-gray-900/40 p-2.5">
           <p className="text-xs text-muted-foreground">Entregada</p>
           <p className="text-lg font-bold text-foreground">
-            {row.cantidad ?? 0}
+            {formatNumero(row.cantidad ?? 0)}
           </p>
           {enPaquetesCajas(row.numero_paquetes_cajas) && (
             <p className="text-[11px] text-muted-foreground leading-tight">
@@ -445,7 +535,7 @@ function MobileCard({
         <div className="rounded-md bg-gray-50 dark:bg-gray-900/40 p-2.5">
           <p className="text-xs text-muted-foreground">Física</p>
           <p className="text-lg font-bold text-foreground">
-            {row.cantidad_fisica ?? '—'}
+            {formatNumero(row.cantidad_fisica)}
           </p>
         </div>
         <div className="rounded-md bg-gray-50 dark:bg-gray-900/40 p-2.5">

@@ -23,6 +23,10 @@ import {
 } from './comprobaciones-empty-state';
 import { ComprobacionesTable } from './comprobaciones-table';
 import { HistorialComprobacionDialog } from './historial-comprobacion-dialog';
+import {
+  TipoArticuloFiltro,
+  type ITipoArticuloOpcion,
+} from './tipo-articulo-filtro';
 
 /** Filtro de elección: una clave del proceso o todas. */
 const TODAS = 'TODAS';
@@ -239,6 +243,8 @@ export function ComprobacionesContainer({
   const [estatusActivos, setEstatusActivos] = useState<TEstatusComprobacion[]>(
     [],
   );
+  /** Claves de tipo de artículo elegidas; vacío = todos. */
+  const [tiposActivos, setTiposActivos] = useState<string[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [busquedaDiferida, setBusquedaDiferida] = useState('');
 
@@ -251,6 +257,14 @@ export function ComprobacionesContainer({
     useState<IComprobacionDocumento | null>(null);
   const [documentoDelHistorial, setDocumentoDelHistorial] =
     useState<IComprobacionDocumento | null>(null);
+
+  // Renglón recién guardado: la tabla lo ubica y lo resalta unos segundos.
+  const [resaltadoId, setResaltadoId] = useState<number | null>(null);
+  useEffect(() => {
+    if (resaltadoId == null) return;
+    const id = setTimeout(() => setResaltadoId(null), 3000);
+    return () => clearTimeout(id);
+  }, [resaltadoId]);
 
   const documentos = useMemo(() => data?.documentos ?? [], [data]);
 
@@ -271,8 +285,8 @@ export function ComprobacionesContainer({
     ];
   }, [data]);
 
-  // Elección → búsqueda → conteos por estatus → estatus. Los conteos de los
-  // chips reflejan lo que queda tras los demás filtros.
+  // Elección → tipo → búsqueda → conteos por estatus → estatus. Los conteos de
+  // los chips reflejan lo que queda tras los demás filtros.
   const porEleccion = useMemo(
     () =>
       eleccion === TODAS
@@ -281,16 +295,43 @@ export function ComprobacionesContainer({
     [documentos, eleccion],
   );
 
+  // Los tipos salen de los propios renglones (vienen del catálogo de artículos
+  // al cargar el layout), con cuántos hay en la elección elegida.
+  const opcionesTipo = useMemo<ITipoArticuloOpcion[]>(() => {
+    const mapa = new Map<string, ITipoArticuloOpcion>();
+    for (const d of documentos) {
+      if (!mapa.has(d.tipo_doc)) {
+        mapa.set(d.tipo_doc, {
+          value: d.tipo_doc,
+          label: d.desc_tipo || d.tipo_doc,
+          total: 0,
+        });
+      }
+    }
+    for (const d of porEleccion) mapa.get(d.tipo_doc)!.total += 1;
+    return Array.from(mapa.values()).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es'),
+    );
+  }, [documentos, porEleccion]);
+
+  const porTipo = useMemo(
+    () =>
+      tiposActivos.length === 0
+        ? porEleccion
+        : porEleccion.filter((d) => tiposActivos.includes(d.tipo_doc)),
+    [porEleccion, tiposActivos],
+  );
+
   const porBusqueda = useMemo(() => {
     const q = busquedaDiferida.trim().toLowerCase();
-    if (!q) return porEleccion;
-    return porEleccion.filter(
+    if (!q) return porTipo;
+    return porTipo.filter(
       (d) =>
         d.desc_documento?.toLowerCase().includes(q) ||
         d.codigo?.toLowerCase().includes(q) ||
         d.desc_tipo?.toLowerCase().includes(q),
     );
-  }, [porEleccion, busquedaDiferida]);
+  }, [porTipo, busquedaDiferida]);
 
   const conteos = useMemo(() => {
     const base: Record<TEstatusComprobacion, number> = {
@@ -314,10 +355,14 @@ export function ComprobacionesContainer({
   );
 
   const hayFiltros =
-    eleccion !== TODAS || estatusActivos.length > 0 || busqueda.trim() !== '';
+    eleccion !== TODAS ||
+    tiposActivos.length > 0 ||
+    estatusActivos.length > 0 ||
+    busqueda.trim() !== '';
 
   const limpiarFiltros = useCallback(() => {
     setEleccion(TODAS);
+    setTiposActivos([]);
     setEstatusActivos([]);
     setBusqueda('');
   }, []);
@@ -370,6 +415,12 @@ export function ComprobacionesContainer({
           {dataFinal.length} resultados
         </span>
       </div>
+      <TipoArticuloFiltro
+        opciones={opcionesTipo}
+        value={tiposActivos}
+        onChange={setTiposActivos}
+        disabled={isLoading}
+      />
       {hayFiltros && (
         <Button
           variant="ghost"
@@ -430,6 +481,8 @@ export function ComprobacionesContainer({
           headerContent={headerContent}
           onCapturar={puedeCapturar ? setDocumentoACapturar : undefined}
           onHistorial={puedeVerHistorial ? setDocumentoDelHistorial : undefined}
+          filtrosClave={`${eleccion}|${tiposActivos.join(',')}|${estatusActivos.join(',')}|${busquedaDiferida}`}
+          resaltadoId={resaltadoId}
         />
       </div>
 
@@ -443,6 +496,7 @@ export function ComprobacionesContainer({
             onOpenChange={(v) => {
               if (!v) setDocumentoACapturar(null);
             }}
+            onGuardado={setResaltadoId}
           />
           <HistorialComprobacionDialog
             documento={documentoDelHistorial}

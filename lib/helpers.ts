@@ -237,6 +237,13 @@ export function toIsoDateOnly(
   return `${y}-${m}-${d}`;
 }
 
+const NUMERO_MX = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+
+/** Cantidad con separador de miles («1,250»); nulo o indefinido se muestra como guion. */
+export function formatNumero(valor: number | null | undefined): string {
+  return valor == null ? '—' : NUMERO_MX.format(valor);
+}
+
 const MONEDA_MXN = new Intl.NumberFormat('es-MX', {
   style: 'currency',
   currency: 'MXN',

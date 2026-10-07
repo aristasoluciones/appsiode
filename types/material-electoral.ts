@@ -224,6 +224,11 @@ export interface IComprobacionDocumento {
   /** Cantidad contada por el consejo; null mientras no captura. */
   cantidad_fisica: number | null;
   diferencia: number | null;
+  /** Faltante en positivo (la diferencia negativa); null si no falta nada. */
+  faltantes?: number | null;
+  /** Folios de las boletas comprobadas; solo en renglones de tipo BOLETA. */
+  folio_inicial?: number | null;
+  folio_final?: number | null;
   estatus: TEstatusComprobacion;
   observaciones: string | null;
   fecha_registro: string | null;
@@ -248,6 +253,9 @@ export interface IComprobacionCapturaPayload {
   cantidad_fisica: number;
   /** Obligatorias cuando la cantidad física no coincide con la entregada. */
   observaciones: string;
+  /** Solo boletas: obligatorios, de uno o más, y el final no menor al inicial. */
+  folio_inicial?: number;
+  folio_final?: number;
 }
 
 /**
@@ -292,6 +300,9 @@ export interface IComprobacionEvento {
   id_captura: number | null;
   cantidad_fisica: number | null;
   diferencia: number | null;
+  /** Folios de las boletas de esa comprobación; null en los demás tipos. */
+  folio_inicial?: number | null;
+  folio_final?: number | null;
   observaciones: string | null;
   vigente: boolean | null;
 }
@@ -627,6 +638,11 @@ export interface IActaRenglon {
   cantidad: number | null;
   cantidad_fisica: number | null;
   diferencia: number | null;
+  /** Faltante en positivo (la diferencia negativa); null si no falta nada. */
+  faltantes?: number | null;
+  /** Folios de las boletas del renglón; null en los demás tipos. */
+  folio_inicial?: number | null;
+  folio_final?: number | null;
   fecha_comprobacion: string | null;
 }
 
@@ -667,6 +683,8 @@ export interface IActaResumen {
   fotografias: number;
   /** Veces que oficina central la regresó con observaciones. */
   ciclos_revision: number;
+  /** Tipos de artículo del acta; ausente en las anteriores al filtro. */
+  tipos_articulo?: IActaTipoArticulo[] | null;
 }
 
 /** Detalle completo del acta (también lo devuelven el borrador y cada escritura). */
@@ -688,6 +706,11 @@ export interface IActa {
   ciudad: string | null;
   lugar: string | null;
   fecha_corte: string | null;
+  /**
+   * Tipos de artículo que el consejo eligió para el acta; junto con el corte
+   * filtran los renglones. Vacío o ausente en actas anteriores a este filtro.
+   */
+  tipos_articulo?: IActaTipoArticulo[] | null;
   id_usuario_genero: number | null;
   usuario_genero: string | null;
   fecha_generacion: string | null;
@@ -712,14 +735,42 @@ export interface IActa {
   renglones: IActaRenglon[];
   observaciones: IActaObservacion[];
   fotografias: IActaFotografia[];
+  /** Avisos que no impiden capturar el acta; solo los trae un borrador. */
+  advertencias?: IActaAdvertencia[];
+}
+
+/** Aviso no bloqueante de un borrador, p. ej. tipos elegidos sin comprobaciones nuevas desde el último corte. */
+export interface IActaAdvertencia {
+  codigo: 'SIN_COMPROBACIONES' | 'TIPOS_SIN_COMPROBACIONES' | (string & {});
+  mensaje: string;
+}
+
+/** Borrador del consejo en el listado: reserva sus tipos de artículo desde que se crea. */
+export interface IActaBorrador {
+  id: number;
+  created_at: string;
+  tipos_articulo: IActaTipoArticulo[] | null;
+  fotografias: number;
+  /** Avisos que no impiden capturar el acta. */
+  advertencias?: IActaAdvertencia[];
+}
+
+/** Tipo de artículo que ya está en otra acta en curso, con el acta que lo tiene. */
+export interface IActaTipoOcupado {
+  clave: string;
+  descripcion: string | null;
+  id_acta: number;
+  estatus: TEstatusActa;
 }
 
 /** Respuesta del listado de actas de un consejo. */
 export interface IActasConsejo {
   consejo: { id_consejo: number; tipo_consejo: 'D' | 'M'; consejo: string };
   actas: IActaResumen[];
-  /** Borrador abierto del consejo, si lo hay. */
-  borrador: { id: number; created_at: string; fotografias: number } | null;
+  /** Borradores abiertos del consejo, del más reciente al más antiguo. */
+  borradores: IActaBorrador[];
+  /** Tipos de artículo tomados por un acta en curso (borrador, generada, en revisión o requerida). */
+  tipos_ocupados: IActaTipoOcupado[];
   /** Motivo por el que no se puede generar; null cuando sí se puede. */
   bloqueo: string | null;
   configuracion_lista: boolean;
@@ -737,8 +788,16 @@ export interface IActaGenerarPayload {
   ciudad: string;
   lugar: string;
   participantes: IActaParticipante[];
+  /** Claves de tipo de artículo (DOCUMENTO, BOLETA, MATERIAL…) que entran al acta; al menos una. */
+  tipos_articulo: string[];
   /** Confirma generar aunque al corte no haya comprobaciones nuevas. */
   confirmar_sin_renglones?: boolean;
+}
+
+/** Tipo de artículo elegido para el acta, con su descripción del catálogo. */
+export interface IActaTipoArticulo {
+  clave: string;
+  descripcion: string | null;
 }
 
 /** Respuesta al subir una fotografía: la foto y el avance por apartado. */

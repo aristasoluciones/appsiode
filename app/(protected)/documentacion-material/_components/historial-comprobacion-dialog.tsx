@@ -23,7 +23,11 @@ import {
 } from '@/components/common/timeline';
 import { useComprobacionHistorial } from '../_hooks/use-comprobaciones';
 import { ArticuloFoto } from './articulo-foto';
-import { piezas, piezasConPaquetes } from './comprobacion-cantidades';
+import {
+  diferenciaConSigno,
+  piezas,
+  piezasConPaquetes,
+} from './comprobacion-cantidades';
 
 interface HistorialComprobacionDialogProps {
   /** Renglón del que se consulta el rastro; null cuando la ventana está inactiva. */
@@ -167,11 +171,18 @@ export function HistorialComprobacionDialog({
                             appearance="light"
                             size="sm"
                           >
-                            {(evento.diferencia ?? 0) > 0
-                              ? `+${evento.diferencia}`
-                              : evento.diferencia}
+                            {diferenciaConSigno(evento.diferencia ?? 0)}
                           </Badge>
                         </p>
+                        {evento.folio_inicial != null &&
+                          evento.folio_final != null && (
+                            <p className="text-sm text-foreground">
+                              <span className="text-muted-foreground">
+                                Folios:{' '}
+                              </span>
+                              del {evento.folio_inicial} al {evento.folio_final}
+                            </p>
+                          )}
                         <p className="text-xs text-muted-foreground">
                           Capturó: {evento.usuario?.trim() || 'No disponible'}
                         </p>

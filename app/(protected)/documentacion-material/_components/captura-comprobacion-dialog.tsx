@@ -17,6 +17,7 @@ import type {
   IComprobacionDocumento,
   TEstatusComprobacion,
 } from '@/types/material-electoral';
+import { formatNumero } from '@/lib/helpers';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,7 +41,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useCapturarComprobacion } from '../_hooks/use-comprobaciones';
-import { enPaquetesCajas } from './comprobacion-cantidades';
+import { diferenciaConSigno, enPaquetesCajas } from './comprobacion-cantidades';
 import { ESTATUS_COMPROBACION } from './comprobacion-estatus';
 import { FotoZoom } from './foto-zoom';
 
@@ -68,6 +69,10 @@ const capturaSchema = z
       message: 'Las observaciones no deben superar 1000 caracteres.',
     }),
     cantidad_entregada: z.number(),
+    // Solo las boletas capturan folios; para el resto se ignoran.
+    es_boleta: z.boolean(),
+    folio_inicial: z.string().trim(),
+    folio_final: z.string().trim(),
   })
   .refine(
     (v) =>
@@ -79,7 +84,34 @@ const capturaSchema = z
       message:
         'Las observaciones son obligatorias cuando la cantidad física no coincide con la entregada.',
     },
-  );
+  )
+  .superRefine((v, ctx) => {
+    if (!v.es_boleta) return;
+    const inicial = /^\d+$/.test(v.folio_inicial)
+      ? Number(v.folio_inicial)
+      : null;
+    const final = /^\d+$/.test(v.folio_final) ? Number(v.folio_final) : null;
+    if (inicial == null || inicial < 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['folio_inicial'],
+        message: 'Captura el folio inicial (de uno o más).',
+      });
+    }
+    if (final == null || final < 1) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['folio_final'],
+        message: 'Captura el folio final (de uno o más).',
+      });
+    } else if (inicial != null && final < inicial) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['folio_final'],
+        message: 'El folio final no puede ser menor al inicial.',
+      });
+    }
+  });
 
 type TCapturaForm = z.infer<typeof capturaSchema>;
 
@@ -96,6 +128,8 @@ interface CapturaComprobacionDialogProps {
   tipoConsejo: 'D' | 'M';
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Avisa qué renglón se guardó, para ubicarlo en el listado. */
+  onGuardado?: (id: number) => void;
 }
 
 export function CapturaComprobacionDialog({
@@ -104,6 +138,7 @@ export function CapturaComprobacionDialog({
   tipoConsejo,
   open,
   onOpenChange,
+  onGuardado,
 }: CapturaComprobacionDialogProps) {
   const capturar = useCapturarComprobacion();
   // La captura se confirma antes de guardar: primero el formulario, después el
@@ -137,6 +172,9 @@ export function CapturaComprobacionDialog({
       cantidad_fisica: '',
       observaciones: '',
       cantidad_entregada: entregada,
+      es_boleta: false,
+      folio_inicial: '',
+      folio_final: '',
     },
   });
 
@@ -151,6 +189,11 @@ export function CapturaComprobacionDialog({
           : '',
       observaciones: documento.observaciones ?? '',
       cantidad_entregada: documento.cantidad ?? 0,
+      es_boleta: documento.tipo_doc === 'BOLETA',
+      folio_inicial:
+        documento.folio_inicial != null ? String(documento.folio_inicial) : '',
+      folio_final:
+        documento.folio_final != null ? String(documento.folio_final) : '',
     });
   }, [open, documento, form]);
 
@@ -160,6 +203,21 @@ export function CapturaComprobacionDialog({
   const hayCantidad = /^\d+$/.test(form.watch('cantidad_fisica'));
   const diferencia = hayCantidad ? capturada - entregada : 0;
   const previsto = ESTATUS_COMPROBACION[estatusPrevisto(diferencia)];
+  const esBoleta = documento.tipo_doc === 'BOLETA';
+  const folioInicial = form.watch('folio_inicial');
+  const folioFinal = form.watch('folio_final');
+  // Una corrección sin cambios solo duplicaría el historial: no se permite
+  // continuar hasta que cambie la cantidad, las observaciones o, en las
+  // boletas, alguno de los folios.
+  const sinCambios =
+    documento.cantidad_fisica != null &&
+    hayCantidad &&
+    capturada === documento.cantidad_fisica &&
+    form.watch('observaciones').trim() ===
+      (documento.observaciones ?? '').trim() &&
+    (!esBoleta ||
+      (folioInicial === String(documento.folio_inicial ?? '') &&
+        folioFinal === String(documento.folio_final ?? '')));
 
   function cerrar(valor: boolean) {
     if (capturar.isPending) return;
@@ -167,6 +225,7 @@ export function CapturaComprobacionDialog({
   }
 
   async function handleGuardar() {
+    if (sinCambios) return;
     const valores = form.getValues();
     await capturar.mutateAsync({
       id: documento!.id,
@@ -174,7 +233,15 @@ export function CapturaComprobacionDialog({
       tipo_consejo: tipoConsejo,
       cantidad_fisica: Number(valores.cantidad_fisica),
       observaciones: valores.observaciones.trim(),
+      // Los folios viajan como número, sin ceros a la izquierda ni separadores.
+      ...(esBoleta
+        ? {
+            folio_inicial: Number(valores.folio_inicial),
+            folio_final: Number(valores.folio_final),
+          }
+        : {}),
     });
+    onGuardado?.(documento!.id);
     onOpenChange(false);
   }
 
@@ -240,9 +307,10 @@ export function CapturaComprobacionDialog({
                   <AlertCircle />
                 </AlertIcon>
                 <AlertTitle>
-                  Este renglón ya tiene {documento.cantidad_fisica} piezas
-                  capturadas. Al guardar se sustituye el valor y la corrección
-                  queda registrada.
+                  Este renglón ya tiene{' '}
+                  {formatNumero(documento.cantidad_fisica)} piezas capturadas.
+                  Al guardar se sustituye el valor y la corrección queda
+                  registrada.
                 </AlertTitle>
               </Alert>
             )}
@@ -253,19 +321,19 @@ export function CapturaComprobacionDialog({
                   <div className="rounded-md border border-border p-3">
                     <p className="text-xs text-muted-foreground">Entregada</p>
                     <p className="text-xl font-bold text-foreground">
-                      {entregada}
+                      {formatNumero(entregada)}
                     </p>
                   </div>
                   <div className="rounded-md border border-border p-3">
                     <p className="text-xs text-muted-foreground">Física</p>
                     <p className="text-xl font-bold text-foreground">
-                      {capturada}
+                      {formatNumero(capturada)}
                     </p>
                   </div>
                   <div className="rounded-md border border-border p-3">
                     <p className="text-xs text-muted-foreground">Diferencia</p>
                     <p className="text-xl font-bold text-foreground">
-                      {diferencia > 0 ? `+${diferencia}` : diferencia}
+                      {diferenciaConSigno(diferencia)}
                     </p>
                   </div>
                 </div>
@@ -283,6 +351,13 @@ export function CapturaComprobacionDialog({
                   </Badge>
                 </div>
 
+                {esBoleta && (
+                  <p className="text-sm text-foreground">
+                    <span className="text-muted-foreground">Folios: </span>
+                    del {folioInicial} al {folioFinal}
+                  </p>
+                )}
+
                 {form.getValues('observaciones').trim() && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -297,7 +372,9 @@ export function CapturaComprobacionDialog({
             ) : (
               <Form {...form}>
                 <form
-                  onSubmit={form.handleSubmit(() => setConfirmando(true))}
+                  onSubmit={form.handleSubmit(() => {
+                    if (!sinCambios) setConfirmando(true);
+                  })}
                   id="captura-comprobacion-form"
                   className="space-y-4"
                 >
@@ -307,7 +384,7 @@ export function CapturaComprobacionDialog({
                         Cantidad entregada
                       </span>
                       <span className="text-base font-semibold text-foreground">
-                        {entregada}
+                        {formatNumero(entregada)}
                       </span>
                     </div>
                     {paquetes && (
@@ -331,23 +408,80 @@ export function CapturaComprobacionDialog({
                           <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
+                          {/* Se muestra con separador de miles, pero el formulario
+                              guarda solo los dígitos: al API llega el número sin comas. */}
                           <Input
                             {...field}
+                            value={
+                              field.value
+                                ? formatNumero(Number(field.value))
+                                : ''
+                            }
                             inputMode="numeric"
                             autoComplete="off"
                             placeholder="0"
                             onChange={(e) =>
-                              field.onChange(e.target.value.replace(/\D/g, ''))
+                              field.onChange(
+                                e.target.value
+                                  .replace(/\D/g, '')
+                                  .replace(/^0+(?=\d)/, '')
+                                  .slice(0, 9),
+                              )
                             }
                           />
                         </FormControl>
                         <FormDescription>
-                          Piezas contadas físicamente en el consejo.
+                          {sinCambios
+                            ? `Es la misma captura ya registrada; cambia la cantidad, ${esBoleta ? 'los folios ' : ''}o las observaciones para registrar una corrección.`
+                            : 'Piezas contadas físicamente en el consejo.'}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  {/* Las boletas se identifican por su rango de folios. */}
+                  {esBoleta && (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {(
+                        [
+                          ['folio_inicial', 'Folio inicial'],
+                          ['folio_final', 'Folio final'],
+                        ] as const
+                      ).map(([nombre, etiqueta]) => (
+                        <FormField
+                          key={nombre}
+                          control={form.control}
+                          name={nombre}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>
+                                {etiqueta}{' '}
+                                <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  inputMode="numeric"
+                                  autoComplete="off"
+                                  placeholder="0"
+                                  onChange={(e) =>
+                                    field.onChange(
+                                      e.target.value
+                                        .replace(/\D/g, '')
+                                        .replace(/^0+(?=\d)/, '')
+                                        .slice(0, 15),
+                                    )
+                                  }
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   <FormField
                     control={form.control}
@@ -417,7 +551,7 @@ export function CapturaComprobacionDialog({
               <Button
                 type="button"
                 onClick={handleGuardar}
-                disabled={capturar.isPending}
+                disabled={capturar.isPending || sinCambios}
               >
                 {capturar.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -436,7 +570,11 @@ export function CapturaComprobacionDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" form="captura-comprobacion-form">
+              <Button
+                type="submit"
+                form="captura-comprobacion-form"
+                disabled={sinCambios}
+              >
                 Continuar
               </Button>
             </>
