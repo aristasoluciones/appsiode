@@ -8,7 +8,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { Eye, FileText, Loader2 } from 'lucide-react';
+import { Eye, FileCheck2, FileText, FileUp, Loader2 } from 'lucide-react';
 import type { IActaResumen } from '@/types/material-electoral';
 import { formatFecha, formatFechaHora, formatHora } from '@/lib/fechas';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { actaCerrada, ESTATUS_ACTA } from './acta-estatus';
+import { actaAdmiteFirmada, actaCerrada, ESTATUS_ACTA } from './acta-estatus';
 
 interface ActasTableProps {
   data: IActaResumen[];
@@ -32,25 +32,39 @@ interface ActasTableProps {
   emptyContent: React.ReactNode;
   headerContent: React.ReactNode;
   onVerDetalle: (acta: IActaResumen) => void;
-  /** Abre el PDF firmado o, si aún no lo hay, el Word generado; ausente = sin permiso. */
+  /** Abre el Word generado mientras no hay PDF firmado; ausente = sin permiso. */
   onVerDocumento?: (acta: IActaResumen) => void;
-  /** Id del acta cuyo documento se está resolviendo, para el indicador de carga. */
+  /** Muestra el PDF firmado en el visor; ausente = sin permiso. */
+  onVerFirmada?: (acta: IActaResumen) => void;
+  /** Abre la carga del PDF firmado (Generada o Requerido); ausente = sin permiso. */
+  onSubirFirmada?: (acta: IActaResumen) => void;
+  /** Id del acta cuyo Word se está resolviendo, para el indicador de carga. */
   documentoPendiente: number | null;
   /** Abre el detalle del acta anulada a la que una sustituta reemplaza. */
   onVerSustituida?: (id: number) => void;
 }
 
-/** Qué documento se abre: el firmado cuando ya lo subió, si no el generado. */
-function etiquetaDocumento(acta: IActaResumen) {
-  if (acta.archivo_firmado) return 'Ver PDF firmado';
-  if (acta.archivo_generado) return 'Ver Word generado';
-  return null;
+/** Subir por primera vez o reemplazar el PDF firmado que ya se envió. */
+function etiquetaSubir(acta: IActaResumen) {
+  return acta.archivo_firmado
+    ? 'Volver a subir acta firmada'
+    : 'Subir acta firmada';
+}
+
+/** El Word solo se ofrece en el listado mientras el consejo no sube el firmado. */
+function muestraWord(acta: IActaResumen) {
+  return !!acta.archivo_generado && !acta.archivo_firmado;
 }
 
 function EstatusBadge({ acta }: { acta: IActaResumen }) {
   const e = ESTATUS_ACTA[acta.estatus];
   return (
-    <Badge variant={e?.variant ?? 'secondary'} appearance="light" size="sm">
+    <Badge
+      variant={e?.variant ?? 'secondary'}
+      appearance="light"
+      size="md"
+      className="px-2.5"
+    >
       {e?.label ?? acta.estatus_desc}
     </Badge>
   );
@@ -63,6 +77,8 @@ export function ActasTable({
   headerContent,
   onVerDetalle,
   onVerDocumento,
+  onVerFirmada,
+  onSubirFirmada,
   documentoPendiente,
   onVerSustituida,
 }: ActasTableProps) {
@@ -257,20 +273,50 @@ export function ActasTable({
       {
         id: 'actions',
         header: '',
-        size: 110,
+        size: 150,
         cell: ({ row }) => {
           const a = row.original;
-          const etiqueta = etiquetaDocumento(a);
           const cargando = documentoPendiente === a.id;
           return (
             <div className="flex items-center justify-end gap-1">
-              {onVerDocumento && etiqueta && (
+              {onSubirFirmada && actaAdmiteFirmada(a.estatus) && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="outline"
                       size="icon"
-                      aria-label={etiqueta}
+                      className="text-primary"
+                      aria-label={etiquetaSubir(a)}
+                      onClick={() => onSubirFirmada(a)}
+                    >
+                      <FileUp className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{etiquetaSubir(a)}</TooltipContent>
+                </Tooltip>
+              )}
+              {onVerFirmada && a.archivo_firmado && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="Ver acta firmada"
+                      onClick={() => onVerFirmada(a)}
+                    >
+                      <FileCheck2 className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Ver acta firmada</TooltipContent>
+                </Tooltip>
+              )}
+              {onVerDocumento && muestraWord(a) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="Ver Word generado"
                       onClick={() => onVerDocumento(a)}
                       disabled={cargando}
                     >
@@ -284,7 +330,7 @@ export function ActasTable({
                       )}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{etiqueta}</TooltipContent>
+                  <TooltipContent>Ver Word generado</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
@@ -308,7 +354,14 @@ export function ActasTable({
         enableHiding: false,
       },
     ],
-    [onVerDetalle, onVerDocumento, documentoPendiente, onVerSustituida],
+    [
+      onVerDetalle,
+      onVerDocumento,
+      onVerFirmada,
+      onSubirFirmada,
+      documentoPendiente,
+      onVerSustituida,
+    ],
   );
 
   const table = useReactTable({
@@ -343,6 +396,8 @@ export function ActasTable({
               acta={a}
               onVerDetalle={onVerDetalle}
               onVerDocumento={onVerDocumento}
+              onVerFirmada={onVerFirmada}
+              onSubirFirmada={onSubirFirmada}
               cargando={documentoPendiente === a.id}
             />
           ))
@@ -385,14 +440,17 @@ function MobileCard({
   acta,
   onVerDetalle,
   onVerDocumento,
+  onVerFirmada,
+  onSubirFirmada,
   cargando,
 }: {
   acta: IActaResumen;
   onVerDetalle: (acta: IActaResumen) => void;
   onVerDocumento?: (acta: IActaResumen) => void;
+  onVerFirmada?: (acta: IActaResumen) => void;
+  onSubirFirmada?: (acta: IActaResumen) => void;
   cargando: boolean;
 }) {
-  const etiqueta = etiquetaDocumento(acta);
   return (
     <article
       className={[
@@ -407,8 +465,32 @@ function MobileCard({
             Creada {formatFechaHora(acta.created_at)}
           </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          {onVerDocumento && etiqueta && (
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {onSubirFirmada && actaAdmiteFirmada(acta.estatus) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-[40px] gap-1.5 text-primary"
+              onClick={() => onSubirFirmada(acta)}
+            >
+              <FileUp className="h-4 w-4" aria-hidden="true" />
+              <span>
+                {acta.archivo_firmado ? 'Reemplazar' : 'Subir firmada'}
+              </span>
+            </Button>
+          )}
+          {onVerFirmada && acta.archivo_firmado && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-[40px] gap-1.5"
+              onClick={() => onVerFirmada(acta)}
+            >
+              <FileCheck2 className="h-4 w-4" aria-hidden="true" />
+              <span>Firmada</span>
+            </Button>
+          )}
+          {onVerDocumento && muestraWord(acta) && (
             <Button
               variant="outline"
               size="sm"
@@ -421,7 +503,7 @@ function MobileCard({
               ) : (
                 <FileText className="h-4 w-4" aria-hidden="true" />
               )}
-              <span>{acta.archivo_firmado ? 'PDF' : 'Word'}</span>
+              <span>Word</span>
             </Button>
           )}
           <Button

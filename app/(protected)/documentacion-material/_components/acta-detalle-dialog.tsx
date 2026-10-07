@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Ban,
   CheckCircle2,
+  ChevronDown,
   FileCheck2,
   FileText,
   FileUp,
@@ -20,9 +21,15 @@ import type {
   IActaRenglon,
 } from '@/types/material-electoral';
 import { formatFecha, formatFechaHora, formatHora } from '@/lib/fechas';
+import { formatNumero } from '@/lib/helpers';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -42,15 +49,18 @@ import {
   TimelineItem,
   type TTimelineTono,
 } from '@/components/common/timeline';
-import {
-  useActa,
-  useDescargarDocumentoActa,
-  useDescargarFirmadaActa,
-} from '../_hooks/use-actas';
+import { useActa, useDescargarDocumentoActa } from '../_hooks/use-actas';
 import { actaCerrada, ESTATUS_ACTA } from './acta-estatus';
 import { ActaFotografiasApartado } from './acta-fotografias-apartado';
+import {
+  ordenarRepresentaciones,
+  subtituloRepresentacion,
+} from './acta-representaciones';
 import type { TRevisionActa } from './acta-revision-dialog';
-import { piezasConPaquetes } from './comprobacion-cantidades';
+import {
+  diferenciaConSigno,
+  piezasConPaquetes,
+} from './comprobacion-cantidades';
 import { PartidoLogo } from './partido-logo';
 
 /** Acta con lo mínimo que necesitan las acciones de firmar y descartar. */
@@ -63,7 +73,6 @@ interface ActaDetalleDialogProps {
   puedeRegistrar: boolean;
   puedeImprimir: boolean;
   onEditar: (id: number) => void;
-  onSubirFirmada: (acta: TActaAccion) => void;
   onDescartar: (acta: TActaAccion) => void;
   /** Oficina central: permiso de validar (observar y aceptar). */
   puedeRevisar?: boolean;
@@ -96,7 +105,7 @@ function Dato({ label, children }: { label: string; children: ReactNode }) {
 /**
  * Detalle del acta: datos, participantes, renglones del corte, historial de
  * observaciones por ciclo y estatus; con las acciones que el estatus permite
- * al consejo (editar, descartar, subir el PDF firmado o volver a subirlo) y a
+ * al consejo (editar o descartar; el PDF firmado se sube desde el listado) y a
  * oficina central (observar, aceptar y anular).
  */
 export function ActaDetalleDialog({
@@ -106,7 +115,6 @@ export function ActaDetalleDialog({
   puedeRegistrar,
   puedeImprimir,
   onEditar,
-  onSubirFirmada,
   onDescartar,
   puedeRevisar = false,
   puedeAnular = false,
@@ -115,7 +123,6 @@ export function ActaDetalleDialog({
 }: ActaDetalleDialogProps) {
   const { data: acta, isLoading } = useActa(open ? idActa : null);
   const verDocumento = useDescargarDocumentoActa();
-  const verFirmada = useDescargarFirmadaActa();
 
   const estatus = acta ? ESTATUS_ACTA[acta.estatus] : null;
 
@@ -126,14 +133,30 @@ export function ActaDetalleDialog({
   const representaciones =
     acta?.participantes.filter((p) => p.tipo === 'REPRESENTACION') ?? [];
 
-  // Los renglones se agrupan como en el documento: documentación y material.
-  const { documentacion, material } = useMemo(() => {
-    const documentacion: IActaRenglon[] = [];
-    const material: IActaRenglon[] = [];
-    for (const r of acta?.renglones ?? []) {
-      (r.tipo_doc === 'MATERIAL' ? material : documentacion).push(r);
+  // Los renglones se agrupan como en el documento: una tabla por tipo de
+  // artículo, en el orden en que el acta tiene sus tipos.
+  const tablasPorTipo = useMemo(() => {
+    const grupos = new Map<
+      string,
+      { clave: string; titulo: string; renglones: IActaRenglon[] }
+    >();
+    for (const t of acta?.tipos_articulo ?? []) {
+      grupos.set(t.clave, {
+        clave: t.clave,
+        titulo: t.descripcion || t.clave,
+        renglones: [],
+      });
     }
-    return { documentacion, material };
+    for (const r of acta?.renglones ?? []) {
+      const grupo = grupos.get(r.tipo_doc) ?? {
+        clave: r.tipo_doc,
+        titulo: r.desc_tipo || r.tipo_doc,
+        renglones: [],
+      };
+      grupo.renglones.push(r);
+      grupos.set(r.tipo_doc, grupo);
+    }
+    return Array.from(grupos.values()).filter((g) => g.renglones.length > 0);
   }, [acta]);
 
   const apartados = useMemo(
@@ -157,7 +180,6 @@ export function ActaDetalleDialog({
     puedeRegistrar &&
     !!acta &&
     (acta.estatus === 'GENERADA' || acta.estatus === 'REQUERIDO');
-  const puedeFirmar = puedeRegistrar && !!acta?.puede_firmar;
   const puedeDescartar =
     puedeRegistrar && !!acta?.puede_descartar && acta.estatus !== 'BORRADOR';
   // Revisión de oficina central: la API dice qué admite el acta; el permiso, el usuario.
@@ -257,6 +279,13 @@ export function ActaDetalleDialog({
                 <Dato label="Corte de comprobaciones">
                   {formatFechaHora(acta.fecha_corte)}
                 </Dato>
+                <Dato label="Tipos de artículo">
+                  {acta.tipos_articulo?.length
+                    ? acta.tipos_articulo
+                        .map((t) => t.descripcion || t.clave)
+                        .join(', ')
+                    : 'Todos'}
+                </Dato>
                 <Dato label="Generó">
                   {acta.usuario_genero || '—'}
                   {acta.fecha_generacion && (
@@ -295,14 +324,16 @@ export function ActaDetalleDialog({
                   />
                   <ListaPersonas
                     titulo="Representaciones de partido"
-                    items={representaciones.map((c) => ({
-                      llave: c.id ?? c.orden ?? c.nombre,
-                      nombre: c.nombre,
-                      sub: c.partido ?? '',
-                      asistencia: !!c.asistencia,
-                      idPartido: c.id_partido ?? null,
-                      imagen: c.imagen ?? null,
-                    }))}
+                    items={ordenarRepresentaciones(representaciones).map(
+                      (c) => ({
+                        llave: c.id ?? c.orden ?? c.nombre,
+                        nombre: c.nombre,
+                        sub: subtituloRepresentacion(c.partido, c.cargo),
+                        asistencia: !!c.asistencia,
+                        idPartido: c.id_partido ?? null,
+                        imagen: c.imagen ?? null,
+                      }),
+                    )}
                   />
                 </div>
               </section>
@@ -323,14 +354,13 @@ export function ActaDetalleDialog({
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    <TablaRenglones
-                      titulo="Documentación electoral"
-                      renglones={documentacion}
-                    />
-                    <TablaRenglones
-                      titulo="Material electoral y útiles"
-                      renglones={material}
-                    />
+                    {tablasPorTipo.map((g) => (
+                      <TablaRenglones
+                        key={g.clave}
+                        titulo={g.titulo}
+                        renglones={g.renglones}
+                      />
+                    ))}
                   </div>
                 )}
               </section>
@@ -402,32 +432,6 @@ export function ActaDetalleDialog({
                 </TooltipContent>
               </Tooltip>
             )}
-            {acta && puedeImprimir && acta.archivo_firmado && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => verFirmada.mutate(acta.id)}
-                    disabled={verFirmada.isPending}
-                  >
-                    {verFirmada.isPending ? (
-                      <Loader2
-                        className="h-4 w-4 animate-spin"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <FileCheck2 className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    Acta firmada (PDF)
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  Abre el PDF firmado que subió el consejo; es el documento
-                  definitivo que revisa oficina central.
-                </TooltipContent>
-              </Tooltip>
-            )}
           </div>
           <div className="flex flex-wrap gap-2">
             {acta && puedeDescartar && (
@@ -449,14 +453,6 @@ export function ActaDetalleDialog({
               >
                 <Pencil className="h-4 w-4" aria-hidden="true" />
                 Editar
-              </Button>
-            )}
-            {acta && puedeFirmar && (
-              <Button type="button" onClick={() => onSubirFirmada(acta)}>
-                <FileUp className="h-4 w-4" aria-hidden="true" />
-                {acta.archivo_firmado
-                  ? 'Volver a subir PDF firmado'
-                  : 'Subir PDF firmado'}
               </Button>
             )}
             {acta && muestraAnular && (
@@ -575,69 +571,105 @@ function TablaRenglones({
   titulo: string;
   renglones: IActaRenglon[];
 }) {
+  // Cada tipo abre plegado: el título y el conteo bastan para recorrer el corte.
+  const [abierto, setAbierto] = useState(false);
   if (renglones.length === 0) return null;
+  // Cada tabla es de un solo tipo: las boletas no llevan columna de faltantes
+  // y los folios solo se ven en el historial y en el Word.
+  const esBoleta = renglones[0].tipo_doc === 'BOLETA';
   return (
-    <div className="rounded-lg border border-border overflow-x-auto">
-      <p className="px-4 py-2.5 text-sm font-semibold text-foreground border-b border-border">
-        {titulo}{' '}
-        <span className="text-xs font-normal text-muted-foreground">
-          ({renglones.length})
-        </span>
-      </p>
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-xs text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 text-left font-medium">Elección</th>
-            <th className="px-3 py-2 text-left font-medium">Tipo</th>
-            <th className="px-3 py-2 text-left font-medium">Descripción</th>
-            <th className="px-3 py-2 text-right font-medium">Entregada</th>
-            <th className="px-3 py-2 text-right font-medium">Física</th>
-            <th className="px-3 py-2 text-right font-medium">Dif.</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {renglones.map((r) => (
-            <tr key={r.id}>
-              <td className="px-3 py-2 whitespace-nowrap">
-                {r.desc_eleccion ?? r.id_eleccion}
-              </td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                {r.desc_tipo ?? r.tipo_doc}
-              </td>
-              <td className="px-3 py-2">
-                <p className="text-foreground">{r.desc_documento}</p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  {r.codigo}
-                  {r.version ? ` · v${r.version}` : ''}
-                </p>
-              </td>
-              <td className="px-3 py-2 text-right whitespace-nowrap">
-                {piezasConPaquetes(r.cantidad, r.numero_paquetes_cajas)}
-              </td>
-              <td className="px-3 py-2 text-right font-semibold">
-                {r.cantidad_fisica ?? '—'}
-              </td>
-              <td
-                className={[
-                  'px-3 py-2 text-right font-semibold',
-                  (r.diferencia ?? 0) === 0
-                    ? 'text-muted-foreground'
-                    : (r.diferencia ?? 0) < 0
-                      ? 'text-destructive'
-                      : 'text-warning',
-                ].join(' ')}
-              >
-                {r.diferencia == null
-                  ? '—'
-                  : r.diferencia > 0
-                    ? `+${r.diferencia}`
-                    : r.diferencia}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Collapsible
+      open={abierto}
+      onOpenChange={setAbierto}
+      className="rounded-lg border border-border overflow-hidden"
+    >
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className={[
+            'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-semibold text-foreground hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/30',
+            abierto ? 'border-b border-border' : '',
+          ].join(' ')}
+        >
+          <ChevronDown
+            className={[
+              'h-4 w-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none',
+              abierto ? '' : '-rotate-90',
+            ].join(' ')}
+            aria-hidden="true"
+          />
+          {titulo}
+          <span className="text-xs font-normal text-muted-foreground">
+            ({renglones.length})
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-xs text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">No.</th>
+                <th className="px-3 py-2 text-left font-medium">Elección</th>
+                <th className="px-3 py-2 text-left font-medium">Descripción</th>
+                <th className="px-3 py-2 text-right font-medium">Entregada</th>
+                <th className="px-3 py-2 text-right font-medium">Física</th>
+                <th className="px-3 py-2 text-right font-medium">Dif.</th>
+                {!esBoleta && (
+                  <th className="px-3 py-2 text-right font-medium">
+                    Faltantes
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {renglones.map((r, i) => (
+                <tr key={r.id}>
+                  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                    {i + 1}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    {r.desc_eleccion ?? r.id_eleccion}
+                  </td>
+                  <td className="px-3 py-2">
+                    <p className="text-foreground">{r.desc_documento}</p>
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {r.codigo}
+                      {r.version ? ` · v${r.version}` : ''}
+                    </p>
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    {piezasConPaquetes(r.cantidad, r.numero_paquetes_cajas)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-semibold">
+                    {formatNumero(r.cantidad_fisica)}
+                  </td>
+                  <td
+                    className={[
+                      'px-3 py-2 text-right font-semibold',
+                      (r.diferencia ?? 0) === 0
+                        ? 'text-muted-foreground'
+                        : (r.diferencia ?? 0) < 0
+                          ? 'text-destructive'
+                          : 'text-warning',
+                    ].join(' ')}
+                  >
+                    {r.diferencia == null
+                      ? '—'
+                      : diferenciaConSigno(r.diferencia)}
+                  </td>
+                  {!esBoleta && (
+                    <td className="px-3 py-2 text-right font-semibold text-destructive">
+                      {r.faltantes ? formatNumero(r.faltantes) : ''}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

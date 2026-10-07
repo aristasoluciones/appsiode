@@ -54,6 +54,14 @@ export const ESTATUS_ACTA: Record<
   },
 };
 
+/**
+ * El consejo sube (o vuelve a subir) el PDF firmado con el acta Generada o en
+ * Requerido; es la misma regla con que la API calcula `puede_firmar`.
+ */
+export function actaAdmiteFirmada(estatus: TEstatusActa): boolean {
+  return estatus === 'GENERADA' || estatus === 'REQUERIDO';
+}
+
 /** Estatus cerrados: se muestran atenuados en el listado. */
 export function actaCerrada(estatus: TEstatusActa): boolean {
   return estatus === 'ANULADA' || estatus === 'DESCARTADA';

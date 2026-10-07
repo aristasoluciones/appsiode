@@ -92,8 +92,10 @@ export const MATERIAL_ELECTORAL = {
     `/material-electoral/actas/resumen${qs({ tipoConsejo })}`,
   /** Detalle del acta; también es la ruta de regenerar (PUT). */
   ACTA: (id: Id) => `/material-electoral/actas/${id}`,
-  /** Crea o retoma el borrador del consejo (POST). */
+  /** Crea un borrador que reserva los tipos de artículo elegidos (POST). */
   ACTA_BORRADOR: '/material-electoral/actas/borrador',
+  /** Cambia los tipos de artículo de un borrador (PUT). */
+  ACTA_BORRADOR_TIPOS: (id: Id) => `/material-electoral/actas/${id}/borrador`,
   /** Elimina el borrador con sus fotografías (DELETE). */
   ACTA_BORRADOR_ELIMINAR: (id: Id) =>
     `/material-electoral/actas/${id}/borrador`,

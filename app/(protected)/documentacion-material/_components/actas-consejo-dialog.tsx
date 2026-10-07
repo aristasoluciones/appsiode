@@ -20,9 +20,9 @@ import { Input } from '@/components/ui/input';
 import {
   useActasConsejo,
   useDescargarDocumentoActa,
-  useDescargarFirmadaActa,
 } from '../_hooks/use-actas';
 import { ActaDetalleDialog, type TActaAccion } from './acta-detalle-dialog';
+import { useVisorActaFirmada } from './acta-firmada-visor';
 import { ActaRevisionDialog, type TRevisionActa } from './acta-revision-dialog';
 import { EmptyStateErrorActas, EmptyStateSinActas } from './actas-empty-state';
 import { ActasTable } from './actas-table';
@@ -64,7 +64,7 @@ export function ActasConsejoDialog({
   );
 
   const verDocumento = useDescargarDocumentoActa();
-  const verFirmada = useDescargarFirmadaActa();
+  const visorFirmada = useVisorActaFirmada();
 
   const [busqueda, setBusqueda] = useState('');
   const [detalleId, setDetalleId] = useState<number | null>(null);
@@ -96,8 +96,7 @@ export function ActasConsejoDialog({
   }, [actas, busqueda]);
 
   function handleVerDocumento(acta: IActaResumen) {
-    if (acta.archivo_firmado) verFirmada.mutate(acta.id);
-    else if (acta.archivo_generado) verDocumento.mutate(acta.id);
+    if (acta.archivo_generado) verDocumento.mutate(acta.id);
   }
 
   const tipoTexto = consejo?.tipo_consejo === 'D' ? 'Distrital' : 'Municipal';
@@ -128,10 +127,13 @@ export function ActasConsejoDialog({
           </button>
         )}
       </div>
-      {data?.borrador && (
+      {!!data?.borradores?.length && (
         <span className="text-xs text-muted-foreground">
-          El consejo tiene un borrador abierto con {data.borrador.fotografias}{' '}
-          {data.borrador.fotografias === 1 ? 'fotografía' : 'fotografías'}.
+          El consejo tiene {data.borradores.length}{' '}
+          {data.borradores.length === 1
+            ? 'borrador abierto'
+            : 'borradores abiertos'}
+          .
         </span>
       )}
     </div>
@@ -147,8 +149,9 @@ export function ActasConsejoDialog({
               {consejo ? `${consejo.id_consejo}. ${consejo.consejo}` : ''}
             </DialogTitle>
             <DialogDescription>
-              De la más reciente a la más antigua. Abre el detalle para revisar
-              el PDF firmado, enviar observaciones, aceptar o anular.
+              De la más reciente a la más antigua. Consulta el acta firmada
+              desde su acción y abre el detalle para enviar observaciones,
+              aceptar o anular.
             </DialogDescription>
           </DialogHeader>
 
@@ -174,9 +177,10 @@ export function ActasConsejoDialog({
                 headerContent={headerContent}
                 onVerDetalle={(a) => setDetalleId(a.id)}
                 onVerDocumento={puedeImprimir ? handleVerDocumento : undefined}
+                onVerFirmada={puedeImprimir ? visorFirmada.abrir : undefined}
                 documentoPendiente={
-                  verDocumento.isPending || verFirmada.isPending
-                    ? (verDocumento.variables ?? verFirmada.variables ?? null)
+                  verDocumento.isPending
+                    ? (verDocumento.variables ?? null)
                     : null
                 }
                 onVerSustituida={(id) => setDetalleId(id)}
@@ -206,13 +210,14 @@ export function ActasConsejoDialog({
         puedeRegistrar={false}
         puedeImprimir={puedeImprimir}
         onEditar={() => undefined}
-        onSubirFirmada={() => undefined}
         onDescartar={() => undefined}
         puedeRevisar={puedeRevisar}
         puedeAnular={puedeAnular}
         onRevisar={(acta, accion) => setRevision({ acta, accion })}
         onVerSustituida={(id) => setDetalleId(id)}
       />
+
+      {visorFirmada.visor}
 
       <ActaRevisionDialog
         acta={revision?.acta ?? null}

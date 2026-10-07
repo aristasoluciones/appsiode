@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertCircle, FilePlus2, Info, Loader2, Search, X } from 'lucide-react';
+import { AlertCircle, FilePlus2, Info, Search, X } from 'lucide-react';
 import type { IActaResumen } from '@/types/material-electoral';
 import { useAuth } from '@/providers/auth-provider';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
@@ -13,15 +13,16 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  useAbrirBorrador,
   useActasConsejo,
   useDescargarDocumentoActa,
-  useDescargarFirmadaActa,
 } from '../_hooks/use-actas';
 import { ActaDescartarDialog } from './acta-descartar-dialog';
 import { ActaDetalleDialog, type TActaAccion } from './acta-detalle-dialog';
 import { ActaFirmadaDialog } from './acta-firmada-dialog';
+import { useVisorActaFirmada } from './acta-firmada-visor';
 import { ActaGeneradorDialog } from './acta-generador-dialog';
+import { ActaNuevaDialog } from './acta-nueva-dialog';
+import { ActasBorradores } from './actas-borradores';
 import { EmptyStateErrorActas, EmptyStateSinActas } from './actas-empty-state';
 import { ActasTable } from './actas-table';
 
@@ -52,13 +53,14 @@ export function ActasConsejoContainer() {
     idConsejo,
   );
 
-  const abrirBorrador = useAbrirBorrador();
   const verDocumento = useDescargarDocumentoActa();
-  const verFirmada = useDescargarFirmadaActa();
+  const visorFirmada = useVisorActaFirmada();
 
   // ── Ventanas ──────────────────────────────────────────────────────────────
   /** Acta abierta en el generador: el borrador recién creado o una Generada/Requerido a editar. */
   const [generadorId, setGeneradorId] = useState<number | null>(null);
+  /** Elección de tipos de un acta nueva, antes de abrir su borrador. */
+  const [nuevaAbierta, setNuevaAbierta] = useState(false);
   const [detalleId, setDetalleId] = useState<number | null>(null);
   const [firmadaActa, setFirmadaActa] = useState<TActaAccion | null>(null);
   const [descartarActa, setDescartarActa] = useState<TActaAccion | null>(null);
@@ -85,17 +87,8 @@ export function ActasConsejoContainer() {
   const motivoBloqueo = !puedeRegistrar
     ? 'Tu cuenta no tiene permiso para generar actas.'
     : (data?.bloqueo ?? null);
-  const hayBorrador = !!data?.borrador;
-
-  function handleGenerar() {
-    abrirBorrador.mutate(undefined, {
-      onSuccess: (acta) => setGeneradorId(acta.id),
-    });
-  }
-
   function handleVerDocumento(acta: IActaResumen) {
-    if (acta.archivo_firmado) verFirmada.mutate(acta.id);
-    else if (acta.archivo_generado) verDocumento.mutate(acta.id);
+    if (acta.archivo_generado) verDocumento.mutate(acta.id);
   }
 
   if (isError) {
@@ -104,17 +97,12 @@ export function ActasConsejoContainer() {
 
   const botonGenerar = (
     <Button
-      onClick={handleGenerar}
-      disabled={isLoading || !!motivoBloqueo || abrirBorrador.isPending}
-      aria-busy={abrirBorrador.isPending}
+      onClick={() => setNuevaAbierta(true)}
+      disabled={isLoading || !!motivoBloqueo}
       className="min-h-[40px]"
     >
-      {abrirBorrador.isPending ? (
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-      ) : (
-        <FilePlus2 className="h-4 w-4" aria-hidden="true" />
-      )}
-      {hayBorrador ? 'Retomar borrador' : 'Generar acta'}
+      <FilePlus2 className="h-4 w-4" aria-hidden="true" />
+      Generar acta
     </Button>
   );
 
@@ -203,6 +191,11 @@ export function ActasConsejoContainer() {
         </Alert>
       )}
 
+      <ActasBorradores
+        borradores={data?.borradores ?? []}
+        onRetomar={puedeRegistrar ? setGeneradorId : undefined}
+      />
+
       <div
         className={[
           'transition-opacity duration-150 motion-reduce:transition-none',
@@ -222,13 +215,21 @@ export function ActasConsejoContainer() {
           headerContent={headerContent}
           onVerDetalle={(a) => setDetalleId(a.id)}
           onVerDocumento={puedeImprimir ? handleVerDocumento : undefined}
+          onVerFirmada={puedeImprimir ? visorFirmada.abrir : undefined}
+          onSubirFirmada={puedeRegistrar ? setFirmadaActa : undefined}
           documentoPendiente={
-            verDocumento.isPending || verFirmada.isPending
-              ? (verDocumento.variables ?? verFirmada.variables ?? null)
-              : null
+            verDocumento.isPending ? (verDocumento.variables ?? null) : null
           }
         />
       </div>
+
+      {visorFirmada.visor}
+
+      <ActaNuevaDialog
+        open={nuevaAbierta}
+        onOpenChange={setNuevaAbierta}
+        onCreada={setGeneradorId}
+      />
 
       <ActaGeneradorDialog
         idActa={generadorId}
@@ -250,7 +251,6 @@ export function ActasConsejoContainer() {
           setDetalleId(null);
           setGeneradorId(id);
         }}
-        onSubirFirmada={(acta) => setFirmadaActa(acta)}
         onDescartar={(acta) => setDescartarActa(acta)}
       />
 

@@ -52,12 +52,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { InputDesbloqueable } from '@/components/common/input-desbloqueable';
 import {
   useActa,
+  useCambiarTiposBorrador,
   useEliminarBorrador,
   useGenerarActa,
   useVistaPreviaActa,
 } from '../_hooks/use-actas';
+import { useTiposActa } from '../_hooks/use-tipos-acta';
 import {
   normalizeRepresentanteApertura,
   useIntegracionApertura,
@@ -69,6 +72,11 @@ import {
 } from './acta-asistencia-card';
 import { ESTATUS_ACTA } from './acta-estatus';
 import { ActaFotografiasApartado } from './acta-fotografias-apartado';
+import {
+  ordenarRepresentaciones,
+  subtituloRepresentacion,
+} from './acta-representaciones';
+import { ActaTiposArticuloCampo } from './acta-tipos-articulo-campo';
 
 // ─── Formulario ───────────────────────────────────────────────────────────────
 
@@ -103,6 +111,9 @@ const datosSchema = z.object({
     .trim()
     .min(1, { message: 'Captura el nombre de la secretaría técnica.' })
     .max(200),
+  tipos_articulo: z.array(z.string()).min(1, {
+    message: 'Elige al menos un tipo de artículo para el acta.',
+  }),
 });
 
 type TDatosForm = z.infer<typeof datosSchema>;
@@ -138,6 +149,7 @@ const DATOS_VACIOS: TDatosForm = {
   lugar: '',
   presidencia: '',
   secretaria: '',
+  tipos_articulo: [],
 };
 
 /** Presidencia y secretaría vienen en la misma lista de SICE que las consejerías; se separan por su cargo. */
@@ -203,6 +215,21 @@ export function ActaGeneradorDialog({
     necesitaPadron && user?.idConsejo ? Number(user.idConsejo) : null,
   );
 
+  // ── Tipos de artículo ─────────────────────────────────────────────────────
+  // Los tipos que ya están en otra acta en curso aparecen deshabilitados; los
+  // del propio acta, no. En un borrador, cada cambio se guarda de inmediato
+  // porque el borrador reserva sus tipos.
+  const {
+    opciones: opcionesTipo,
+    ocupados: tiposOcupados,
+    cargando: cargandoTipos,
+  } = useTiposActa({
+    habilitado: open,
+    actaId: acta?.id ?? null,
+    propios: acta?.tipos_articulo,
+  });
+  const cambiarTipos = useCambiarTiposBorrador();
+
   // ── Estado del formulario ─────────────────────────────────────────────────
   const form = useForm<TDatosForm>({
     resolver: zodResolver(datosSchema),
@@ -232,15 +259,24 @@ export function ActaGeneradorDialog({
     hidratadaRef.current = acta.id;
     setSembrado(false);
 
+    // La ciudad se propone con el nombre del consejo (el municipio o la
+    // cabecera del distrito) y el lugar con el consejo mismo; se usan siempre
+    // que el acta o el borrador los tengan vacíos, y el usuario los corrige.
+    const nombreConsejo = (acta.consejo ?? user?.consejo ?? '').trim();
+    const lugarPropuesto = nombreConsejo
+      ? `Consejo ${acta.tipo_consejo === 'D' ? 'Distrital' : 'Municipal'} ${nombreConsejo}`
+      : '';
+
     if (acta.participantes.length > 0) {
       const p = acta.participantes;
       form.reset({
         fecha_acta: acta.fecha_acta ?? hoy(),
         hora_acta: (acta.hora_acta ?? ahora()).slice(0, 5),
-        ciudad: acta.ciudad ?? '',
-        lugar: acta.lugar ?? '',
+        ciudad: acta.ciudad || nombreConsejo,
+        lugar: acta.lugar || lugarPropuesto,
         presidencia: p.find((x) => x.tipo === 'PRESIDENCIA')?.nombre ?? '',
         secretaria: p.find((x) => x.tipo === 'SECRETARIA')?.nombre ?? '',
+        tipos_articulo: (acta.tipos_articulo ?? []).map((t) => t.clave),
       });
       setConsejerias(
         p
@@ -254,17 +290,18 @@ export function ActaGeneradorDialog({
           })),
       );
       setRepresentaciones(
-        p
-          .filter((x) => x.tipo === 'REPRESENTACION')
-          .map((x, i) => ({
-            orden: i + 1,
-            nombre: x.nombre,
-            subtitulo: x.partido ?? '',
-            id_partido: x.id_partido,
-            partido: x.partido,
-            imagen: x.imagen ?? null,
-            asistencia: !!x.asistencia,
-          })),
+        ordenarRepresentaciones(
+          p.filter((x) => x.tipo === 'REPRESENTACION'),
+        ).map((x, i) => ({
+          orden: i + 1,
+          nombre: x.nombre,
+          subtitulo: subtituloRepresentacion(x.partido, x.cargo),
+          cargo: x.cargo,
+          id_partido: x.id_partido,
+          partido: x.partido,
+          imagen: x.imagen ?? null,
+          asistencia: !!x.asistencia,
+        })),
       );
       setSembrado(true);
       return;
@@ -274,9 +311,21 @@ export function ActaGeneradorDialog({
       const raw = sessionStorage.getItem(claveLocal(acta.id));
       if (raw) {
         const local = JSON.parse(raw) as IBorradorLocal;
-        form.reset({ ...DATOS_VACIOS, ...local.datos });
+        form.reset({
+          ...DATOS_VACIOS,
+          ...local.datos,
+          // Lo reservado en el servidor manda sobre lo que quedó en el navegador.
+          tipos_articulo: (acta.tipos_articulo ?? []).map((t) => t.clave),
+          ciudad: local.datos?.ciudad || nombreConsejo,
+          lugar: local.datos?.lugar || lugarPropuesto,
+        });
         setConsejerias(local.consejerias ?? []);
-        setRepresentaciones(local.representaciones ?? []);
+        setRepresentaciones(
+          ordenarRepresentaciones(local.representaciones ?? []).map((r, i) => ({
+            ...r,
+            orden: i + 1,
+          })),
+        );
         setSembrado(true);
         return;
       }
@@ -284,13 +333,15 @@ export function ActaGeneradorDialog({
       /* sin almacenamiento: se siembra desde los sistemas externos */
     }
 
-    // Borrador nuevo: la ciudad se propone con el nombre del consejo (el
-    // municipio o la cabecera del distrito) y el usuario la corrige si hace falta.
+    // Borrador nuevo.
     form.reset({
       ...DATOS_VACIOS,
+      // El borrador nace con los tipos que el consejo eligió al abrirlo.
+      tipos_articulo: (acta.tipos_articulo ?? []).map((t) => t.clave),
       fecha_acta: hoy(),
       hora_acta: ahora(),
-      ciudad: (acta.consejo ?? user?.consejo ?? '').trim(),
+      ciudad: nombreConsejo,
+      lugar: lugarPropuesto,
     });
     setConsejerias([]);
     setRepresentaciones([]);
@@ -329,10 +380,16 @@ export function ActaGeneradorDialog({
         })),
     );
     setRepresentaciones(
-      representantesExt.map(normalizeRepresentanteApertura).map((r, i) => ({
+      ordenarRepresentaciones(
+        representantesExt.map(normalizeRepresentanteApertura).map((r) => ({
+          ...r,
+          partido: r.partyName,
+        })),
+      ).map((r, i) => ({
         orden: i + 1,
         nombre: `${r.nombre} ${r.apellidos}`.trim(),
-        subtitulo: r.partyName || r.cargo,
+        subtitulo: subtituloRepresentacion(r.partyName, r.cargo),
+        cargo: r.cargo,
         id_partido: r.id_partido,
         partido: r.partyName,
         imagen: r.partyImagePath ?? null,
@@ -426,6 +483,7 @@ export function ActaGeneradorDialog({
       ...representaciones.map<IActaParticipante>((r) => ({
         tipo: 'REPRESENTACION',
         nombre: r.nombre,
+        cargo: r.cargo ?? null,
         id_partido: r.id_partido ?? null,
         partido: r.partido ?? null,
         imagen: r.imagen ?? null,
@@ -439,6 +497,7 @@ export function ActaGeneradorDialog({
       ciudad: datos.ciudad.trim(),
       lugar: datos.lugar.trim(),
       participantes,
+      tipos_articulo: datos.tipos_articulo,
       confirmar_sin_renglones: confirmar,
     };
   }
@@ -509,7 +568,20 @@ export function ActaGeneradorDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={cerrar}>
-        <DialogContent className="sm:max-w-5xl max-h-[95vh] flex flex-col">
+        <DialogContent
+          className="sm:max-w-5xl max-h-[95vh] flex flex-col"
+          // Escape dentro de un campo desbloqueado cancela su edición, no
+          // cierra el generador.
+          onEscapeKeyDown={(e) => {
+            if (
+              (e.target as HTMLElement | null)?.closest?.(
+                '[data-desbloqueable="editando"]',
+              )
+            ) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader className="pr-8">
             <DialogTitle className="flex flex-wrap items-center gap-2">
               {regenerar
@@ -547,6 +619,23 @@ export function ActaGeneradorDialog({
                   </Alert>
                 )}
 
+                {/* Avisos del borrador (tipos sin comprobaciones nuevas): no
+                    impiden capturar el acta. */}
+                {esBorrador &&
+                  (acta.advertencias ?? []).map((a) => (
+                    <Alert
+                      key={a.codigo}
+                      variant="warning"
+                      icon="warning"
+                      appearance="light"
+                    >
+                      <AlertIcon>
+                        <AlertCircle />
+                      </AlertIcon>
+                      <AlertTitle>{a.mensaje}</AlertTitle>
+                    </Alert>
+                  ))}
+
                 {acta.estatus === 'REQUERIDO' &&
                   acta.observaciones[0]?.observaciones && (
                     <Alert variant="warning" icon="warning" appearance="light">
@@ -579,7 +668,7 @@ export function ActaGeneradorDialog({
                       <h3 className="text-sm font-semibold text-foreground">
                         Datos de la reunión
                       </h3>
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-4 sm:grid-cols-4">
                         <FormField
                           control={form.control}
                           name="fecha_acta"
@@ -623,13 +712,14 @@ export function ActaGeneradorDialog({
                           control={form.control}
                           name="ciudad"
                           render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="sm:col-span-2">
                               <FormLabel>
                                 Ciudad{' '}
                                 <span className="text-destructive">*</span>
                               </FormLabel>
                               <FormControl>
-                                <Input
+                                <InputDesbloqueable
+                                  etiqueta="ciudad"
                                   {...field}
                                   maxLength={ACTA_LIMITES.ciudad.max}
                                   placeholder="Ciudad donde se levanta el acta"
@@ -644,7 +734,7 @@ export function ActaGeneradorDialog({
                           control={form.control}
                           name="lugar"
                           render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="sm:col-span-4">
                               <FormLabel>
                                 Lugar de la reunión{' '}
                                 <span className="text-destructive">*</span>
@@ -662,6 +752,34 @@ export function ActaGeneradorDialog({
                             </FormItem>
                           )}
                         />
+                        <div className="sm:col-span-4">
+                          <ActaTiposArticuloCampo
+                            control={form.control}
+                            name="tipos_articulo"
+                            opciones={opcionesTipo}
+                            ocupados={tiposOcupados}
+                            loading={cargandoTipos}
+                            disabled={readOnly || cambiarTipos.isPending}
+                            onCambio={(tipos) => {
+                              if (!esBorrador || !acta) return;
+                              const previos = (acta.tipos_articulo ?? []).map(
+                                (t) => t.clave,
+                              );
+                              // Sin tipos no hay borrador que reservar: se avisa
+                              // con el mensaje del formulario al guardar.
+                              if (tipos.length === 0) return;
+                              cambiarTipos.mutate(
+                                { id: acta.id, tipos },
+                                {
+                                  // Si otro acta ya tomó el tipo, el servidor
+                                  // avisa y la selección regresa a lo reservado.
+                                  onError: () =>
+                                    form.setValue('tipos_articulo', previos),
+                                },
+                              );
+                            }}
+                          />
+                        </div>
                       </div>
                     </section>
 
@@ -681,7 +799,8 @@ export function ActaGeneradorDialog({
                                 <span className="text-destructive">*</span>
                               </FormLabel>
                               <FormControl>
-                                <Input
+                                <InputDesbloqueable
+                                  etiqueta="presidencia"
                                   {...field}
                                   maxLength={200}
                                   disabled={readOnly}
@@ -701,7 +820,8 @@ export function ActaGeneradorDialog({
                                 <span className="text-destructive">*</span>
                               </FormLabel>
                               <FormControl>
-                                <Input
+                                <InputDesbloqueable
+                                  etiqueta="secretaría técnica"
                                   {...field}
                                   maxLength={200}
                                   disabled={readOnly}
@@ -717,7 +837,7 @@ export function ActaGeneradorDialog({
                           id="acta-consejerias"
                           titulo="Consejerías electorales"
                           items={consejerias}
-                          loading={necesitaPadron && cargandoConsejeros}
+                          loading={necesitaPadron && !sembrado}
                           error={necesitaPadron && errorConsejeros}
                           readOnly={readOnly}
                           vacio="No hay consejerías registradas para este consejo."
@@ -728,7 +848,7 @@ export function ActaGeneradorDialog({
                           id="acta-representaciones"
                           titulo="Representaciones de partido"
                           items={representaciones}
-                          loading={necesitaPadron && cargandoRep}
+                          loading={necesitaPadron && !sembrado}
                           error={necesitaPadron && errorRep}
                           readOnly={readOnly}
                           vacio="No hay representaciones acreditadas para este consejo."
@@ -740,7 +860,7 @@ export function ActaGeneradorDialog({
                   </form>
                 </Form>
 
-                {/* ── Fotografías ─────────────────────────────────────────── */}
+                {/* ── Fotografías (cada apartado abre plegado) ───────────── */}
                 <section className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-foreground">
@@ -770,6 +890,7 @@ export function ActaGeneradorDialog({
                           apartado={a}
                           fotografias={fotosPorApartado.get(a.clave) ?? []}
                           readOnly={readOnly}
+                          abiertoAlInicio={false}
                         />
                       ))}
                     </div>

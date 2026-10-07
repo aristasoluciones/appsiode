@@ -117,15 +117,34 @@ function invalidarActas(queryClient: ReturnType<typeof useQueryClient>) {
   });
 }
 
-/** Abre el generador: crea el borrador del consejo o retoma el que había, con sus fotografías. */
+/** Abre un borrador que reserva los tipos de artículo elegidos; el consejo puede tener varios con tipos distintos. */
 export function useAbrirBorrador() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (tiposArticulo: string[]) => {
       const { data } = await apiClient.post<IActa>(
         API_ENDPOINTS.MATERIAL_ELECTORAL.ACTA_BORRADOR,
-        getDataAuditoria(),
+        { ...getDataAuditoria(), tipos_articulo: tiposArticulo },
+      );
+      return data;
+    },
+    onSuccess: (acta) => {
+      queryClient.setQueryData(MATERIAL_ELECTORAL_KEYS.acta(acta.id), acta);
+      invalidarActas(queryClient);
+    },
+  });
+}
+
+/** Cambia los tipos de artículo que reserva un borrador, siempre que estén libres. */
+export function useCambiarTiposBorrador() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, tipos }: { id: number; tipos: string[] }) => {
+      const { data } = await apiClient.put<IActa>(
+        API_ENDPOINTS.MATERIAL_ELECTORAL.ACTA_BORRADOR_TIPOS(id),
+        { ...getDataAuditoria(), tipos_articulo: tipos },
       );
       return data;
     },
@@ -360,8 +379,8 @@ export function useDescargarDocumentoActa() {
   });
 }
 
-/** URL firmada del PDF firmado; se abre en otra pestaña. */
-export function useDescargarFirmadaActa() {
+/** URL firmada (en línea) del PDF firmado, para mostrarlo en el visor. */
+export function useUrlFirmadaActa() {
   return useMutation({
     mutationFn: async (id: number) => {
       const { data } = await apiClient.get<{ url: string } | string>(
@@ -369,7 +388,6 @@ export function useDescargarFirmadaActa() {
       );
       return typeof data === 'string' ? data : data.url;
     },
-    onSuccess: (url) => abrirEnPestana(url),
   });
 }
 

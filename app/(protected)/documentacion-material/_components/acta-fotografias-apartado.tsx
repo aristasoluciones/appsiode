@@ -45,6 +45,8 @@ interface ActaFotografiasApartadoProps {
   /** Fotografías del acta que pertenecen a este apartado, ya ordenadas. */
   fotografias: IActaFotografia[];
   readOnly: boolean;
+  /** Abre desplegado; el generador lo abre plegado para recorrer los apartados. */
+  abiertoAlInicio?: boolean;
 }
 
 /**
@@ -57,6 +59,7 @@ export function ActaFotografiasApartado({
   apartado,
   fotografias,
   readOnly,
+  abiertoAlInicio = true,
 }: ActaFotografiasApartadoProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const subir = useSubirFotografiaActa(idActa);
@@ -69,8 +72,8 @@ export function ActaFotografiasApartado({
     total: number;
   } | null>(null);
   const [ampliada, setAmpliada] = useState<IActaFotografia | null>(null);
-  /** El apartado se puede plegar para recorrer los demás; abre por omisión. */
-  const [abierto, setAbierto] = useState(true);
+  /** El apartado se puede plegar para recorrer los demás. */
+  const [abierto, setAbierto] = useState(abiertoAlInicio);
 
   const ordenadas = useMemo(
     () => [...fotografias].sort((a, b) => a.orden - b.orden || a.id - b.id),

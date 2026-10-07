@@ -362,7 +362,7 @@ function PlantillaCard({
               </button>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground text-justify hyphens-auto">
             Archivo .docx de hasta 10 MB con los marcadores obligatorios. La API
             lo revisa antes de guardarlo y rechaza el que tenga faltantes.
           </p>
@@ -540,9 +540,11 @@ function TablaMarcadores({ marcadores }: { marcadores: IActaMarcador[] }) {
                 {TIPO_MARCADOR[m.tipo] ?? m.tipo}
               </td>
               <td className="px-3 py-2 align-top">
-                <p className="text-foreground">{m.descripcion}</p>
+                <p className="text-foreground text-justify hyphens-auto">
+                  {m.descripcion}
+                </p>
                 {m.ejemplo && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5 text-justify hyphens-auto">
                     Ej.: {m.ejemplo}
                   </p>
                 )}
@@ -551,7 +553,7 @@ function TablaMarcadores({ marcadores }: { marcadores: IActaMarcador[] }) {
           ))}
         </tbody>
       </table>
-      <p className="px-3 py-2 text-xs text-muted-foreground border-t border-border">
+      <p className="px-3 py-2 text-xs text-muted-foreground border-t border-border text-justify hyphens-auto">
         * Obligatorio. Los de tabla y fotografías van solos en su propio
         párrafo; desde [ANEXAR FOTOGRAFIAS] empiezan los apartados de
         fotografías.
@@ -702,7 +704,7 @@ function ApartadosCard({
           <h3 className="text-sm font-semibold text-foreground">
             Apartados de fotografías
           </h3>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground text-justify hyphens-auto">
             Cada apartado va al anexo del acta con su título; el mínimo es el
             número de fotografías que el consejo debe subir.
           </p>
