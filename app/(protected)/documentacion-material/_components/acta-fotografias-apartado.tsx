@@ -82,6 +82,7 @@ export function ActaFotografiasApartado({
 
   const cantidad = ordenadas.length;
   const completo = cantidad >= apartado.minimo;
+  const opcional = apartado.minimo === 0;
   const ocupado = subir.isPending || eliminar.isPending || reordenar.isPending;
   const cupo = ACTA_LIMITES.foto.porApartado - cantidad;
 
@@ -221,19 +222,23 @@ export function ActaFotografiasApartado({
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {/* Un apartado sin mínimo es opcional: no se cuenta contra nada ni
+                se avisa de faltantes. */}
             <Badge
               variant={
-                completo
-                  ? 'success'
-                  : apartado.minimo > 0
-                    ? 'warning'
-                    : 'secondary'
+                opcional ? 'secondary' : completo ? 'success' : 'warning'
               }
               appearance="light"
               size="sm"
             >
-              {completo && <Check className="h-3 w-3" aria-hidden="true" />}
-              {cantidad} / mín. {apartado.minimo}
+              {!opcional && completo && (
+                <Check className="h-3 w-3" aria-hidden="true" />
+              )}
+              {opcional
+                ? cantidad > 0
+                  ? `Opcional · ${cantidad}`
+                  : 'Opcional'
+                : `${cantidad} / mín. ${apartado.minimo}`}
             </Badge>
             {progreso && (
               <span
