@@ -171,7 +171,9 @@ export function HistorialComprobacionDialog({
                             appearance="light"
                             size="sm"
                           >
-                            {diferenciaConSigno(evento.diferencia ?? 0)}
+                            {(evento.diferencia ?? 0) === 0
+                              ? 'Sin inconsistencias'
+                              : diferenciaConSigno(evento.diferencia ?? 0)}
                           </Badge>
                         </p>
                         {evento.folio_inicial != null &&
