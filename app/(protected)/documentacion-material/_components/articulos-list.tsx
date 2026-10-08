@@ -153,7 +153,12 @@ export function ArticulosList({
         header: 'Tipo',
         size: 190,
         cell: ({ row }) => (
-          <Badge variant="secondary" appearance="light">
+          <Badge
+            variant="primary"
+            appearance="light"
+            size="md"
+            className="px-2.5"
+          >
             {row.original.desc_tipo ?? row.original.tipo}
           </Badge>
         ),
