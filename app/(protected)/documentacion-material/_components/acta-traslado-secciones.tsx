@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import type { ITrasladoForm } from './acta-traslado';
 
 type TTransformacion = (valor: string) => string;
@@ -82,27 +81,63 @@ function Campo({
   );
 }
 
-interface ActaTrasladoSeccionesProps {
+interface ActaTrasladoProps {
   readOnly: boolean;
 }
 
 /**
- * Datos del vehículo de traslado y custodia del acta. Todo es obligatorio
- * salvo el número económico; los datos de la patrulla se piden solo cuando el
- * traslado fue custodiado.
+ * Interruptor «Custodiado» que va en el encabezado de la tarjeta de traslado:
+ * no ocupa una fila propia y, al activarlo, despliega los datos de la patrulla.
  */
-export function ActaTrasladoSecciones({
+export function CustodiaInterruptor({
   readOnly,
-}: ActaTrasladoSeccionesProps) {
-  const { control, watch } = useFormContext<ITrasladoForm>();
+  onActivar,
+}: ActaTrasladoProps & { onActivar?: () => void }) {
+  const { control } = useFormContext<ITrasladoForm>();
+  return (
+    <FormField
+      control={control}
+      name="custodia.custodiado"
+      render={({ field }) => (
+        <FormItem className="flex shrink-0 items-center gap-2 space-y-0">
+          <FormLabel
+            htmlFor="acta-custodiado"
+            className="cursor-pointer text-xs font-medium text-muted-foreground"
+          >
+            Custodiado
+          </FormLabel>
+          <FormControl>
+            <Switch
+              id="acta-custodiado"
+              checked={field.value}
+              onCheckedChange={(v) => {
+                field.onChange(v);
+                if (v) onActivar?.();
+              }}
+              disabled={readOnly}
+            />
+          </FormControl>
+        </FormItem>
+      )}
+    />
+  );
+}
+
+/**
+ * Datos del vehículo de traslado y, si el traslado fue custodiado, de la
+ * patrulla. Todo es obligatorio salvo el número económico. Al apagar la
+ * custodia los datos capturados se conservan, pero no se envían.
+ */
+export function ActaTrasladoCampos({ readOnly }: ActaTrasladoProps) {
+  const { watch } = useFormContext<ITrasladoForm>();
   const custodiado = watch('custodia.custodiado');
 
   return (
     <>
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">
-          Datos del vehículo de traslado
-        </h3>
+      <div className="space-y-3">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Vehículo
+        </h4>
         <div className="grid gap-4 sm:grid-cols-4">
           <Campo
             name="vehiculo.tipo"
@@ -161,30 +196,13 @@ export function ActaTrasladoSecciones({
             disabled={readOnly}
           />
         </div>
-      </section>
+      </div>
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">Custodia</h3>
-        <FormField
-          control={control}
-          name="custodia.custodiado"
-          render={({ field }) => (
-            <FormItem className="flex items-center gap-3 space-y-0">
-              <FormControl>
-                <Switch
-                  id="acta-custodiado"
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                  disabled={readOnly}
-                />
-              </FormControl>
-              <FormLabel htmlFor="acta-custodiado" className="cursor-pointer">
-                El traslado fue custodiado
-              </FormLabel>
-            </FormItem>
-          )}
-        />
-        {custodiado && (
+      {custodiado && (
+        <div className="space-y-3 border-t border-border pt-4 animate-in fade-in-0 slide-in-from-top-1 motion-reduce:animate-none">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Custodia
+          </h4>
           <div className="grid gap-4 sm:grid-cols-4">
             <Campo
               name="custodia.corporacion"
@@ -223,9 +241,8 @@ export function ActaTrasladoSecciones({
               disabled={readOnly}
             />
           </div>
-        )}
-        <LeyendaObligatorios />
-      </section>
+        </div>
+      )}
     </>
   );
 }

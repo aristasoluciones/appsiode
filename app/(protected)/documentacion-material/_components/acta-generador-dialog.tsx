@@ -10,7 +10,12 @@ import {
   Loader2,
   Trash2,
 } from 'lucide-react';
-import { useForm, useWatch, type Control } from 'react-hook-form';
+import {
+  useForm,
+  useWatch,
+  type Control,
+  type FieldErrors,
+} from 'react-hook-form';
 import { z } from 'zod';
 import type {
   IActa,
@@ -53,6 +58,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { InputDesbloqueable } from '@/components/common/input-desbloqueable';
+import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import {
   useActa,
   useCambiarTiposBorrador,
@@ -73,6 +79,13 @@ import {
 import { ESTATUS_ACTA } from './acta-estatus';
 import { ActaFotografiasApartado } from './acta-fotografias-apartado';
 import {
+  EstadoSeccionIcono,
+  SeccionGenerador,
+  textoPendientes,
+  type IEstadoSeccion,
+  type TSeccionGenerador,
+} from './acta-generador-seccion';
+import {
   ordenarRepresentaciones,
   subtituloRepresentacion,
 } from './acta-representaciones';
@@ -86,7 +99,10 @@ import {
   VEHICULO_VACIO,
   vehiculoSchema,
 } from './acta-traslado';
-import { ActaTrasladoSecciones } from './acta-traslado-secciones';
+import {
+  ActaTrasladoCampos,
+  CustodiaInterruptor,
+} from './acta-traslado-secciones';
 
 // ─── Formulario ───────────────────────────────────────────────────────────────
 
@@ -136,6 +152,29 @@ const datosSchema = z
   });
 
 type TDatosForm = z.infer<typeof datosSchema>;
+
+/** Sección del generador a la que pertenece cada campo del formulario. */
+const CAMPO_SECCION: Record<
+  string,
+  Exclude<TSeccionGenerador, 'fotografias'> | undefined
+> = {
+  fecha_acta: 'reunion',
+  hora_acta: 'reunion',
+  ciudad: 'reunion',
+  lugar: 'reunion',
+  tipos_articulo: 'reunion',
+  vehiculo: 'traslado',
+  custodia: 'traslado',
+  presidencia: 'participantes',
+  secretaria: 'participantes',
+};
+
+const ORDEN_SECCIONES: TSeccionGenerador[] = [
+  'reunion',
+  'traslado',
+  'participantes',
+  'fotografias',
+];
 
 /** Renglón de consejería o representación con lo que el acta necesita. */
 interface IPersonaActa extends IAsistenciaItem {
@@ -262,6 +301,11 @@ export function ActaGeneradorDialog({
   const [sembrado, setSembrado] = useState(false);
   const [confirmarSinRenglones, setConfirmarSinRenglones] = useState(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+  /** Secciones desplegadas del generador; se eligen al hidratar el acta. */
+  const [abiertas, setAbiertas] = useState<Set<TSeccionGenerador>>(
+    () => new Set(),
+  );
+  const seccionesIniciadasRef = useRef<number | null>(null);
   /**
    * Acta cuyo formulario ya se hidrató. Cada foto subida o quitada deja un
    * objeto `acta` nuevo en caché; sin esta marca el efecto volvería a correr y
@@ -564,7 +608,7 @@ export function ActaGeneradorDialog({
   function handleVistaPrevia() {
     form.handleSubmit((datos) => {
       vistaPrevia.mutate(armarPayload(datos));
-    })();
+    }, abrirConErrores)();
   }
 
   function handleEliminarBorrador() {
@@ -588,11 +632,133 @@ export function ActaGeneradorDialog({
 
   const estatus = acta ? ESTATUS_ACTA[acta.estatus] : null;
 
+  // ── Secciones ─────────────────────────────────────────────────────────────
+  // Lo que falta se calcula con las mismas reglas del formulario, para que el
+  // índice, cada tarjeta y el pie digan lo mismo que dirá la validación.
+  const valores = form.watch();
+  const pendientesPorSeccion = { reunion: 0, traslado: 0, participantes: 0 };
+  const revision = datosSchema.safeParse(valores);
+  if (!revision.success) {
+    const vistos = new Set<string>();
+    for (const issue of revision.error.issues) {
+      const ruta = issue.path.join('.');
+      const seccion = CAMPO_SECCION[String(issue.path[0])];
+      if (!seccion || vistos.has(ruta)) continue;
+      vistos.add(ruta);
+      pendientesPorSeccion[seccion] += 1;
+    }
+  }
+  const presentes = [...consejerias, ...representaciones].filter(
+    (p) => p.asistencia,
+  ).length;
+  const requeridos = apartados.filter((a) => a.minimo > 0).length;
+  const etiquetasTipo = opcionesTipo
+    .filter((o) => valores.tipos_articulo?.includes(o.clave))
+    .map((o) => o.descripcion);
+  const estados: IEstadoSeccion[] = [
+    {
+      id: 'reunion',
+      titulo: 'Datos de la reunión',
+      resumen: [
+        valores.fecha_acta &&
+          `${valores.fecha_acta.split('-').reverse().join('/')} ${valores.hora_acta ?? ''}`.trim(),
+        valores.ciudad,
+        etiquetasTipo.join(', '),
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      pendientes: pendientesPorSeccion.reunion,
+    },
+    {
+      id: 'traslado',
+      titulo: 'Traslado',
+      resumen: [
+        [
+          valores.vehiculo?.tipo,
+          valores.vehiculo?.marca,
+          valores.vehiculo?.placas,
+        ]
+          .filter(Boolean)
+          .join(' '),
+        valores.custodia?.custodiado ? 'Con custodia' : 'Sin custodia',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      pendientes: pendientesPorSeccion.traslado,
+    },
+    {
+      id: 'participantes',
+      titulo: 'Participantes',
+      resumen: `${presentes} de ${consejerias.length + representaciones.length} consejerías y representaciones presentes`,
+      pendientes: pendientesPorSeccion.participantes,
+    },
+    {
+      id: 'fotografias',
+      titulo: 'Fotografías',
+      resumen: `${requeridos - apartadosIncompletos.length} de ${requeridos} apartados requeridos · ${acta?.fotografias.length ?? 0} fotografías`,
+      pendientes: apartadosIncompletos.length,
+    },
+  ];
+  const estadoDe = (id: TSeccionGenerador) => estados.find((e) => e.id === id)!;
+  const conPendientes = estados.filter((e) => e.pendientes > 0);
+
+  function cambiarSeccion(id: TSeccionGenerador, abierta: boolean) {
+    setAbiertas((prev) => {
+      const sig = new Set(prev);
+      if (abierta) sig.add(id);
+      else sig.delete(id);
+      return sig;
+    });
+  }
+
+  /** Abre la sección y lleva la vista a ella (índice, pie y errores al enviar). */
+  function irASeccion(id: TSeccionGenerador) {
+    cambiarSeccion(id, true);
+    const reducido = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    requestAnimationFrame(() =>
+      document.getElementById(`seccion-${id}`)?.scrollIntoView({
+        block: 'start',
+        behavior: reducido ? 'auto' : 'smooth',
+      }),
+    );
+  }
+
+  // Al validar con errores, se abren las secciones afectadas y se lleva la
+  // vista a la primera: con tarjetas plegadas, un error no puede quedar oculto.
+  function abrirConErrores(errores: FieldErrors<TDatosForm>) {
+    const secciones = ORDEN_SECCIONES.filter((s) =>
+      Object.keys(errores).some((campo) => CAMPO_SECCION[campo] === s),
+    );
+    if (secciones.length === 0) return;
+    setAbiertas((prev) => new Set([...Array.from(prev), ...secciones]));
+    irASeccion(secciones[0]);
+  }
+
+  // Al abrir el acta ya hidratada: abiertas solo las secciones incompletas
+  // (en un borrador nuevo, casi siempre traslado); las completas, plegadas.
+  useEffect(() => {
+    if (!open) {
+      seccionesIniciadasRef.current = null;
+      return;
+    }
+    if (!acta || !sembrado || seccionesIniciadasRef.current === acta.id) {
+      return;
+    }
+    seccionesIniciadasRef.current = acta.id;
+    setAbiertas(
+      new Set(estados.filter((e) => e.pendientes > 0).map((e) => e.id)),
+    );
+    // Solo al hidratar: después, cada sección la abre o cierra el usuario.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, acta?.id, sembrado]);
+
   return (
     <>
       <Dialog open={open} onOpenChange={cerrar}>
         <DialogContent
-          className="sm:max-w-5xl max-h-[95vh] flex flex-col"
+          className="sm:max-w-7xl w-[95vw] h-[92vh] max-h-[95vh] flex flex-col"
           // Escape dentro de un campo desbloqueado cancela su edición, no
           // cierra el generador.
           onEscapeKeyDown={(e) => {
@@ -623,322 +789,386 @@ export function ActaGeneradorDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Solo el cuerpo hace scroll; cabecera y pie quedan fijos. */}
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1 -mr-1">
-            {isLoading || !acta ? (
-              <div className="space-y-4" aria-busy="true">
-                <Skeleton className="h-28 w-full rounded-lg" />
-                <Skeleton className="h-48 w-full rounded-lg" />
-                <Skeleton className="h-40 w-full rounded-lg" />
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {readOnly && (
-                  <Alert variant="warning" icon="warning" appearance="light">
-                    <AlertIcon>
-                      <AlertCircle />
-                    </AlertIcon>
-                    <AlertTitle>{estatus?.descripcion}</AlertTitle>
-                  </Alert>
-                )}
-
-                {/* Avisos del borrador (tipos sin comprobaciones nuevas): no
-                    impiden capturar el acta. */}
-                {esBorrador &&
-                  (acta.advertencias ?? []).map((a) => (
-                    <Alert
-                      key={a.codigo}
-                      variant="warning"
-                      icon="warning"
-                      appearance="light"
-                    >
-                      <AlertIcon>
-                        <AlertCircle />
-                      </AlertIcon>
-                      <AlertTitle>{a.mensaje}</AlertTitle>
-                    </Alert>
+          {/* Índice a la izquierda (escritorio) y secciones a la derecha. Solo
+              el cuerpo hace scroll; cabecera, índice y pie quedan fijos. */}
+          <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
+            {!isLoading && acta && (
+              <nav aria-label="Secciones del acta" className="hidden lg:block">
+                <ul className="space-y-1">
+                  {estados.map((e) => (
+                    <li key={e.id}>
+                      <button
+                        type="button"
+                        onClick={() => irASeccion(e.id)}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                      >
+                        <EstadoSeccionIcono pendientes={e.pendientes} />
+                        <span className="min-w-0 flex-1 truncate text-foreground">
+                          {e.titulo}
+                        </span>
+                        {e.pendientes > 0 && (
+                          <span className="text-xs font-medium text-warning">
+                            {e.pendientes}
+                          </span>
+                        )}
+                      </button>
+                    </li>
                   ))}
-
-                {acta.estatus === 'REQUERIDO' &&
-                  acta.observaciones[0]?.observaciones && (
+                </ul>
+              </nav>
+            )}
+            <div className="min-h-0 overflow-y-auto pr-1 -mr-1 lg:col-start-2">
+              {isLoading || !acta ? (
+                <div className="space-y-4" aria-busy="true">
+                  <Skeleton className="h-28 w-full rounded-lg" />
+                  <Skeleton className="h-48 w-full rounded-lg" />
+                  <Skeleton className="h-40 w-full rounded-lg" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {readOnly && (
                     <Alert variant="warning" icon="warning" appearance="light">
                       <AlertIcon>
                         <AlertCircle />
                       </AlertIcon>
-                      <AlertTitle>
-                        Observaciones de oficina central:{' '}
-                        {acta.observaciones[0].observaciones}
-                      </AlertTitle>
+                      <AlertTitle>{estatus?.descripcion}</AlertTitle>
                     </Alert>
                   )}
 
-                {/* ── Datos de la reunión ─────────────────────────────────── */}
-                {autoguardar && (
-                  <AutoguardadoBorrador
-                    control={form.control}
-                    idActa={acta.id}
-                    consejerias={consejerias}
-                    representaciones={representaciones}
-                  />
-                )}
-                <Form {...form}>
-                  <form
-                    id="acta-generador-form"
-                    className="space-y-4"
-                    onSubmit={form.handleSubmit(() => enviar(false))}
-                  >
-                    <section className="space-y-3">
-                      <h3 className="text-sm font-semibold text-foreground">
-                        Datos de la reunión
-                      </h3>
-                      <div className="grid gap-4 sm:grid-cols-4">
-                        <FormField
-                          control={form.control}
-                          name="fecha_acta"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                Fecha{' '}
-                                <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="date"
-                                  {...field}
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="hora_acta"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                Hora <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="time"
-                                  {...field}
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="ciudad"
-                          render={({ field }) => (
-                            <FormItem className="sm:col-span-2">
-                              <FormLabel>
-                                Ciudad{' '}
-                                <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <InputDesbloqueable
-                                  etiqueta="ciudad"
-                                  {...field}
-                                  maxLength={ACTA_LIMITES.ciudad.max}
-                                  placeholder="Ciudad donde se levanta el acta"
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="lugar"
-                          render={({ field }) => (
-                            <FormItem className="sm:col-span-4">
-                              <FormLabel>
-                                Lugar de la reunión{' '}
-                                <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  rows={2}
-                                  maxLength={ACTA_LIMITES.lugar.max}
-                                  placeholder="Instalaciones del consejo, domicilio…"
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="sm:col-span-4">
-                          <ActaTiposArticuloCampo
+                  {/* Avisos del borrador (tipos sin comprobaciones nuevas): no
+                    impiden capturar el acta. */}
+                  {esBorrador &&
+                    (acta.advertencias ?? []).map((a) => (
+                      <Alert
+                        key={a.codigo}
+                        variant="warning"
+                        icon="warning"
+                        appearance="light"
+                      >
+                        <AlertIcon>
+                          <AlertCircle />
+                        </AlertIcon>
+                        <AlertTitle>{a.mensaje}</AlertTitle>
+                      </Alert>
+                    ))}
+
+                  {acta.estatus === 'REQUERIDO' &&
+                    acta.observaciones[0]?.observaciones && (
+                      <Alert
+                        variant="warning"
+                        icon="warning"
+                        appearance="light"
+                      >
+                        <AlertIcon>
+                          <AlertCircle />
+                        </AlertIcon>
+                        <AlertTitle>
+                          Observaciones de oficina central:{' '}
+                          {acta.observaciones[0].observaciones}
+                        </AlertTitle>
+                      </Alert>
+                    )}
+
+                  {/* ── Datos de la reunión ─────────────────────────────────── */}
+                  {autoguardar && (
+                    <AutoguardadoBorrador
+                      control={form.control}
+                      idActa={acta.id}
+                      consejerias={consejerias}
+                      representaciones={representaciones}
+                    />
+                  )}
+                  <Form {...form}>
+                    <form
+                      id="acta-generador-form"
+                      className="space-y-4"
+                      onSubmit={form.handleSubmit(
+                        () => enviar(false),
+                        abrirConErrores,
+                      )}
+                    >
+                      <SeccionGenerador
+                        estado={estadoDe('reunion')}
+                        abierta={abiertas.has('reunion')}
+                        onAbiertaChange={(v) => cambiarSeccion('reunion', v)}
+                      >
+                        <div className="grid gap-4 sm:grid-cols-4">
+                          <FormField
                             control={form.control}
-                            name="tipos_articulo"
-                            opciones={opcionesTipo}
-                            ocupados={tiposOcupados}
-                            loading={cargandoTipos}
-                            disabled={readOnly || cambiarTipos.isPending}
-                            onCambio={(tipos) => {
-                              if (!esBorrador || !acta) return;
-                              const previos = (acta.tipos_articulo ?? []).map(
-                                (t) => t.clave,
-                              );
-                              // Sin tipos no hay borrador que reservar: se avisa
-                              // con el mensaje del formulario al guardar.
-                              if (tipos.length === 0) return;
-                              cambiarTipos.mutate(
-                                { id: acta.id, tipos },
-                                {
-                                  // Si otro acta ya tomó el tipo, el servidor
-                                  // avisa y la selección regresa a lo reservado.
-                                  onError: () =>
-                                    form.setValue('tipos_articulo', previos),
-                                },
-                              );
-                            }}
+                            name="fecha_acta"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  Fecha{' '}
+                                  <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="date"
+                                    {...field}
+                                    disabled={readOnly}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="hora_acta"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  Hora{' '}
+                                  <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="time"
+                                    {...field}
+                                    disabled={readOnly}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="ciudad"
+                            render={({ field }) => (
+                              <FormItem className="sm:col-span-2">
+                                <FormLabel>
+                                  Ciudad{' '}
+                                  <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <InputDesbloqueable
+                                    etiqueta="ciudad"
+                                    {...field}
+                                    maxLength={ACTA_LIMITES.ciudad.max}
+                                    placeholder="Ciudad donde se levanta el acta"
+                                    disabled={readOnly}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="lugar"
+                            render={({ field }) => (
+                              <FormItem className="sm:col-span-4">
+                                <FormLabel>
+                                  Lugar de la reunión{' '}
+                                  <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    {...field}
+                                    rows={2}
+                                    maxLength={ACTA_LIMITES.lugar.max}
+                                    placeholder="Instalaciones del consejo, domicilio…"
+                                    disabled={readOnly}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="sm:col-span-4">
+                            <ActaTiposArticuloCampo
+                              control={form.control}
+                              name="tipos_articulo"
+                              opciones={opcionesTipo}
+                              ocupados={tiposOcupados}
+                              loading={cargandoTipos}
+                              disabled={readOnly || cambiarTipos.isPending}
+                              onCambio={(tipos) => {
+                                if (!esBorrador || !acta) return;
+                                const previos = (acta.tipos_articulo ?? []).map(
+                                  (t) => t.clave,
+                                );
+                                // Sin tipos no hay borrador que reservar: se avisa
+                                // con el mensaje del formulario al guardar.
+                                if (tipos.length === 0) return;
+                                cambiarTipos.mutate(
+                                  { id: acta.id, tipos },
+                                  {
+                                    // Si otro acta ya tomó el tipo, el servidor
+                                    // avisa y la selección regresa a lo reservado.
+                                    onError: () =>
+                                      form.setValue('tipos_articulo', previos),
+                                  },
+                                );
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </SeccionGenerador>
+
+                      {/* ── Traslado: vehículo y, si aplica, custodia ───────── */}
+                      <SeccionGenerador
+                        estado={estadoDe('traslado')}
+                        abierta={abiertas.has('traslado')}
+                        onAbiertaChange={(v) => cambiarSeccion('traslado', v)}
+                        accion={
+                          <CustodiaInterruptor
+                            readOnly={readOnly}
+                            onActivar={() => cambiarSeccion('traslado', true)}
+                          />
+                        }
+                      >
+                        <ActaTrasladoCampos readOnly={readOnly} />
+                      </SeccionGenerador>
+
+                      {/* ── Participantes ───────────────────────────────────── */}
+                      <SeccionGenerador
+                        estado={estadoDe('participantes')}
+                        abierta={abiertas.has('participantes')}
+                        onAbiertaChange={(v) =>
+                          cambiarSeccion('participantes', v)
+                        }
+                      >
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <FormField
+                            control={form.control}
+                            name="presidencia"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  Presidencia{' '}
+                                  <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <InputDesbloqueable
+                                    etiqueta="presidencia"
+                                    {...field}
+                                    maxLength={200}
+                                    disabled={readOnly}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="secretaria"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  Secretaría técnica{' '}
+                                  <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <InputDesbloqueable
+                                    etiqueta="secretaría técnica"
+                                    {...field}
+                                    maxLength={200}
+                                    disabled={readOnly}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
                         </div>
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          <ActaAsistenciaCard
+                            id="acta-consejerias"
+                            titulo="Consejerías electorales"
+                            items={consejerias}
+                            loading={necesitaPadron && !sembrado}
+                            error={necesitaPadron && errorConsejeros}
+                            readOnly={readOnly}
+                            vacio="No hay consejerías registradas para este consejo."
+                            onToggle={toggleConsejeria}
+                            onToggleAll={toggleTodasConsejerias}
+                          />
+                          <ActaAsistenciaCard
+                            id="acta-representaciones"
+                            titulo="Representaciones de partido"
+                            items={representaciones}
+                            loading={necesitaPadron && !sembrado}
+                            error={necesitaPadron && errorRep}
+                            readOnly={readOnly}
+                            vacio="No hay representaciones acreditadas para este consejo."
+                            onToggle={toggleRepresentacion}
+                            onToggleAll={toggleTodasRepresentaciones}
+                          />
+                        </div>
+                      </SeccionGenerador>
+                    </form>
+                  </Form>
+
+                  {/* ── Fotografías (cada apartado abre plegado) ───────────── */}
+                  <SeccionGenerador
+                    estado={estadoDe('fotografias')}
+                    abierta={abiertas.has('fotografias')}
+                    onAbiertaChange={(v) => cambiarSeccion('fotografias', v)}
+                  >
+                    {apartados.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        La configuración vigente no tiene apartados de
+                        fotografías.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {apartados.map((a) => (
+                          <ActaFotografiasApartado
+                            key={a.clave}
+                            idActa={acta.id}
+                            apartado={a}
+                            fotografias={fotosPorApartado.get(a.clave) ?? []}
+                            readOnly={readOnly}
+                            abiertoAlInicio={false}
+                          />
+                        ))}
                       </div>
-                    </section>
+                    )}
+                    {!readOnly && !minimosCumplidos && (
+                      <p className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                        <Info
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span>
+                          Para guardar faltan fotografías en:{' '}
+                          {apartadosIncompletos.map((a) => a.titulo).join('; ')}
+                          . La vista previa ya muestra las fotografías subidas.
+                        </span>
+                      </p>
+                    )}
+                  </SeccionGenerador>
 
-                    {/* ── Vehículo de traslado y custodia ─────────────────── */}
-                    <ActaTrasladoSecciones readOnly={readOnly} />
-
-                    {/* ── Participantes ───────────────────────────────────── */}
-                    <section className="space-y-3">
-                      <h3 className="text-sm font-semibold text-foreground">
-                        Participantes
-                      </h3>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name="presidencia"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                Presidencia{' '}
-                                <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <InputDesbloqueable
-                                  etiqueta="presidencia"
-                                  {...field}
-                                  maxLength={200}
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="secretaria"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                Secretaría técnica{' '}
-                                <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <InputDesbloqueable
-                                  etiqueta="secretaría técnica"
-                                  {...field}
-                                  maxLength={200}
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <div className="grid gap-4 lg:grid-cols-2">
-                        <ActaAsistenciaCard
-                          id="acta-consejerias"
-                          titulo="Consejerías electorales"
-                          items={consejerias}
-                          loading={necesitaPadron && !sembrado}
-                          error={necesitaPadron && errorConsejeros}
-                          readOnly={readOnly}
-                          vacio="No hay consejerías registradas para este consejo."
-                          onToggle={toggleConsejeria}
-                          onToggleAll={toggleTodasConsejerias}
-                        />
-                        <ActaAsistenciaCard
-                          id="acta-representaciones"
-                          titulo="Representaciones de partido"
-                          items={representaciones}
-                          loading={necesitaPadron && !sembrado}
-                          error={necesitaPadron && errorRep}
-                          readOnly={readOnly}
-                          vacio="No hay representaciones acreditadas para este consejo."
-                          onToggle={toggleRepresentacion}
-                          onToggleAll={toggleTodasRepresentaciones}
-                        />
-                      </div>
-                    </section>
-                  </form>
-                </Form>
-
-                {/* ── Fotografías (cada apartado abre plegado) ───────────── */}
-                <section className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      Fotografías
-                    </h3>
-                    <Badge
-                      variant={minimosCumplidos ? 'success' : 'warning'}
-                      appearance="light"
-                      size="sm"
-                    >
-                      {minimosCumplidos
-                        ? 'Mínimos cumplidos'
-                        : `${apartadosIncompletos.length} ${apartadosIncompletos.length === 1 ? 'apartado incompleto' : 'apartados incompletos'}`}
-                    </Badge>
-                  </div>
-                  {apartados.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      La configuración vigente no tiene apartados de
-                      fotografías.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {apartados.map((a) => (
-                        <ActaFotografiasApartado
-                          key={a.clave}
-                          idActa={acta.id}
-                          apartado={a}
-                          fotografias={fotosPorApartado.get(a.clave) ?? []}
-                          readOnly={readOnly}
-                          abiertoAlInicio={false}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                {!readOnly && !minimosCumplidos && (
-                  <p className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                    <Info
-                      className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                      aria-hidden="true"
-                    />
-                    <span>
-                      Para guardar faltan fotografías en:{' '}
-                      {apartadosIncompletos.map((a) => a.titulo).join('; ')}. La
-                      vista previa ya muestra las fotografías subidas.
-                    </span>
-                  </p>
-                )}
-              </div>
-            )}
+                  <LeyendaObligatorios />
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Lo que falta, con enlace a cada sección: el botón deshabilitado
+              deja de ser opaco y explica por qué no se puede generar. */}
+          {!readOnly && acta && conPendientes.length > 0 && (
+            <div
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-warning/10 px-3 py-2 text-xs"
+              aria-live="polite"
+            >
+              <span className="font-medium text-foreground">Pendiente:</span>
+              {conPendientes.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => irASeccion(e.id)}
+                  className="rounded-sm text-warning underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
+                >
+                  {e.titulo} ({textoPendientes(e.pendientes).toLowerCase()})
+                </button>
+              ))}
+            </div>
+          )}
 
           <DialogFooter className="flex-wrap gap-2 sm:justify-between">
             <div className="flex gap-2">
