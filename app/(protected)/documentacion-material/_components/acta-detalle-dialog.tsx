@@ -301,6 +301,66 @@ export function ActaDetalleDialog({
                 </Dato>
               </section>
 
+              {/* ── Vehículo de traslado y custodia ─────────────────────── */}
+              {acta.vehiculo && (
+                <section className="space-y-2">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Datos del vehículo de traslado
+                  </h3>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Dato label="Tipo">{acta.vehiculo.tipo || '—'}</Dato>
+                    <Dato label="Marca">{acta.vehiculo.marca || '—'}</Dato>
+                    <Dato label="Modelo">{acta.vehiculo.modelo || '—'}</Dato>
+                    <Dato label="Placas">{acta.vehiculo.placas || '—'}</Dato>
+                    <Dato label="Número económico">
+                      {acta.vehiculo.numero_economico || '—'}
+                    </Dato>
+                    <Dato label="Tarjeta de circulación">
+                      {acta.vehiculo.numero_tarjeta_circulacion || '—'}
+                    </Dato>
+                    <Dato label="Conductor">
+                      {acta.vehiculo.conductor || '—'}
+                    </Dato>
+                    <Dato label="Credencial para votar">
+                      <span className="font-mono">
+                        {acta.vehiculo.clave_credencial || '—'}
+                      </span>
+                    </Dato>
+                  </div>
+                </section>
+              )}
+
+              {acta.custodia && (
+                <section className="space-y-2">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Custodia
+                  </h3>
+                  {acta.custodia.custodiado ? (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <Dato label="Corporación">
+                        {acta.custodia.corporacion || '—'}
+                      </Dato>
+                      <Dato label="Número de patrulla">
+                        {acta.custodia.numero_patrulla || '—'}
+                      </Dato>
+                      <Dato label="Elementos">
+                        {acta.custodia.numero_elementos ?? '—'}
+                      </Dato>
+                      <Dato label="Conductor de la patrulla">
+                        {acta.custodia.conductor_nombre || '—'}
+                      </Dato>
+                      <Dato label="Identificación del conductor">
+                        {acta.custodia.conductor_identificacion || '—'}
+                      </Dato>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      El traslado no fue custodiado.
+                    </p>
+                  )}
+                </section>
+              )}
+
               {/* ── Participantes ───────────────────────────────────────── */}
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold text-foreground">

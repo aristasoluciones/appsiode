@@ -737,6 +737,9 @@ export interface IActa {
   fotografias: IActaFotografia[];
   /** Avisos que no impiden capturar el acta; solo los trae un borrador. */
   advertencias?: IActaAdvertencia[];
+  /** Traslado de la documentación y el material; null mientras no se captura. */
+  vehiculo?: IActaVehiculo | null;
+  custodia?: IActaCustodia | null;
 }
 
 /** Aviso no bloqueante de un borrador, p. ej. tipos elegidos sin comprobaciones nuevas desde el último corte. */
@@ -790,8 +793,39 @@ export interface IActaGenerarPayload {
   participantes: IActaParticipante[];
   /** Claves de tipo de artículo (DOCUMENTO, BOLETA, MATERIAL…) que entran al acta; al menos una. */
   tipos_articulo: string[];
+  vehiculo: IActaVehiculo;
+  custodia: IActaCustodia;
   /** Confirma generar aunque al corte no haya comprobaciones nuevas. */
   confirmar_sin_renglones?: boolean;
+}
+
+/** Vehículo en que se trasladan la documentación y el material; todo obligatorio salvo el número económico. */
+export interface IActaVehiculo {
+  tipo: string;
+  marca: string;
+  modelo: string;
+  /** Placas del vehículo: alfanumérico, con guiones, hasta 15 caracteres. */
+  placas: string;
+  numero_economico?: string | null;
+  numero_tarjeta_circulacion: string;
+  conductor: string;
+  /** Clave de elector del conductor: 18 caracteres alfanuméricos. */
+  clave_credencial: string;
+}
+
+/**
+ * Custodia del traslado. Con `custodiado` verdadero, el resto es obligatorio;
+ * sin custodia solo viaja `{ custodiado: false }`.
+ */
+export interface IActaCustodia {
+  custodiado: boolean;
+  corporacion?: string | null;
+  /** Alfanumérico, hasta 20 caracteres. */
+  numero_patrulla?: string | null;
+  /** De 1 a 99. */
+  numero_elementos?: number | null;
+  conductor_nombre?: string | null;
+  conductor_identificacion?: string | null;
 }
 
 /** Tipo de artículo elegido para el acta, con su descripción del catálogo. */

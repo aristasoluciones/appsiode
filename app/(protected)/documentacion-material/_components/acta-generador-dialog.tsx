@@ -77,44 +77,63 @@ import {
   subtituloRepresentacion,
 } from './acta-representaciones';
 import { ActaTiposArticuloCampo } from './acta-tipos-articulo-campo';
+import {
+  CUSTODIA_VACIA,
+  custodiaSchema,
+  trasladoDesdeActa,
+  trasladoParaApi,
+  validarCustodia,
+  VEHICULO_VACIO,
+  vehiculoSchema,
+} from './acta-traslado';
+import { ActaTrasladoSecciones } from './acta-traslado-secciones';
 
 // ─── Formulario ───────────────────────────────────────────────────────────────
 
-const datosSchema = z.object({
-  fecha_acta: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Captura la fecha del acta.' }),
-  hora_acta: z
-    .string()
-    .regex(/^\d{2}:\d{2}(:\d{2})?$/, { message: 'Captura la hora del acta.' }),
-  ciudad: z
-    .string()
-    .trim()
-    .min(1, { message: 'Captura la ciudad.' })
-    .max(ACTA_LIMITES.ciudad.max, {
-      message: `La ciudad no debe superar ${ACTA_LIMITES.ciudad.max} caracteres.`,
+const datosSchema = z
+  .object({
+    fecha_acta: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Captura la fecha del acta.' }),
+    hora_acta: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, {
+      message: 'Captura la hora del acta.',
     }),
-  lugar: z
-    .string()
-    .trim()
-    .min(1, { message: 'Captura el lugar de la reunión.' })
-    .max(ACTA_LIMITES.lugar.max, {
-      message: `El lugar no debe superar ${ACTA_LIMITES.lugar.max} caracteres.`,
+    ciudad: z
+      .string()
+      .trim()
+      .min(1, { message: 'Captura la ciudad.' })
+      .max(ACTA_LIMITES.ciudad.max, {
+        message: `La ciudad no debe superar ${ACTA_LIMITES.ciudad.max} caracteres.`,
+      }),
+    lugar: z
+      .string()
+      .trim()
+      .min(1, { message: 'Captura el lugar de la reunión.' })
+      .max(ACTA_LIMITES.lugar.max, {
+        message: `El lugar no debe superar ${ACTA_LIMITES.lugar.max} caracteres.`,
+      }),
+    presidencia: z
+      .string()
+      .trim()
+      .min(1, { message: 'Captura el nombre de la presidencia.' })
+      .max(200),
+    secretaria: z
+      .string()
+      .trim()
+      .min(1, { message: 'Captura el nombre de la secretaría técnica.' })
+      .max(200),
+    tipos_articulo: z.array(z.string()).min(1, {
+      message: 'Elige al menos un tipo de artículo para el acta.',
     }),
-  presidencia: z
-    .string()
-    .trim()
-    .min(1, { message: 'Captura el nombre de la presidencia.' })
-    .max(200),
-  secretaria: z
-    .string()
-    .trim()
-    .min(1, { message: 'Captura el nombre de la secretaría técnica.' })
-    .max(200),
-  tipos_articulo: z.array(z.string()).min(1, {
-    message: 'Elige al menos un tipo de artículo para el acta.',
-  }),
-});
+    vehiculo: vehiculoSchema,
+    custodia: custodiaSchema,
+  })
+  .superRefine((v, ctx) => {
+    // Con custodia, los datos de la patrulla son obligatorios.
+    validarCustodia(v.custodia, (campo, message) =>
+      ctx.addIssue({ code: 'custom', path: ['custodia', campo], message }),
+    );
+  });
 
 type TDatosForm = z.infer<typeof datosSchema>;
 
@@ -150,6 +169,8 @@ const DATOS_VACIOS: TDatosForm = {
   presidencia: '',
   secretaria: '',
   tipos_articulo: [],
+  vehiculo: VEHICULO_VACIO,
+  custodia: CUSTODIA_VACIA,
 };
 
 /** Presidencia y secretaría vienen en la misma lista de SICE que las consejerías; se separan por su cargo. */
@@ -277,6 +298,7 @@ export function ActaGeneradorDialog({
         presidencia: p.find((x) => x.tipo === 'PRESIDENCIA')?.nombre ?? '',
         secretaria: p.find((x) => x.tipo === 'SECRETARIA')?.nombre ?? '',
         tipos_articulo: (acta.tipos_articulo ?? []).map((t) => t.clave),
+        ...trasladoDesdeActa(acta.vehiculo, acta.custodia),
       });
       setConsejerias(
         p
@@ -498,6 +520,7 @@ export function ActaGeneradorDialog({
       lugar: datos.lugar.trim(),
       participantes,
       tipos_articulo: datos.tipos_articulo,
+      ...trasladoParaApi(datos),
       confirmar_sin_renglones: confirmar,
     };
   }
@@ -782,6 +805,9 @@ export function ActaGeneradorDialog({
                         </div>
                       </div>
                     </section>
+
+                    {/* ── Vehículo de traslado y custodia ─────────────────── */}
+                    <ActaTrasladoSecciones readOnly={readOnly} />
 
                     {/* ── Participantes ───────────────────────────────────── */}
                     <section className="space-y-3">
@@ -1080,7 +1106,12 @@ function AutoguardadoBorrador({
     const t = setTimeout(() => {
       try {
         const local: IBorradorLocal = {
-          datos: { ...DATOS_VACIOS, ...datos },
+          datos: {
+            ...DATOS_VACIOS,
+            ...datos,
+            vehiculo: { ...VEHICULO_VACIO, ...datos.vehiculo },
+            custodia: { ...CUSTODIA_VACIA, ...datos.custodia },
+          },
           consejerias,
           representaciones,
         };
