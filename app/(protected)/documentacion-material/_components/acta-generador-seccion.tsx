@@ -14,34 +14,15 @@ export type TSeccionGenerador =
   | 'participantes'
   | 'fotografias';
 
-/** Lo que falta en una sección: 0 = completa. */
+/** Sección con su resumen; las que tienen pendientes se abren al hidratar el acta. */
 export interface IEstadoSeccion {
   id: TSeccionGenerador;
   titulo: string;
+  /** Qué es la sección y qué es obligatorio; siempre visible bajo el título. */
+  descripcion: string;
   /** Una línea con lo capturado, visible con la sección plegada. */
   resumen: string;
   pendientes: number;
-}
-
-/** Texto del estado: «Completa» o «Faltan N». */
-export function textoPendientes(pendientes: number) {
-  return pendientes === 0
-    ? 'Completa'
-    : `${pendientes === 1 ? 'Falta' : 'Faltan'} ${pendientes}`;
-}
-
-export function EstadoSeccionIcono({ pendientes }: { pendientes: number }) {
-  return pendientes === 0 ? (
-    <CheckCircle2
-      className="h-4 w-4 shrink-0 text-success"
-      aria-hidden="true"
-    />
-  ) : (
-    <AlertTriangle
-      className="h-4 w-4 shrink-0 text-warning"
-      aria-hidden="true"
-    />
-  );
 }
 
 interface SeccionGeneradorProps {
@@ -65,7 +46,8 @@ export function SeccionGenerador({
   accion,
   children,
 }: SeccionGeneradorProps) {
-  const { id, titulo, resumen, pendientes } = estado;
+  const { id, titulo, descripcion, resumen, pendientes } = estado;
+  const completa = pendientes === 0;
   return (
     <Collapsible open={abierta} onOpenChange={onAbiertaChange} asChild>
       <section
@@ -98,24 +80,31 @@ export function SeccionGenerador({
                 >
                   {titulo}
                 </span>
+                <span className="block text-xs text-muted-foreground">
+                  {descripcion}
+                </span>
                 {!abierta && resumen && (
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {resumen}
-                  </span>
+                  <span className="block truncate text-xs font-medium text-foreground/80"></span>
                 )}
-              </span>
-              <span
-                className={[
-                  'flex shrink-0 items-center gap-1.5 text-xs font-medium',
-                  pendientes === 0 ? 'text-success' : 'text-warning',
-                ].join(' ')}
-              >
-                <EstadoSeccionIcono pendientes={pendientes} />
-                {textoPendientes(pendientes)}
               </span>
             </button>
           </CollapsibleTrigger>
           {accion}
+          {/* Siempre al final, después del control de la sección (p. ej. el interruptor
+              de custodia). Solo dice si está completa; el detalle lo da cada campo. */}
+          <span
+            className={[
+              'flex shrink-0 items-center gap-1.5 text-xs font-medium',
+              completa ? 'text-success' : 'text-warning',
+            ].join(' ')}
+          >
+            {completa ? (
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+            )}
+            {completa ? 'Completa' : 'Incompleta'}
+          </span>
         </div>
         <CollapsibleContent>
           <div className="space-y-4 p-4">{children}</div>

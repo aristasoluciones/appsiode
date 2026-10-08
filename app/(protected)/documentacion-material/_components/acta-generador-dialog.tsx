@@ -79,9 +79,7 @@ import {
 import { ESTATUS_ACTA } from './acta-estatus';
 import { ActaFotografiasApartado } from './acta-fotografias-apartado';
 import {
-  EstadoSeccionIcono,
   SeccionGenerador,
-  textoPendientes,
   type IEstadoSeccion,
   type TSeccionGenerador,
 } from './acta-generador-seccion';
@@ -302,6 +300,8 @@ export function ActaGeneradorDialog({
   const [confirmarSinRenglones, setConfirmarSinRenglones] = useState(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
   /** Secciones desplegadas del generador; se eligen al hidratar el acta. */
+  /** Se muestra tras intentar generar o ver la vista previa sin ninguna persona presente. */
+  const [asistenciaRequerida, setAsistenciaRequerida] = useState(false);
   const [abiertas, setAbiertas] = useState<Set<TSeccionGenerador>>(
     () => new Set(),
   );
@@ -570,6 +570,7 @@ export function ActaGeneradorDialog({
   }
 
   async function enviar(confirmar: boolean) {
+    if (!hayAsistentes()) return;
     const datos = form.getValues();
     try {
       await generar.mutateAsync({
@@ -605,8 +606,17 @@ export function ActaGeneradorDialog({
     }
   }
 
+  /** Debe haber al menos una persona presente; si no, se abre la sección y se avisa. */
+  function hayAsistentes() {
+    const hay = [...consejerias, ...representaciones].some((p) => p.asistencia);
+    setAsistenciaRequerida(!hay);
+    if (!hay) irASeccion('participantes');
+    return hay;
+  }
+
   function handleVistaPrevia() {
     form.handleSubmit((datos) => {
+      if (!hayAsistentes()) return;
       vistaPrevia.mutate(armarPayload(datos));
     }, abrirConErrores)();
   }
@@ -658,7 +668,9 @@ export function ActaGeneradorDialog({
   const estados: IEstadoSeccion[] = [
     {
       id: 'reunion',
-      titulo: 'Datos de la reunión',
+      titulo: 'Datos del acta',
+      descripcion:
+        'Fecha, hora, lugar y tipos de artículo del acta. Todos los campos son obligatorios.',
       resumen: [
         valores.fecha_acta &&
           `${valores.fecha_acta.split('-').reverse().join('/')} ${valores.hora_acta ?? ''}`.trim(),
@@ -672,6 +684,8 @@ export function ActaGeneradorDialog({
     {
       id: 'traslado',
       titulo: 'Traslado',
+      descripcion:
+        'Vehículo en que se trasladan la documentación y el material y, si hubo, su custodia. Todo es obligatorio salvo el número económico.',
       resumen: [
         [
           valores.vehiculo?.tipo,
@@ -689,18 +703,22 @@ export function ActaGeneradorDialog({
     {
       id: 'participantes',
       titulo: 'Participantes',
+      descripcion:
+        'Presidencia, secretaría técnica y asistencia de consejerías y representaciones. Los nombres son obligatorios y debes seleccionar al menos una persona.',
       resumen: `${presentes} de ${consejerias.length + representaciones.length} consejerías y representaciones presentes`,
-      pendientes: pendientesPorSeccion.participantes,
+      pendientes:
+        pendientesPorSeccion.participantes + (presentes === 0 ? 1 : 0),
     },
     {
       id: 'fotografias',
       titulo: 'Fotografías',
+      descripcion:
+        'Fotografías por apartado. Los apartados con mínimo son obligatorios; los opcionales no bloquean la generación del acta.',
       resumen: `${requeridos - apartadosIncompletos.length} de ${requeridos} apartados requeridos · ${acta?.fotografias.length ?? 0} fotografías`,
       pendientes: apartadosIncompletos.length,
     },
   ];
   const estadoDe = (id: TSeccionGenerador) => estados.find((e) => e.id === id)!;
-  const conPendientes = estados.filter((e) => e.pendientes > 0);
 
   function cambiarSeccion(id: TSeccionGenerador, abierta: boolean) {
     setAbiertas((prev) => {
@@ -748,7 +766,11 @@ export function ActaGeneradorDialog({
     }
     seccionesIniciadasRef.current = acta.id;
     setAbiertas(
-      new Set(estados.filter((e) => e.pendientes > 0).map((e) => e.id)),
+      // Datos del acta siempre abierta: es lo primero que se revisa.
+      new Set<TSeccionGenerador>([
+        'reunion',
+        ...estados.filter((e) => e.pendientes > 0).map((e) => e.id),
+      ]),
     );
     // Solo al hidratar: después, cada sección la abre o cierra el usuario.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -758,7 +780,7 @@ export function ActaGeneradorDialog({
     <>
       <Dialog open={open} onOpenChange={cerrar}>
         <DialogContent
-          className="sm:max-w-7xl w-[95vw] h-[92vh] max-h-[95vh] flex flex-col"
+          className="sm:max-w-6xl w-[95vw] h-[92vh] max-h-[95vh] flex flex-col"
           // Escape dentro de un campo desbloqueado cancela su edición, no
           // cierra el generador.
           onEscapeKeyDown={(e) => {
@@ -789,35 +811,9 @@ export function ActaGeneradorDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Índice a la izquierda (escritorio) y secciones a la derecha. Solo
-              el cuerpo hace scroll; cabecera, índice y pie quedan fijos. */}
-          <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]">
-            {!isLoading && acta && (
-              <nav aria-label="Secciones del acta" className="hidden lg:block">
-                <ul className="space-y-1">
-                  {estados.map((e) => (
-                    <li key={e.id}>
-                      <button
-                        type="button"
-                        onClick={() => irASeccion(e.id)}
-                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
-                      >
-                        <EstadoSeccionIcono pendientes={e.pendientes} />
-                        <span className="min-w-0 flex-1 truncate text-foreground">
-                          {e.titulo}
-                        </span>
-                        {e.pendientes > 0 && (
-                          <span className="text-xs font-medium text-warning">
-                            {e.pendientes}
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            )}
-            <div className="min-h-0 overflow-y-auto pr-1 -mr-1 lg:col-start-2">
+          {/* Solo el cuerpo hace scroll; cabecera y pie quedan fijos. */}
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1 -mr-1">
               {isLoading || !acta ? (
                 <div className="space-y-4" aria-busy="true">
                   <Skeleton className="h-28 w-full rounded-lg" />
@@ -1031,6 +1027,12 @@ export function ActaGeneradorDialog({
                           cambiarSeccion('participantes', v)
                         }
                       >
+                        {asistenciaRequerida && presentes === 0 && (
+                          <p className="text-sm text-destructive" role="alert">
+                            Debes seleccionar al menos una persona (consejería o
+                            representación).
+                          </p>
+                        )}
                         <div className="grid gap-4 sm:grid-cols-2">
                           <FormField
                             control={form.control}
@@ -1148,27 +1150,6 @@ export function ActaGeneradorDialog({
               )}
             </div>
           </div>
-
-          {/* Lo que falta, con enlace a cada sección: el botón deshabilitado
-              deja de ser opaco y explica por qué no se puede generar. */}
-          {!readOnly && acta && conPendientes.length > 0 && (
-            <div
-              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-warning/10 px-3 py-2 text-xs"
-              aria-live="polite"
-            >
-              <span className="font-medium text-foreground">Pendiente:</span>
-              {conPendientes.map((e) => (
-                <button
-                  key={e.id}
-                  type="button"
-                  onClick={() => irASeccion(e.id)}
-                  className="rounded-sm text-warning underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
-                >
-                  {e.titulo} ({textoPendientes(e.pendientes).toLowerCase()})
-                </button>
-              ))}
-            </div>
-          )}
 
           <DialogFooter className="flex-wrap gap-2 sm:justify-between">
             <div className="flex gap-2">

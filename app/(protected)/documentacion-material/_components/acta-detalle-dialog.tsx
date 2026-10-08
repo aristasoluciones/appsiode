@@ -318,10 +318,10 @@ export function ActaDetalleDialog({
                     <Dato label="Tarjeta de circulación">
                       {acta.vehiculo.numero_tarjeta_circulacion || '—'}
                     </Dato>
-                    <Dato label="Conductor">
+                    <Dato label="Nombre del conductor">
                       {acta.vehiculo.conductor || '—'}
                     </Dato>
-                    <Dato label="Credencial para votar">
+                    <Dato label="Clave de la credencial para votar del conductor">
                       <span className="font-mono">
                         {acta.vehiculo.clave_credencial || '—'}
                       </span>

@@ -181,14 +181,14 @@ export function ActaTrasladoCampos({ readOnly }: ActaTrasladoProps) {
           />
           <Campo
             name="vehiculo.conductor"
-            etiqueta="Conductor"
+            etiqueta="Nombre del conductor"
             max={150}
             className="sm:col-span-2"
             disabled={readOnly}
           />
           <Campo
             name="vehiculo.clave_credencial"
-            etiqueta="Clave de la credencial para votar"
+            etiqueta="Clave de la credencial para votar del conductor"
             max={18}
             placeholder="18 caracteres"
             className="sm:col-span-2"
