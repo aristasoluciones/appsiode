@@ -10,7 +10,7 @@ import type {
 import apiClient from '@/lib/api/axios-client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import { MATERIAL_ELECTORAL_KEYS } from '@/lib/query-keys';
-import { toastInfo, toastSuccess } from '@/lib/toast';
+import { toastInfo, toastSuccess, toastWarning } from '@/lib/toast';
 
 /** Lista vacía para que la pantalla siempre reciba la misma forma de datos. */
 const SIN_DATOS: IComprobacionesData = {
@@ -119,7 +119,16 @@ export function useCapturarComprobacion() {
         ),
       });
       toastSuccess('Comprobación física guardada con éxito.');
-      sugerirActa(data);
+      // El aviso de un acta que no incluye esta captura va primero: es específico
+      // y no se espera; el de actas pendientes puede ceder.
+      if (data?.acta_aviso) {
+        toastWarning(data.acta_aviso.mensaje);
+      } else {
+        sugerirActa(data);
+      }
+      queryClient.invalidateQueries({
+        queryKey: MATERIAL_ELECTORAL_KEYS.actas(),
+      });
     },
   });
 }

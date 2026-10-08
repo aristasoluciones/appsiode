@@ -831,9 +831,9 @@ export function ActaGeneradorDialog({
                     </Alert>
                   )}
 
-                  {/* Avisos del borrador (tipos sin comprobaciones nuevas): no
-                    impiden capturar el acta. */}
-                  {esBorrador &&
+                  {/* Avisos del borrador o del acta en curso (tipos sin comprobaciones nuevas o
+                    comprobaciones posteriores al corte): no impiden capturar el acta. */}
+                  {!readOnly &&
                     (acta.advertencias ?? []).map((a) => (
                       <Alert
                         key={a.codigo}

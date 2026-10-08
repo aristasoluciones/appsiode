@@ -269,6 +269,17 @@ export interface IComprobacionCapturaResultado {
   estatus: TEstatusComprobacion;
   acta_pendiente: boolean;
   acta_pendientes: number;
+  /** Acta abierta que cubre el tipo del renglón y no incluye esta captura; null si no hay. */
+  acta_aviso?: IActaAvisoCaptura | null;
+}
+
+/** Aviso no bloqueante al capturar una comprobación posterior al corte de un acta en curso. */
+export interface IActaAvisoCaptura {
+  id_acta: number;
+  estatus: TEstatusActa;
+  /** Generada o Requerida: se regeneran para incluirla; En revisión la deja para la siguiente. */
+  regenerable: boolean;
+  mensaje: string;
 }
 
 /** Naturaleza de cada hito de la línea de tiempo del renglón. */
@@ -685,6 +696,8 @@ export interface IActaResumen {
   ciclos_revision: number;
   /** Tipos de artículo del acta; ausente en las anteriores al filtro. */
   tipos_articulo?: IActaTipoArticulo[] | null;
+  /** Avisos de un acta en curso, p. ej. comprobaciones posteriores a su corte. */
+  advertencias?: IActaAdvertencia[];
 }
 
 /** Detalle completo del acta (también lo devuelven el borrador y cada escritura). */
@@ -744,8 +757,14 @@ export interface IActa {
 
 /** Aviso no bloqueante de un borrador, p. ej. tipos elegidos sin comprobaciones nuevas desde el último corte. */
 export interface IActaAdvertencia {
-  codigo: 'SIN_COMPROBACIONES' | 'TIPOS_SIN_COMPROBACIONES' | (string & {});
+  codigo:
+    | 'SIN_COMPROBACIONES'
+    | 'TIPOS_SIN_COMPROBACIONES'
+    | 'COMPROBACIONES_POSTERIORES'
+    | (string & {});
   mensaje: string;
+  /** Comprobaciones posteriores al corte (solo en `COMPROBACIONES_POSTERIORES`). */
+  cantidad?: number;
 }
 
 /** Borrador del consejo en el listado: reserva sus tipos de artículo desde que se crea. */

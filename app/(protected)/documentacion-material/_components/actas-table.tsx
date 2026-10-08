@@ -8,9 +8,17 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { Eye, FileCheck2, FileText, FileUp, Loader2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  Eye,
+  FileCheck2,
+  FileText,
+  FileUp,
+  Loader2,
+} from 'lucide-react';
 import type { IActaResumen } from '@/types/material-electoral';
 import { formatFecha, formatFechaHora, formatHora } from '@/lib/fechas';
+import { formatNumero } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -54,6 +62,43 @@ function etiquetaSubir(acta: IActaResumen) {
 /** El Word solo se ofrece en el listado mientras el consejo no sube el firmado. */
 function muestraWord(acta: IActaResumen) {
   return !!acta.archivo_generado && !acta.archivo_firmado;
+}
+
+/** Comprobaciones posteriores al corte de un acta en curso: no están en su documento. */
+function AvisoPosteriores({ acta }: { acta: IActaResumen }) {
+  const aviso = (acta.advertencias ?? []).find(
+    (a) => a.codigo === 'COMPROBACIONES_POSTERIORES',
+  );
+  if (!aviso) return null;
+  const n = aviso.cantidad ?? 0;
+  const regenerable = actaAdmiteFirmada(acta.estatus);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {/* tabIndex para que el aviso también se lea con teclado. */}
+        <span
+          tabIndex={0}
+          className="mt-1 inline-flex rounded-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
+        >
+          <Badge
+            variant="warning"
+            appearance="light"
+            size="md"
+            className="px-2.5"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+            {formatNumero(n)}{' '}
+            {n === 1 ? 'posterior al corte' : 'posteriores al corte'}
+          </Badge>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs text-justify">
+        {aviso.mensaje}
+        {regenerable &&
+          ' Ábrela en el detalle y pulsa Editar para regenerarla.'}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function EstatusBadge({ acta }: { acta: IActaResumen }) {
@@ -222,6 +267,7 @@ export function ActasTable({
             className={actaCerrada(row.original.estatus) ? 'opacity-60' : ''}
           >
             <EstatusBadge acta={row.original} />
+            <AvisoPosteriores acta={row.original} />
             {row.original.ciclos_revision > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
                 {row.original.ciclos_revision}{' '}
@@ -461,6 +507,7 @@ function MobileCard({
       <header className="flex items-start justify-between gap-3">
         <div>
           <EstatusBadge acta={acta} />
+          <AvisoPosteriores acta={acta} />
           <p className="text-xs text-muted-foreground mt-1">
             Creada {formatFechaHora(acta.created_at)}
           </p>
