@@ -555,6 +555,7 @@ export const ACTA_LIMITES = {
   ciudad: { max: 150 },
   lugar: { max: 500 },
   motivo: { max: 2000 },
+  motivoReposicion: { max: 2000 },
   /** Observaciones de la revisión de oficina central. */
   observaciones: { max: 4000 },
   /** Plantilla Word de la configuración. */
@@ -719,6 +720,11 @@ export interface IActa {
   ciudad: string | null;
   lugar: string | null;
   fecha_corte: string | null;
+  /** Cierre del acta (no confundir con `fecha_cierre`, que es del ciclo de revisión). */
+  fecha_cierre_acta?: string | null;
+  hora_cierre_acta?: string | null;
+  reposicion?: boolean | null;
+  motivo_reposicion?: string | null;
   /**
    * Tipos de artículo que el consejo eligió para el acta; junto con el corte
    * filtran los renglones. Vacío o ausente en actas anteriores a este filtro.
@@ -807,6 +813,12 @@ export interface IActaGenerarPayload {
   fecha_acta: string;
   /** HH:mm */
   hora_acta: string;
+  /** Fecha y hora en que se cierra el acta; obligatorias. yyyy-MM-dd y HH:mm. */
+  fecha_cierre_acta: string;
+  hora_cierre_acta: string;
+  /** De reposición: con ella el motivo es obligatorio (hasta 2000 caracteres); sin ella se ignora. */
+  reposicion: boolean;
+  motivo_reposicion?: string;
   ciudad: string;
   lugar: string;
   participantes: IActaParticipante[];

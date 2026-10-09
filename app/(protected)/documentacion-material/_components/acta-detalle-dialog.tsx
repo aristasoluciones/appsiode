@@ -276,6 +276,12 @@ export function ActaDetalleDialog({
                 </Dato>
                 <Dato label="Ciudad">{acta.ciudad || '—'}</Dato>
                 <Dato label="Lugar">{acta.lugar || '—'}</Dato>
+                {acta.fecha_cierre_acta && (
+                  <Dato label="Cierre del acta">
+                    {formatFecha(acta.fecha_cierre_acta)}{' '}
+                    {formatHora(acta.hora_cierre_acta)}
+                  </Dato>
+                )}
                 <Dato label="Corte de comprobaciones">
                   {formatFechaHora(acta.fecha_corte)}
                 </Dato>
@@ -300,6 +306,20 @@ export function ActaDetalleDialog({
                     : 'Pendiente'}
                 </Dato>
               </section>
+
+              {/* ── Reposición ──────────────────────────────────────────── */}
+              {acta.reposicion && (
+                <section className="space-y-2">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Acta de reposición
+                  </h3>
+                  <Dato label="Motivo de la reposición">
+                    <span className="whitespace-pre-line text-justify hyphens-auto">
+                      {acta.motivo_reposicion || '—'}
+                    </span>
+                  </Dato>
+                </section>
+              )}
 
               {/* ── Vehículo de traslado y custodia ─────────────────────── */}
               {acta.vehiculo && (

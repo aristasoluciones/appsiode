@@ -83,6 +83,7 @@ import {
   type IEstadoSeccion,
   type TSeccionGenerador,
 } from './acta-generador-seccion';
+import { ReposicionInterruptor, ReposicionMotivo } from './acta-reposicion';
 import {
   ordenarRepresentaciones,
   subtituloRepresentacion,
@@ -112,6 +113,19 @@ const datosSchema = z
     hora_acta: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, {
       message: 'Captura la hora del acta.',
     }),
+    fecha_cierre_acta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
+      message: 'Captura la fecha de cierre del acta.',
+    }),
+    hora_cierre_acta: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, {
+      message: 'Captura la hora de cierre del acta.',
+    }),
+    reposicion: z.boolean(),
+    motivo_reposicion: z
+      .string()
+      .trim()
+      .max(ACTA_LIMITES.motivoReposicion.max, {
+        message: `El motivo no debe superar ${ACTA_LIMITES.motivoReposicion.max} caracteres.`,
+      }),
     ciudad: z
       .string()
       .trim()
@@ -143,6 +157,35 @@ const datosSchema = z
     custodia: custodiaSchema,
   })
   .superRefine((v, ctx) => {
+    // El cierre no puede ser anterior a la fecha y la hora del acta (la API
+    // aplica la misma regla). Solo se compara cuando ambos están completos.
+    const cierre = `${v.fecha_cierre_acta}T${v.hora_cierre_acta.slice(0, 5)}`;
+    const acta = `${v.fecha_acta}T${v.hora_acta.slice(0, 5)}`;
+    if (
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(cierre) &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(acta) &&
+      cierre < acta
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        // Si el día es anterior se señala la fecha; si es el mismo día, la hora.
+        path: [
+          v.fecha_cierre_acta < v.fecha_acta
+            ? 'fecha_cierre_acta'
+            : 'hora_cierre_acta',
+        ],
+        message:
+          'La fecha y la hora de cierre no pueden ser menores a la fecha y la hora del acta.',
+      });
+    }
+    // Con reposición, el motivo es obligatorio.
+    if (v.reposicion && v.motivo_reposicion.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['motivo_reposicion'],
+        message: 'Captura el motivo de la reposición.',
+      });
+    }
     // Con custodia, los datos de la patrulla son obligatorios.
     validarCustodia(v.custodia, (campo, message) =>
       ctx.addIssue({ code: 'custom', path: ['custodia', campo], message }),
@@ -158,6 +201,8 @@ const CAMPO_SECCION: Record<
 > = {
   fecha_acta: 'reunion',
   hora_acta: 'reunion',
+  fecha_cierre_acta: 'reunion',
+  hora_cierre_acta: 'reunion',
   ciudad: 'reunion',
   lugar: 'reunion',
   tipos_articulo: 'reunion',
@@ -165,6 +210,8 @@ const CAMPO_SECCION: Record<
   custodia: 'traslado',
   presidencia: 'participantes',
   secretaria: 'participantes',
+  reposicion: 'reposicion',
+  motivo_reposicion: 'reposicion',
 };
 
 const ORDEN_SECCIONES: TSeccionGenerador[] = [
@@ -172,6 +219,7 @@ const ORDEN_SECCIONES: TSeccionGenerador[] = [
   'traslado',
   'participantes',
   'fotografias',
+  'reposicion',
 ];
 
 /** Renglón de consejería o representación con lo que el acta necesita. */
@@ -201,6 +249,10 @@ function ahora() {
 const DATOS_VACIOS: TDatosForm = {
   fecha_acta: '',
   hora_acta: '',
+  fecha_cierre_acta: '',
+  hora_cierre_acta: '',
+  reposicion: false,
+  motivo_reposicion: '',
   ciudad: '',
   lugar: '',
   presidencia: '',
@@ -337,6 +389,10 @@ export function ActaGeneradorDialog({
       form.reset({
         fecha_acta: acta.fecha_acta ?? hoy(),
         hora_acta: (acta.hora_acta ?? ahora()).slice(0, 5),
+        fecha_cierre_acta: acta.fecha_cierre_acta ?? '',
+        hora_cierre_acta: (acta.hora_cierre_acta ?? '').slice(0, 5),
+        reposicion: !!acta.reposicion,
+        motivo_reposicion: acta.motivo_reposicion ?? '',
         ciudad: acta.ciudad || nombreConsejo,
         lugar: acta.lugar || lugarPropuesto,
         presidencia: p.find((x) => x.tipo === 'PRESIDENCIA')?.nombre ?? '',
@@ -560,6 +616,12 @@ export function ActaGeneradorDialog({
       id_acta: acta!.id,
       fecha_acta: datos.fecha_acta,
       hora_acta: datos.hora_acta.slice(0, 5),
+      fecha_cierre_acta: datos.fecha_cierre_acta,
+      hora_cierre_acta: datos.hora_cierre_acta.slice(0, 5),
+      reposicion: datos.reposicion,
+      ...(datos.reposicion
+        ? { motivo_reposicion: datos.motivo_reposicion.trim() }
+        : {}),
       ciudad: datos.ciudad.trim(),
       lugar: datos.lugar.trim(),
       participantes,
@@ -646,7 +708,12 @@ export function ActaGeneradorDialog({
   // Lo que falta se calcula con las mismas reglas del formulario, para que el
   // índice, cada tarjeta y el pie digan lo mismo que dirá la validación.
   const valores = form.watch();
-  const pendientesPorSeccion = { reunion: 0, traslado: 0, participantes: 0 };
+  const pendientesPorSeccion = {
+    reunion: 0,
+    traslado: 0,
+    participantes: 0,
+    reposicion: 0,
+  };
   const revision = datosSchema.safeParse(valores);
   if (!revision.success) {
     const vistos = new Set<string>();
@@ -716,6 +783,14 @@ export function ActaGeneradorDialog({
         'Fotografías por apartado. Los apartados con mínimo son obligatorios; los opcionales no bloquean la generación del acta.',
       resumen: `${requeridos - apartadosIncompletos.length} de ${requeridos} apartados requeridos · ${acta?.fotografias.length ?? 0} fotografías`,
       pendientes: apartadosIncompletos.length,
+    },
+    {
+      id: 'reposicion',
+      titulo: 'Reposición',
+      descripcion:
+        'Indica si el acta es de reposición. Si lo es, el motivo es obligatorio (hasta 2000 caracteres).',
+      resumen: valores.reposicion ? 'De reposición' : 'No es de reposición',
+      pendientes: pendientesPorSeccion.reposicion,
     },
   ];
   const estadoDe = (id: TSeccionGenerador) => estados.find((e) => e.id === id)!;
@@ -951,11 +1026,47 @@ export function ActaGeneradorDialog({
                               </FormItem>
                             )}
                           />
+                          {(
+                            [
+                              ['fecha_cierre_acta', 'Fecha de cierre', 'date'],
+                              ['hora_cierre_acta', 'Hora de cierre', 'time'],
+                            ] as const
+                          ).map(([nombre, etiqueta, tipo]) => (
+                            <FormField
+                              key={nombre}
+                              control={form.control}
+                              name={nombre}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>
+                                    {etiqueta}{' '}
+                                    <span className="text-destructive">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type={tipo}
+                                      // El selector de fecha ya no ofrece días
+                                      // anteriores a la fecha del acta.
+                                      min={
+                                        tipo === 'date'
+                                          ? form.watch('fecha_acta') ||
+                                            undefined
+                                          : undefined
+                                      }
+                                      {...field}
+                                      disabled={readOnly}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          ))}
                           <FormField
                             control={form.control}
                             name="lugar"
                             render={({ field }) => (
-                              <FormItem className="sm:col-span-4">
+                              <FormItem className="sm:col-span-2">
                                 <FormLabel>
                                   Lugar de la reunión{' '}
                                   <span className="text-destructive">*</span>
@@ -1144,6 +1255,25 @@ export function ActaGeneradorDialog({
                       </p>
                     )}
                   </SeccionGenerador>
+
+                  {/* ── Reposición (después de las fotografías) ───────────
+                      Va fuera del <form> de las fotografías, con su propio
+                      proveedor del mismo formulario para compartir los datos. */}
+                  <Form {...form}>
+                    <SeccionGenerador
+                      estado={estadoDe('reposicion')}
+                      abierta={abiertas.has('reposicion')}
+                      onAbiertaChange={(v) => cambiarSeccion('reposicion', v)}
+                      accion={
+                        <ReposicionInterruptor
+                          readOnly={readOnly}
+                          onActivar={() => cambiarSeccion('reposicion', true)}
+                        />
+                      }
+                    >
+                      <ReposicionMotivo readOnly={readOnly} />
+                    </SeccionGenerador>
+                  </Form>
 
                   <LeyendaObligatorios />
                 </div>

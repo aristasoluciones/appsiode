@@ -12,6 +12,7 @@ export type TSeccionGenerador =
   | 'reunion'
   | 'traslado'
   | 'participantes'
+  | 'reposicion'
   | 'fotografias';
 
 /** Sección con su resumen; las que tienen pendientes se abren al hidratar el acta. */
