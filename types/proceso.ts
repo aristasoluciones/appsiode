@@ -10,9 +10,9 @@ export interface IEleccion {
 }
 
 /**
- * Enlaces a los sistemas externos que consulta el front (columna jsonb
- * `cat.procesos.configuracion`). Viajan dentro del proceso activo, de modo que
- * cambiarlos no requiere volver a publicar el front.
+ * Enlaces a los sistemas externos (columna jsonb `cat.procesos.configuracion`).
+ * Solo se administran en la pantalla de Procesos: los consulta el API, no el
+ * front, así que ya no viajan dentro del proceso activo de la sesión.
  */
 export interface IProcesoConfiguracion {
   /** Base del sistema de representaciones de partidos políticos (RPP). */
@@ -31,7 +31,6 @@ export interface IProceso {
   consejo_distrital: boolean;
   consejo_municipal: boolean;
   modo: string;
-  configuracion?: IProcesoConfiguracion | null;
   elecciones: IEleccion[];
 }
 
