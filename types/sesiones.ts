@@ -1,6 +1,10 @@
 // ─── Tipos centralizados del módulo Sesiones ──────────────────────────────────
 
-export type TEstadoIndicador = 'programada' | 'con_demora' | 'en_proceso' | 'concluida';
+export type TEstadoIndicador =
+  | 'programada'
+  | 'con_demora'
+  | 'en_proceso'
+  | 'concluida';
 
 // ─── Catálogos (`GET /Catalogos`) ─────────────────────────────────────────────
 
@@ -67,21 +71,22 @@ export interface IConsejeroAsistenciaInput {
  * Registro completo tras iniciar. Se usa Partial para los campos
  * que solo existen después de persistir en BD, evitando dos interfaces.
  */
-export type IConsejeroAsistencia = IConsejeroAsistenciaInput & Partial<{
-  id_asistencia: number;
-  id_sesion: number;
-  asistencia: boolean;
-  fecha_reg: string;
-  validado: boolean;
-  validado_nombre: string | null;
-  orden: number;
-}>;
+export type IConsejeroAsistencia = IConsejeroAsistenciaInput &
+  Partial<{
+    id_asistencia: number;
+    id_sesion: number;
+    asistencia: boolean;
+    fecha_reg: string;
+    validado: boolean;
+    validado_nombre: string | null;
+    orden: number;
+  }>;
 
 export interface ICrearSesionInput {
   tipo: string;
   no_sesion: string;
   anio: number;
-  fecha_hora: string;   // ISO datetime
+  fecha_hora: string; // ISO datetime
   url?: string;
   consejos: { tipo_consejo: string; id_consejo: number }[];
   pod?: IPuntoOrdenDia[];
@@ -267,37 +272,4 @@ export interface ISesionDetalle {
   asistenciaPP: ISesionDetalleAPI['asistencia_pp'];
   incidencias: unknown;
   expedientes: IExpediente[] | null;
-}
-
-export interface IConsejeroExterno {
-  consejo_tipo: string;
-  consejo_clave: number;
-  consejo: string;
-  id: number;
-  grupo_cargo: string;
-  id_cargo: number;
-  nombre: string;
-  apellidos: string;
-  genero: string;
-  cargo: string;
-}
-
-export interface IRepresentanteNorm {
-  id_representante: number;
-  id_partido: number;
-  partyName: string;
-  partyImagePath: string | null;
-  nombre: string;
-  apellidos: string;
-  cargo: string;
-  genero: string;
-  asistencia: boolean;
-  nombramiento_no: string | null;
-  nombramiento_fecha: string | null;
-  nombramiento_url: string | null;
-  nombramiento_status: string | null;
-  telefono: string | null;
-  celular: string | null;
-  correo: string | null;
-  domicilio: string | null;
 }

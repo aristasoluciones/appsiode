@@ -3,6 +3,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft, Loader2, Lock, Save, Trash2 } from 'lucide-react';
+import type {
+  IAperturaBodega,
+  IAperturaBodegaDetalleAPI,
+  IConsejeroApertura,
+  IOtraPersona,
+  IPaqueteApertura,
+  IRepresentanteApertura,
+  TSacarPaquetesFront,
+  TTipoEleccion,
+} from '@/types/aperturas-bodegas';
+import {
+  ELECCION_LABEL,
+  SACAR_PAQUETES_OPTIONS,
+} from '@/types/aperturas-bodegas';
+import { uid } from '@/lib/helpers';
+import { toastError } from '@/lib/toast';
+import {
+  useIntegracionConsejo,
+  useRepresentacionesConsejo,
+} from '@/hooks/use-externos';
+import type { TTipoConsejo } from '@/hooks/use-proceso';
+import { useAuth } from '@/providers/auth-provider';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +36,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateTimePicker } from '@/components/ui/datetime-picker';
@@ -34,55 +65,25 @@ import {
   ToolbarActions,
   ToolbarHeading,
 } from '@/components/common/toolbar';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
-import { ArrowLeft, Loader2, Lock, Save, Trash2 } from 'lucide-react';
-import { toastError } from '@/lib/toast';
-import { useAuth } from '@/providers/auth-provider';
-import type { TTipoConsejo } from '@/hooks/use-proceso';
+import { ConsejerosAsistenciaAperturaCard } from '../_components/consejeros-asistencia-apertura-card';
+import { OtrasPersonasAperturaCard } from '../_components/otras-personas-apertura-card';
+import { PaquetesSelectorCard } from '../_components/paquetes-selector-card';
+import { RepresentacionesPPAperturaCard } from '../_components/representaciones-pp-apertura-card';
 import {
   useActualizarApertura,
   useAperturaDetalle,
   useCrearApertura,
   useEliminarApertura,
 } from '../_hooks/use-aperturas';
+import { useCatalogosAperturas } from '../_hooks/use-external';
 import { CerrarAperturaDialog } from '../components/cerrar-apertura-dialog';
-import {
-  useCatalogosAperturas,
-  useIntegracionApertura,
-  useRepresentantesExternosApertura,
-  normalizeRepresentanteApertura,
-} from '../_hooks/use-external';
-import { ConsejerosAsistenciaAperturaCard } from '../_components/consejeros-asistencia-apertura-card';
-import { RepresentacionesPPAperturaCard } from '../_components/representaciones-pp-apertura-card';
-import { OtrasPersonasAperturaCard } from '../_components/otras-personas-apertura-card';
-import { PaquetesSelectorCard } from '../_components/paquetes-selector-card';
-import { uid } from '@/lib/helpers';
-import type {
-  IAperturaBodega,
-  IAperturaBodegaDetalleAPI,
-  IConsejeroApertura,
-  IOtraPersona,
-  IPaqueteApertura,
-  IRepresentanteApertura,
-  TTipoEleccion,
-  TSacarPaquetesFront,
-} from '@/types/aperturas-bodegas';
-import { ELECCION_LABEL, SACAR_PAQUETES_OPTIONS } from '@/types/aperturas-bodegas';
-import type { IRepresentanteNorm } from '../_hooks/use-external';
 
 // ─── Estado del formulario ────────────────────────────────────────────────────
 
 interface FormState {
   bodega: TTipoEleccion | '';
-  fecha_apertura: string;       // yyyy-MM-dd
-  hora_apertura: string;        // HH:mm
+  fecha_apertura: string; // yyyy-MM-dd
+  hora_apertura: string; // HH:mm
   motivo: string;
   observaciones: string;
   sellos_apertura: boolean;
@@ -121,7 +122,10 @@ export interface AperturaFormViewProps {
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
-export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormViewProps) {
+export function AperturaFormView({
+  idApertura,
+  readOnly = false,
+}: AperturaFormViewProps) {
   const router = useRouter();
   const { user, hasPermission } = useAuth();
   const isEditing = typeof idApertura === 'number';
@@ -135,7 +139,6 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
   }, [user?.tipoConsejo]);
 
   const idConsejoUser = user?.idConsejo ? parseInt(user.idConsejo, 10) : null;
-  const claveConsejoUser = user?.claveConsejo ?? null;
   const tipoChar = tipoConsejoUser ? TIPO_CHAR[tipoConsejoUser] : null;
 
   // ── Catálogos ─────────────────────────────────────────────────────────────
@@ -145,25 +148,20 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
   // ── Catálogos externos ───────────────────────────────────────────────────
   // Solo se consultan al crear: una apertura ya registrada es un acta y se lee
   // de lo guardado, sin volver a preguntarle a los sistemas externos.
+  // El API consulta SICE y RPP en el servidor, ya filtrado por consejo.
   const { data: consejerosExt = [], isLoading: loadingConsejeros } =
-    useIntegracionApertura(
+    useIntegracionConsejo(
       isEditing ? null : tipoChar,
-      !isEditing && claveConsejoUser ? parseInt(claveConsejoUser, 10) : null,
-    );
-
-  const { data: representantesExt = [], isLoading: loadingRep, isError: errorRep } =
-    useRepresentantesExternosApertura(
-      isEditing || !tipoConsejoUser
-        ? null
-        : tipoConsejoUser === 'distrital'
-          ? 'd'
-          : 'm',
       isEditing ? null : idConsejoUser,
     );
 
-  const representantesNorm: IRepresentanteNorm[] = useMemo(
-    () => representantesExt.map(normalizeRepresentanteApertura),
-    [representantesExt],
+  const {
+    data: representantesExt = [],
+    isLoading: loadingRep,
+    isError: errorRep,
+  } = useRepresentacionesConsejo(
+    isEditing ? null : tipoChar,
+    isEditing ? null : idConsejoUser,
   );
 
   // ── Detalle (sólo en edición) ─────────────────────────────────────────────
@@ -275,23 +273,23 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
   }, [isEditing, consejerosExt]);
 
   useEffect(() => {
-    if (isEditing || representantesNorm.length === 0) return;
+    if (isEditing || representantesExt.length === 0) return;
     setForm((prev) =>
       prev.representantes.length > 0
         ? prev
         : {
             ...prev,
-            representantes: representantesNorm.map((r, i) => ({
+            representantes: representantesExt.map((r, i) => ({
               orden: i + 1,
               asistencia: false,
               cargo: r.cargo,
               nombre: `${r.nombre} ${r.apellidos}`.trim(),
               id_partido: r.id_partido,
-              imagen: r.partyImagePath ?? null,
+              imagen: r.partido_imagen ?? null,
             })),
           },
     );
-  }, [isEditing, representantesNorm]);
+  }, [isEditing, representantesExt]);
 
   // ── Asistencia (la llave es `orden`, el renglón dentro del acta) ─────────
   function setConsejeroAsistencia(orden: number, value: boolean) {
@@ -350,7 +348,8 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
         {
           id: -1,
           clave: form.bodega as TTipoEleccion,
-          descripcion: ELECCION_LABEL[form.bodega as TTipoEleccion] ?? form.bodega,
+          descripcion:
+            ELECCION_LABEL[form.bodega as TTipoEleccion] ?? form.bodega,
         },
       ];
     }
@@ -402,15 +401,19 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
       hora_apertura: form.hora_apertura,
       motivo: form.motivo,
       observaciones: form.observaciones || undefined,
-      sellos_apertura: (form.sellos_apertura ? 'true' : 'false') as 'true' | 'false',
+      sellos_apertura: (form.sellos_apertura ? 'true' : 'false') as
+        | 'true'
+        | 'false',
       sacar_paquetes: form.sacar_paquetes,
       consejeros: JSON.stringify(form.consejeros),
       representantes: JSON.stringify(form.representantes),
-      otros: JSON.stringify(form.otros.map((o) => ({
-        cargo: o.cargo,
-        nombre: o.nombre,
-        id_procedencia: o.id_procedencia,
-      }))),
+      otros: JSON.stringify(
+        form.otros.map((o) => ({
+          cargo: o.cargo,
+          nombre: o.nombre,
+          id_procedencia: o.id_procedencia,
+        })),
+      ),
       paquetes: JSON.stringify(
         form.paquetes.map((p) => ({
           seccion: p.seccion,
@@ -578,7 +581,8 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="sm:col-span-2">
                       <Label htmlFor="bodega">
-                        Tipo de elección <span className="text-destructive">*</span>
+                        Tipo de elección{' '}
+                        <span className="text-destructive">*</span>
                       </Label>
                       <Select
                         value={form.bodega || undefined}
@@ -605,7 +609,8 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
 
                     <div>
                       <Label htmlFor="fecha-apertura">
-                        Fecha de apertura <span className="text-destructive">*</span>
+                        Fecha de apertura{' '}
+                        <span className="text-destructive">*</span>
                       </Label>
                       <DateTimePicker
                         dateOnly
@@ -622,7 +627,8 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
 
                     <div>
                       <Label htmlFor="hora-apertura">
-                        Hora de apertura <span className="text-destructive">*</span>
+                        Hora de apertura{' '}
+                        <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="hora-apertura"
@@ -641,7 +647,8 @@ export function AperturaFormView({ idApertura, readOnly = false }: AperturaFormV
 
                     <div>
                       <Label htmlFor="sacar-paquetes">
-                        Sacar paquetes <span className="text-destructive">*</span>
+                        Sacar paquetes{' '}
+                        <span className="text-destructive">*</span>
                       </Label>
                       <Select
                         value={form.sacar_paquetes}

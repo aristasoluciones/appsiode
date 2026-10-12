@@ -1,112 +1,59 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEnlacesExternos } from '@/hooks/use-enlaces-externos';
-import apiClient from '@/lib/api/axios-client';
-import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { EXTERNOS_KEYS, SESIONES_KEYS } from '@/lib/query-keys';
-import { toastSuccess, toastError } from '@/lib/toast';
 import type {
+  IConsejeroAsistenciaInput,
   ISesionDetalle,
   ISesionDetalleAPI,
   ISesionDetalleResponseEnvelope,
-  IConsejeroAsistenciaInput,
-  IConsejeroExterno,
 } from '@/types/sesiones';
-
-// ─── Integración SICE: consejeros electorales ────────────────────────────────
-
-export function useIntegracion(consejoTipo: string, consejoClave: number | string | null) {
-  return useQuery({
-    queryKey: EXTERNOS_KEYS.integracionSice(consejoTipo, consejoClave),
-    queryFn: async (): Promise<IConsejeroExterno[]> => {
-      if (consejoClave === null) return [];
-      const { data } = await axios.get<IConsejeroExterno[]>(
-        '/api/sice-proxy/integracion',
-      );
-      
-      const tipo = consejoTipo.toUpperCase();
-      const clave = Number(consejoClave);
-      return Array.isArray(data)
-        ? data.filter(
-            (c) => c.consejo_tipo.toUpperCase() === tipo && c.consejo_clave === clave,
-          )
-        : [];
-    },
-    enabled: consejoClave !== null,
-    staleTime: 5 * 60_000,
-    retry: 1,
-  });
-}
-
-// ─── Tipos externos: representantes de partidos ───────────────────────────────
-
-export interface IRepresentanteExternoAPI {
-  id: number;
-  address: string | null;
-  paternal: string;
-  maternal: string;
-  phone: string | null;
-  mobilePhone: string | null;
-  email: string | null;
-  name: string;
-  sex: string;
-  charge: string;
-  party_id: number;
-  party: { id: number; name: string; imagePath: string };
-  appointments: {
-    invoice: string | null;
-    expedition: string | null;
-    documentPath: string | null;
-    reception: string | null;
-    status: string | null;
-  }[];
-}
-
-export function useRepresentantesExternos(tipo: 'd' | 'm', idConsejo: string | null) {
-  const { rppApiBase: BASE } = useEnlacesExternos();
-
-  return useQuery({
-    queryKey: EXTERNOS_KEYS.representantes(tipo, idConsejo),
-    queryFn: async (): Promise<IRepresentanteExternoAPI[]> => {
-      if (!BASE || idConsejo === null) return [];
-      const param = tipo === 'd' ? 'district' : 'town';
-      const { data } = await axios.get<IRepresentanteExternoAPI[]>(
-        `${BASE}/api/representatives?${param}=${idConsejo}&approved=1`,
-      );
-      return Array.isArray(data) ? data : [];
-    },
-    enabled: idConsejo !== null && !!BASE,
-    staleTime: 60_000,
-    retry: 1,
-  });
-}
+import apiClient from '@/lib/api/axios-client';
+import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { SESIONES_KEYS } from '@/lib/query-keys';
+import { toastError, toastSuccess } from '@/lib/toast';
 
 export function useGuardarAsistencia(idSesion: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { asistencia: { id: number; asistencia: boolean }[] }) =>
+    mutationFn: (payload: {
+      asistencia: { id: number; asistencia: boolean }[];
+    }) =>
       apiClient.put(API_ENDPOINTS.SESIONES.SAVE_ASISTENCIA(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Asistencia guardada correctamente.');
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.votos(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.votos(idSesion),
+      });
     },
-    onError: () => toastError('No se pudo guardar la asistencia. Intenta nuevamente.'),
+    onError: () =>
+      toastError('No se pudo guardar la asistencia. Intenta nuevamente.'),
   });
 }
 
 export function useGuardarAsistenciaPP(idSesion: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { representantes: { id_asistencia_pp: number; asistencia: boolean }[] }) =>
-      apiClient.put(API_ENDPOINTS.SESIONES.SAVE_ASISTENCIA_PP(idSesion), payload),
+    mutationFn: (payload: {
+      representantes: { id_asistencia_pp: number; asistencia: boolean }[];
+    }) =>
+      apiClient.put(
+        API_ENDPOINTS.SESIONES.SAVE_ASISTENCIA_PP(idSesion),
+        payload,
+      ),
     onSuccess: () => {
       toastSuccess('Asistencia de representantes guardada correctamente.');
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
     },
-    onError: () => toastError('No se pudo guardar la asistencia de representantes. Intenta nuevamente.'),
+    onError: () =>
+      toastError(
+        'No se pudo guardar la asistencia de representantes. Intenta nuevamente.',
+      ),
   });
 }
 
@@ -117,7 +64,9 @@ export function useIniciarSesion(idSesion: string) {
       apiClient.put(API_ENDPOINTS.SESIONES.INICIAR_SESION(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Sesión iniciada correctamente.');
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
     },
   });
 }
@@ -143,13 +92,18 @@ export interface ITerminarRepresentantePayload {
 export function useTerminarSesion(idSesion: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { representantes: ITerminarRepresentantePayload[] }) =>
+    mutationFn: (payload: {
+      representantes: ITerminarRepresentantePayload[];
+    }) =>
       apiClient.put(API_ENDPOINTS.SESIONES.TERMINAR_SESION(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Sesión concluida correctamente.');
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
     },
-    onError: () => toastError('No se pudo terminar la sesión. Intenta nuevamente.'),
+    onError: () =>
+      toastError('No se pudo terminar la sesión. Intenta nuevamente.'),
   });
 }
 
@@ -185,10 +139,14 @@ export function useAgregarAsuntoGeneral(idSesion: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (descripcion: string) =>
-      apiClient.post(API_ENDPOINTS.SESIONES.AGREGAR_ASUNTO_GENERAL(idSesion), { descripcion }),
+      apiClient.post(API_ENDPOINTS.SESIONES.AGREGAR_ASUNTO_GENERAL(idSesion), {
+        descripcion,
+      }),
     onSuccess: () => {
       toastSuccess('Asunto general agregado correctamente.');
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
     },
   });
 }
@@ -208,7 +166,9 @@ export function useActualizarSesion(idSesion: string) {
     mutationFn: (payload: IActualizarSesionPayload) =>
       apiClient.patch(API_ENDPOINTS.SESIONES.UPDATE(idSesion), payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
     },
     retry: false,
   });
@@ -230,9 +190,12 @@ export function useActualizarPOD(idSesion: string) {
       apiClient.patch(API_ENDPOINTS.SESIONES.UPDATE_POD(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Punto actualizado correctamente.');
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
     },
-    onError: () => toastError('No se pudo actualizar el punto. Intenta nuevamente.'),
+    onError: () =>
+      toastError('No se pudo actualizar el punto. Intenta nuevamente.'),
     retry: false,
   });
 }
@@ -246,10 +209,14 @@ export function useEliminarPOD(idSesion: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: IEliminarPODPayload) =>
-      apiClient.delete(API_ENDPOINTS.SESIONES.DELETE_POD(idSesion), { data: payload }),
+      apiClient.delete(API_ENDPOINTS.SESIONES.DELETE_POD(idSesion), {
+        data: payload,
+      }),
     onSuccess: () => {
       toastSuccess('Punto eliminado correctamente.');
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
     },
     retry: false,
   });
@@ -269,7 +236,9 @@ export function useAgregarPOD(idSesion: string) {
       apiClient.post(API_ENDPOINTS.SESIONES.UPDATE_POD(idSesion), payload),
     onSuccess: () => {
       toastSuccess('Punto agregado correctamente.');
-      queryClient.invalidateQueries({ queryKey: SESIONES_KEYS.detalle(idSesion) });
+      queryClient.invalidateQueries({
+        queryKey: SESIONES_KEYS.detalle(idSesion),
+      });
     },
     retry: false,
   });
@@ -304,9 +273,9 @@ export function useSesionDetalle(idSesion: string) {
     queryKey: SESIONES_KEYS.detalle(idSesion),
     queryFn: async (): Promise<ISesionDetalleResult> => {
       try {
-        const { data } = await apiClient.get<ISesionDetalleAPI | ISesionDetalleResponseEnvelope>(
-          API_ENDPOINTS.SESIONES.SESION_DETALLE(idSesion),
-        );
+        const { data } = await apiClient.get<
+          ISesionDetalleAPI | ISesionDetalleResponseEnvelope
+        >(API_ENDPOINTS.SESIONES.SESION_DETALLE(idSesion));
 
         const payload =
           typeof data === 'object' && data !== null && 'data' in data
@@ -326,7 +295,8 @@ export function useSesionDetalle(idSesion: string) {
     },
     staleTime: 30_000,
     retry: (failureCount, error) => {
-      if (axios.isAxiosError(error) && error.response?.status === 404) return false;
+      if (axios.isAxiosError(error) && error.response?.status === 404)
+        return false;
       return failureCount < 3;
     },
   });
@@ -342,19 +312,25 @@ export function useDescargarReporteSesion(idSesion: string) {
   return useMutation({
     meta: { silenciarToast: true },
     mutationFn: async () => {
-      const response = await apiClient.get(API_ENDPOINTS.SESIONES.PDF(idSesion), {
-        responseType: 'blob',
-      });
+      const response = await apiClient.get(
+        API_ENDPOINTS.SESIONES.PDF(idSesion),
+        {
+          responseType: 'blob',
+        },
+      );
       return response.data as Blob;
     },
     onSuccess: (blob) => {
-      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: 'application/pdf' }),
+      );
       const link = document.createElement('a');
       link.href = url;
       link.download = `reporte-de-sesion-${idSesion}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
     },
-    onError: () => toastError('No se pudo descargar el reporte. Intenta nuevamente.'),
+    onError: () =>
+      toastError('No se pudo descargar el reporte. Intenta nuevamente.'),
   });
 }

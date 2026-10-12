@@ -24,6 +24,10 @@ import type {
 } from '@/types/material-electoral';
 import { ACTA_LIMITES } from '@/types/material-electoral';
 import { toastError } from '@/lib/toast';
+import {
+  useIntegracionConsejo,
+  useRepresentacionesConsejo,
+} from '@/hooks/use-externos';
 import { useAuth } from '@/providers/auth-provider';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import {
@@ -67,11 +71,6 @@ import {
   useVistaPreviaActa,
 } from '../_hooks/use-actas';
 import { useTiposActa } from '../_hooks/use-tipos-acta';
-import {
-  normalizeRepresentanteApertura,
-  useIntegracionApertura,
-  useRepresentantesExternosApertura,
-} from '../../aperturas/_hooks/use-external';
 import {
   ActaAsistenciaCard,
   type IAsistenciaItem,
@@ -312,16 +311,16 @@ export function ActaGeneradorDialog({
     data: consejerosExt = [],
     isLoading: cargandoConsejeros,
     isError: errorConsejeros,
-  } = useIntegracionApertura(
+  } = useIntegracionConsejo(
     necesitaPadron ? tipoChar : null,
-    necesitaPadron && user?.claveConsejo ? Number(user.claveConsejo) : null,
+    necesitaPadron && user?.idConsejo ? Number(user.idConsejo) : null,
   );
   const {
     data: representantesExt = [],
     isLoading: cargandoRep,
     isError: errorRep,
-  } = useRepresentantesExternosApertura(
-    necesitaPadron && tipoChar ? (tipoChar === 'D' ? 'd' : 'm') : null,
+  } = useRepresentacionesConsejo(
+    necesitaPadron ? tipoChar : null,
     necesitaPadron && user?.idConsejo ? Number(user.idConsejo) : null,
   );
 
@@ -502,19 +501,14 @@ export function ActaGeneradorDialog({
         })),
     );
     setRepresentaciones(
-      ordenarRepresentaciones(
-        representantesExt.map(normalizeRepresentanteApertura).map((r) => ({
-          ...r,
-          partido: r.partyName,
-        })),
-      ).map((r, i) => ({
+      ordenarRepresentaciones(representantesExt).map((r, i) => ({
         orden: i + 1,
         nombre: `${r.nombre} ${r.apellidos}`.trim(),
-        subtitulo: subtituloRepresentacion(r.partyName, r.cargo),
+        subtitulo: subtituloRepresentacion(r.partido, r.cargo),
         cargo: r.cargo,
         id_partido: r.id_partido,
-        partido: r.partyName,
-        imagen: r.partyImagePath ?? null,
+        partido: r.partido,
+        imagen: r.partido_imagen ?? null,
         asistencia: false,
       })),
     );

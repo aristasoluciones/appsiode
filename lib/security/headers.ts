@@ -8,12 +8,12 @@
  *   protegidas se emiten en `middleware.ts`, porque necesitan un valor único
  *   por petición (el nonce).
  *
- * Orígenes externos: los enlaces a RPP y SICE se capturan en la pantalla de
- * Procesos, viven en la base de datos y pueden cambiar de dominio sin volver
- * a compilar. Por eso la política NO fija una lista de dominios: permite
- * cualquier origen HTTPS en imágenes, consultas y marcos (ahí entran también
- * el API .NET y el almacenamiento de Azure). Lo que sí queda cerrado es lo
- * que de verdad protege contra inyección: solo se ejecutan scripts propios
+ * Orígenes externos: RPP y SICE ya no se consultan desde el navegador, sino
+ * desde el API, así que las consultas (`connect-src`) solo van al propio sitio
+ * y al API. Las imágenes (logos de partidos y archivos de Azure) y los marcos
+ * de PDF siguen aceptando cualquier origen HTTPS porque sus dominios vienen de
+ * la base de datos y pueden cambiar sin volver a compilar. Lo que sí queda
+ * cerrado es lo que de verdad protege contra inyección: solo se ejecutan scripts propios
  * firmados con el nonce, no hay objetos incrustados y ninguna página ajena
  * puede enmarcar el sitio.
  */
@@ -40,8 +40,19 @@ export function construirCsp(nonce: string): string {
 
   // En desarrollo, Next necesita eval y conexiones de recarga en caliente;
   // el API local corre en https con certificado propio.
-  const scriptDesarrollo = esDesarrollo ? ["'unsafe-eval'", "'unsafe-inline'"] : [];
+  const scriptDesarrollo = esDesarrollo
+    ? ["'unsafe-eval'", "'unsafe-inline'"]
+    : [];
   const conexionDesarrollo = esDesarrollo ? ['ws:', 'wss:'] : [];
+  // Origen del API; si la variable falta o no es una URL, se permite cualquier HTTPS
+  // para no romper las consultas.
+  const origenApi = (() => {
+    try {
+      return [new URL(process.env.NEXT_PUBLIC_API_URL ?? '').origin];
+    } catch {
+      return ['https:'];
+    }
+  })();
 
   const directivas: Record<string, string[]> = {
     'default-src': ["'self'"],
@@ -50,14 +61,19 @@ export function construirCsp(nonce: string): string {
     'form-action': ["'self'"],
     // El sitio solo puede incrustarse a sí mismo (previsualizaciones de PDF).
     'frame-ancestors': ["'self'"],
-    'script-src': ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...scriptDesarrollo],
+    'script-src': [
+      "'self'",
+      `'nonce-${nonce}'`,
+      "'strict-dynamic'",
+      ...scriptDesarrollo,
+    ],
     // Los estilos en línea los generan las gráficas y la plantilla.
     'style-src': ["'self'", "'unsafe-inline'"],
     // Imágenes de representantes (RPP) y archivos de Azure: cualquier HTTPS.
     'img-src': ["'self'", 'https:', 'data:', 'blob:'],
     'font-src': ["'self'", 'data:'],
-    // API .NET, RPP y SICE: sus dominios se configuran en Procesos.
-    'connect-src': ["'self'", 'https:', ...conexionDesarrollo],
+    // Solo el propio sitio y el API .NET; RPP y SICE los consulta el API.
+    'connect-src': ["'self'", ...origenApi, ...conexionDesarrollo],
     // Marcos de previsualización de PDF: Azure y archivos temporales.
     'frame-src': ["'self'", 'https:', 'blob:', 'data:'],
     'worker-src': ["'self'", 'blob:'],

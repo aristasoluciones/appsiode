@@ -253,3 +253,8 @@ const MONEDA_MXN = new Intl.NumberFormat('es-MX', {
 export function formatMoneda(valor: number | null | undefined): string {
   return valor == null ? '—' : MONEDA_MXN.format(valor);
 }
+
+/** `true` si el texto es una URL http(s) completa; las rutas relativas heredadas no lo son. */
+export function esUrlHttp(valor: string | null | undefined): valor is string {
+  return !!valor && /^https?:\/\//i.test(valor);
+}

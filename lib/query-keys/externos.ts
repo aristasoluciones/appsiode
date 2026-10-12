@@ -1,21 +1,17 @@
 import type { KeyId } from './_shared';
 
 /**
- * Llaves de los servicios externos que se consultan desde el frontend
- * (integración SICE y representaciones de partidos políticos).
+ * Llaves de los sistemas externos que consulta el API (SICE y RPP): la
+ * integración del consejo y sus representaciones de partido.
  */
 export const EXTERNOS_KEYS = {
   raiz: () => ['externos'] as const,
 
-  /** Consejeros electorales publicados por SICE. */
-  integracionSice: (tipoConsejo: string | null, claveConsejo: KeyId | null) =>
-    ['externos', 'integracion-sice', tipoConsejo, claveConsejo] as const,
+  /** Consejerías, presidencia y secretaría técnica del consejo (SICE). */
+  integracion: (tipoConsejo: string | null, idConsejo: KeyId | null) =>
+    ['externos', 'integracion', tipoConsejo, idConsejo] as const,
 
-  /** Representaciones de partidos para la vista de sesiones. */
-  representantes: (tipo: string, idConsejo: KeyId | null) =>
-    ['externos', 'representantes-pp', tipo, idConsejo] as const,
-
-  /** Representaciones de partidos para la vista de aperturas de bodega. */
-  representantesApertura: (tipo: string | null, idConsejo: KeyId | null) =>
-    ['externos', 'representantes-pp-apertura', tipo, idConsejo] as const,
+  /** Representaciones de partido aprobadas del consejo (RPP). */
+  representaciones: (tipoConsejo: string | null, idConsejo: KeyId | null) =>
+    ['externos', 'representaciones', tipoConsejo, idConsejo] as const,
 } as const;

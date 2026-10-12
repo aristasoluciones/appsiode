@@ -5,6 +5,7 @@ import { APERTURAS_BODEGAS } from './aperturas-bodegas';
 import { AUTH } from './auth';
 import { BODEGAS } from './bodegas';
 import { CATALOGOS } from './catalogos';
+import { EXTERNOS } from './externos';
 import { MATERIAL_ELECTORAL } from './material-electoral';
 import { MECANISMOS } from './mecanismos';
 import { PROCESOS } from './procesos';
@@ -23,6 +24,7 @@ export const API_ENDPOINTS = {
   APERTURAS_BODEGAS,
   MATERIAL_ELECTORAL,
   MECANISMOS,
+  EXTERNOS,
 } as const;
 
 export {
@@ -30,6 +32,7 @@ export {
   AUTH,
   BODEGAS,
   CATALOGOS,
+  EXTERNOS,
   MATERIAL_ELECTORAL,
   MECANISMOS,
   PROCESOS,

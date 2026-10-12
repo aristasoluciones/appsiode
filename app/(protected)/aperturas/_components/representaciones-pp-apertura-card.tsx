@@ -3,12 +3,12 @@
 import { useMemo } from 'react';
 import Image from 'next/image';
 import { AlertTriangle, SearchX } from 'lucide-react';
+import type { IRepresentanteApertura } from '@/types/aperturas-bodegas';
+import { esUrlHttp } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useEnlacesExternos } from '@/hooks/use-enlaces-externos';
-import type { IRepresentanteApertura } from '@/types/aperturas-bodegas';
 
 export interface RepresentacionesPPAperturaCardProps {
   /**
@@ -54,9 +54,6 @@ export function RepresentacionesPPAperturaCard({
   onToggle,
   onToggleAll,
 }: RepresentacionesPPAperturaCardProps) {
-  // El enlace al sistema RPP viaja en el proceso activo, no en el build.
-  const { rppApiBase: RPP_API_BASE } = useEnlacesExternos();
-
   const presentes = useMemo(
     () => items.reduce((s, r) => s + (r.asistencia ? 1 : 0), 0),
     [items],
@@ -122,10 +119,10 @@ export function RepresentacionesPPAperturaCard({
                       onCheckedChange={() => onToggle(rep.orden, !presente)}
                       disabled={readOnly}
                     />
-                    {rep.imagen && RPP_API_BASE ? (
+                    {esUrlHttp(rep.imagen) ? (
                       <div className="relative shrink-0 w-7 h-7 rounded overflow-hidden">
                         <Image
-                          src={`${RPP_API_BASE}/${rep.imagen}`}
+                          src={rep.imagen}
                           alt={`Partido ${rep.id_partido}`}
                           fill
                           className="object-contain"

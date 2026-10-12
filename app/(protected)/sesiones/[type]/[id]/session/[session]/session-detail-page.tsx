@@ -51,16 +51,24 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSesionesConsejo } from '../../components/sesiones-consejo-data';
-import { useSesionDetalle, useRepresentantesExternos, useIntegracion, useGuardarAsistencia, useGuardarAsistenciaPP, useIniciarSesion, 
-        useTerminarSesion, useAgregarAsuntoGeneral, useActualizarPOD, useDescargarReporteSesion, type IRepresentanteExternoAPI, type ITerminarRepresentantePayload } from './session-detail-data';
+import { useSesionDetalle, useGuardarAsistencia, useGuardarAsistenciaPP, useIniciarSesion, 
+        useTerminarSesion, useAgregarAsuntoGeneral, useActualizarPOD, useDescargarReporteSesion, type ITerminarRepresentantePayload } from './session-detail-data';
 import { IncidenciasCard } from './incidencias-card';
 import { ExpedientesCard } from './expedientes-card';
 import { VotacionDialog } from './votacion-dialog';
 import { SesionEdicion } from './sesion-edicion';
-import type { ISesionDetalleAPI, IRepresentanteNorm, IConsejeroExterno } from '@/types/sesiones';
+import type { ISesionDetalleAPI } from '@/types/sesiones';
+import type {
+  IIntegranteConsejo,
+  IRepresentacionPartido,
+} from '@/types/externos';
+import {
+  useIntegracionConsejo,
+  useRepresentacionesConsejo,
+} from '@/hooks/use-externos';
+import { esUrlHttp } from '@/lib/helpers';
 
 import { useAuth } from '@/providers/auth-provider';
-import { useEnlacesExternos } from '@/hooks/use-enlaces-externos';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -104,34 +112,8 @@ const statusLabel   = (s: string): string => s.replaceAll('_', ' ');
 
 const ACTIVE_STATUSES = new Set(['PROCESO', 'DEMORA', 'PROGRAMADA']);
 
-const EMPTY_CONSEJEROS: IConsejeroExterno[] = [];
+const EMPTY_CONSEJEROS: IIntegranteConsejo[] = [];
 
-// ─── Representantes PP: tipos y normalización ─────────────────────────────────
-
-function normalizeRepresentante(r: IRepresentanteExternoAPI): IRepresentanteNorm {
-  const appt = r.appointments?.[0];
-  return {
-    id_representante: r.id,
-    id_partido: r.party_id,
-    partyName: r.party?.name ?? '',
-    partyImagePath: r.party?.imagePath ?? null,
-    nombre: r.name,
-    apellidos: [r.paternal, r.maternal].filter(Boolean).join(' '),
-    cargo: r.charge,
-    genero: r.sex,
-    asistencia: false,
-    nombramiento_no: appt?.invoice ?? null,
-    nombramiento_fecha: appt?.expedition ?? null,
-    nombramiento_url: appt?.documentPath ?? null,
-    nombramiento_status: appt?.status ?? null,
-    telefono: r.phone ?? null,
-    celular: r.mobilePhone ?? null,
-    correo: r.email ?? null,
-    domicilio: r.address ?? null,
-  };
-}
-
-// ─── Componente principal ─────────────────────────────────────────────────────
 
 export function SessionDetailPage({ type, id, sessionId }: Props) {
   const { data, isLoading, isError, refetch } = useSesionDetalle(sessionId);
@@ -154,9 +136,9 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
   const consejoClave   = consejMeta?.clave_consejo   ?? id;
   const consejoTipoDesc = consejMeta?.tipo_consejo_desc ?? tipoLabel;
 
-  const { data: repData = EMPTY_REPS, isLoading: loadingExt, isError: errorExt } = useRepresentantesExternos(type as 'd' | 'm', String(consejoClave));
-  const { data: consejeros = EMPTY_CONSEJEROS, isLoading: loadingConsejeros } = useIntegracion(type, consejoClave);
-  const representantesNorm = useMemo(() => repData.map(normalizeRepresentante), [repData]);
+  const tipoConsejoChar = type.toUpperCase() as 'D' | 'M';
+  const { data: representantesNorm = EMPTY_REPS, isLoading: loadingExt, isError: errorExt } = useRepresentacionesConsejo(tipoConsejoChar, String(consejoClave));
+  const { data: consejeros = EMPTY_CONSEJEROS, isLoading: loadingConsejeros } = useIntegracionConsejo(tipoConsejoChar, consejoClave);
 
   // Permisos generales
   const canIniciarSesion = hasPermission('sesiones.iniciar'); 
@@ -212,7 +194,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
     iniciarSesion({
       consejeros: consejeros.map((c) => ({
         cargo: c.cargo,
-        genero: c.genero,
+        genero: c.genero ?? '',
         nombre: c.nombre,
         apellidos: c.apellidos,
         id_cargo: c.id_cargo,
@@ -242,7 +224,7 @@ export function SessionDetailPage({ type, id, sessionId }: Props) {
         nombre: r.nombre,
         apellidos: r.apellidos,
         cargo: r.cargo,
-        genero: r.genero,
+        genero: r.genero ?? '',
         nombramiento_no: r.nombramiento_no,
         nombramiento_fecha: r.nombramiento_fecha,
         nombramiento_url: r.nombramiento_url,
@@ -814,7 +796,7 @@ function ConsejerosAsistenciaCard({
   status: string;
   asistencia: ISesionDetalleAPI['asistencia'];
   sessionId: string;
-  consejeros: IConsejeroExterno[];
+  consejeros: IIntegranteConsejo[];
   loadingConsejeros: boolean;
   canRegistrarAsistencia: boolean;
   canActualizarAsistencia: boolean;
@@ -1081,7 +1063,7 @@ function ConsejerosAsistenciaCard({
 
 type AsistenciaPPItem = ISesionDetalleAPI['asistencia_pp'][number];
 
-const EMPTY_REPS: IRepresentanteExternoAPI[] = [];
+const EMPTY_REPS: IRepresentacionPartido[] = [];
 
 function RepresentacionesPPCard({
   status,
@@ -1102,24 +1084,21 @@ function RepresentacionesPPCard({
   idConsejo: string | null;
   asistenciaExtOverrides: Record<number, boolean>;
   onToggleExt: (id: number) => void;
-  representantes: IRepresentanteNorm[];
+  representantes: IRepresentacionPartido[];
   loadingExt: boolean;
   errorExt: boolean;
   sessionId: string;
   canActualizarAsistenciaRpp: boolean;
 }) {
 
-  // El enlace al sistema RPP viaja en el proceso activo, no en el build.
-  const { rppApiBase: RPP_API_BASE } = useEnlacesExternos();
-
   const { mutate: guardarPP, isPending: guardandoPP } = useGuardarAsistenciaPP(sessionId);
 
-  // Mapa id_partido → partyImagePath, siempre desde la API externa
+  // Mapa id_partido → partido_imagen, siempre desde la API externa
   const partyImageMap = useMemo(
     () => Object.fromEntries(
       representantes
-        .filter((r) => r.partyImagePath)
-        .map((r) => [r.id_partido, r.partyImagePath] as [number, string])
+        .filter((r) => r.partido_imagen)
+        .map((r) => [r.id_partido, r.partido_imagen] as [number, string])
     ),
     [representantes],
   );
@@ -1167,11 +1146,11 @@ function RepresentacionesPPCard({
                   <li key={rep.id_representante} className="px-5 py-3 space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-2.5 min-w-0">
-                        {rep.partyImagePath && RPP_API_BASE ? (
+                        {esUrlHttp(rep.partido_imagen) ? (
                           <div className="relative shrink-0 w-8 h-8 rounded overflow-hidden">
                             <Image
-                              src={`${RPP_API_BASE}/${rep.partyImagePath}`}
-                              alt={rep.partyName}
+                              src={rep.partido_imagen}
+                              alt={rep.partido}
                               fill
                               className="object-contain"
                               unoptimized
@@ -1189,9 +1168,9 @@ function RepresentacionesPPCard({
                           <p className="text-xs text-muted-foreground mt-0.5">{rep.cargo}</p>
                         </div>
                       </div>
-                      {rep.nombramiento_url && (
+                      {esUrlHttp(rep.nombramiento_url) && (
                         <a
-                          href={`${RPP_API_BASE}/${rep.nombramiento_url}`}
+                          href={rep.nombramiento_url}
                           target="_blank"
                           rel="noreferrer"
                           className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-muted transition-colors"
@@ -1293,11 +1272,11 @@ function RepresentacionesPPCard({
                             onCheckedChange={() => onToggleExt(rep.id_representante)}
                             className="mt-0.5"
                           />
-                          {rep.partyImagePath && RPP_API_BASE ? (
+                          {esUrlHttp(rep.partido_imagen) ? (
                             <div className="relative shrink-0 w-8 h-8 rounded overflow-hidden">
                               <Image
-                                src={`${RPP_API_BASE}/${rep.partyImagePath}`}
-                                alt={rep.partyName}
+                                src={rep.partido_imagen}
+                                alt={rep.partido}
                                 fill
                                 className="object-contain"
                                 unoptimized
@@ -1318,9 +1297,9 @@ function RepresentacionesPPCard({
                             <p className="text-xs text-muted-foreground mt-0.5">{rep.cargo}</p>
                           </label>
                         </div>
-                        {rep.nombramiento_url && (
+                        {esUrlHttp(rep.nombramiento_url) && (
                           <a
-                            href={`${RPP_API_BASE}/${rep.nombramiento_url}`}
+                            href={rep.nombramiento_url}
                             target="_blank"
                             rel="noreferrer"
                             className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-muted transition-colors"
@@ -1467,10 +1446,10 @@ function RepresentacionesPPCard({
                             className="mt-0.5"
                           />
                         )}
-                        {partyImageMap[rep.id_partido] && RPP_API_BASE ? (
+                        {esUrlHttp(partyImageMap[rep.id_partido]) ? (
                           <div className="relative shrink-0 w-8 h-8 rounded overflow-hidden">
                             <Image
-                              src={`${RPP_API_BASE}/${partyImageMap[rep.id_partido]}`}
+                              src={partyImageMap[rep.id_partido]}
                               alt={String(rep.id_partido)}
                               fill
                               className="object-contain"
@@ -1493,9 +1472,9 @@ function RepresentacionesPPCard({
                         </label>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        {rep.nombramiento_url && (
+                        {esUrlHttp(rep.nombramiento_url) && (
                           <a
-                            href={`${RPP_API_BASE}/${rep.nombramiento_url}`}
+                            href={rep.nombramiento_url}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-border hover:bg-muted transition-colors"
