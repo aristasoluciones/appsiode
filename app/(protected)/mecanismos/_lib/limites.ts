@@ -21,8 +21,6 @@ export const MECANISMOS_LIMITES = {
   distanciaKm: { min: 0, max: 99999.99 },
   /** Se captura como HH:MM y viaja en minutos (tope 99:59). */
   tiempoRecorridoMinutos: { min: 0, max: 5999 },
-  eleccionAtendida: { max: 30 },
-  consejos: { min: 1, max: 30 },
   casillas: { max: 200 },
   /** Nomenclatura del INE: B1, C1, E1, E1 C1, S1. */
   casillaTipo: /^(B1|C\d{1,2}|E\d{1,2}( C\d{1,2})?|S\d{1,2})$/,

@@ -44,14 +44,6 @@ export const mecanismoSchema = z.object({
         Number(v) <= MECANISMOS_LIMITES.numero.max,
       { message: 'El número debe estar entre 1 y 999.' },
     ),
-  consejos: z
-    .array(z.string())
-    .min(MECANISMOS_LIMITES.consejos.min, {
-      message: 'Vincula al menos un consejo.',
-    })
-    .max(MECANISMOS_LIMITES.consejos.max, {
-      message: `Un mecanismo no puede vincular más de ${MECANISMOS_LIMITES.consejos.max} consejos.`,
-    }),
   revisor: z.string(),
   cotizacion: z.string(),
   distancia_km: numeroOpcional(
@@ -70,12 +62,6 @@ export const mecanismoSchema = z.object({
     MECANISMOS_LIMITES.costo.max,
     'El costo INE debe estar entre 0 y 9,999,999.99.',
   ),
-  eleccion_atendida: z
-    .string()
-    .trim()
-    .max(MECANISMOS_LIMITES.eleccionAtendida.max, {
-      message: `La elección atendida no debe exceder ${MECANISMOS_LIMITES.eleccionAtendida.max} caracteres.`,
-    }),
   casillas: z
     .array(
       z.object({
@@ -91,9 +77,15 @@ export const mecanismoSchema = z.object({
         casilla_tipo: z.string().trim().regex(MECANISMOS_LIMITES.casillaTipo, {
           message: 'Usa la nomenclatura del INE: B1, C1, E1, E1 C1, S1.',
         }),
-        territorio: z.string().min(1, { message: 'Elige el municipio.' }),
+        territorio: z
+          .string()
+          .min(1, { message: 'Elige el consejo municipal y distrital.' }),
       }),
     )
+    .min(1, {
+      message:
+        'Agrega al menos una casilla: de ellas salen los consejos vinculados.',
+    })
     .max(MECANISMOS_LIMITES.casillas.max, {
       message: `Un mecanismo no puede atender más de ${MECANISMOS_LIMITES.casillas.max} casillas.`,
     }),
@@ -106,13 +98,11 @@ export const MECANISMO_FORM_VACIO: TMecanismoForm = {
   id_df: '',
   tipo: '',
   numero: '',
-  consejos: [],
   revisor: '',
   cotizacion: '',
   distancia_km: '',
   tiempo_recorrido: '',
   costo_ine: '',
-  eleccion_atendida: '',
   casillas: [],
 };
 
@@ -123,7 +113,6 @@ export function mecanismoAFormulario(m: IMecanismo): TMecanismoForm {
     id_df: String(m.id_df),
     tipo: m.tipo,
     numero: String(m.numero),
-    consejos: m.consejos.map((c) => consejoClave(c.tipo_consejo, c.id_consejo)),
     revisor: revisor
       ? consejoClave(revisor.tipo_consejo, revisor.id_consejo)
       : '',
@@ -134,7 +123,6 @@ export function mecanismoAFormulario(m: IMecanismo): TMecanismoForm {
     distancia_km: m.distancia_km != null ? String(m.distancia_km) : '',
     tiempo_recorrido: m.tiempo_recorrido ?? '',
     costo_ine: m.costo_ine != null ? String(m.costo_ine) : '',
-    eleccion_atendida: m.eleccion_atendida ?? '',
     casillas: m.casillas.map((c) => ({
       seccion: String(c.seccion),
       casilla_tipo: c.casilla_tipo,
@@ -154,7 +142,7 @@ export function formularioAPayload(v: TMecanismoForm): IMecanismoPayload {
     id_df: Number(v.id_df),
     tipo: v.tipo as IMecanismoPayload['tipo'],
     numero: Number(v.numero),
-    consejos: v.consejos.map(consejoIds),
+    consejos: consejosDeCasillas(v.casillas).map(consejoIds),
     revisor_tipo_consejo: revisor?.tipo_consejo ?? null,
     revisor_id_consejo: revisor?.id_consejo ?? null,
     cotizacion_tipo_consejo: cotizacion?.tipo_consejo ?? null,
@@ -163,7 +151,6 @@ export function formularioAPayload(v: TMecanismoForm): IMecanismoPayload {
     tiempo_recorrido_minutos:
       v.tiempo_recorrido === '' ? null : horas * 60 + minutos,
     costo_ine: v.costo_ine === '' ? null : Number(v.costo_ine),
-    eleccion_atendida: v.eleccion_atendida || null,
     casillas: v.casillas.map((c) => {
       const [id_mun, id_dl] = c.territorio.split('-').map(Number);
       return {
@@ -174,4 +161,22 @@ export function formularioAPayload(v: TMecanismoForm): IMecanismoPayload {
       };
     }),
   };
+}
+
+/**
+ * Consejos vinculados del mecanismo: el municipal y el distrital de cada
+ * casilla, sin repetir y con los municipales primero. No se capturan.
+ */
+export function consejosDeCasillas(
+  casillas: Pick<TCasillaForm, 'territorio'>[],
+): string[] {
+  const m = new Set<string>();
+  const d = new Set<string>();
+  for (const c of casillas) {
+    if (!c.territorio) continue;
+    const [idMun, idDl] = c.territorio.split('-').map(Number);
+    m.add(consejoClave('M', idMun));
+    d.add(consejoClave('D', idDl));
+  }
+  return [...Array.from(m), ...Array.from(d)];
 }

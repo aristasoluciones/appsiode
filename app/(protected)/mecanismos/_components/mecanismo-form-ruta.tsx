@@ -9,7 +9,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { MECANISMOS_LIMITES } from '../_lib/limites';
 import type { TMecanismoForm } from '../_lib/mecanismo-form';
 
 interface MecanismoFormRutaProps {
@@ -17,10 +16,16 @@ interface MecanismoFormRutaProps {
   disabled?: boolean;
 }
 
-/** Datos de la ruta: distancia, tiempo de recorrido (HH:MM), costo INE y elección atendida. */
+/** Deja solo dígitos y pone los dos puntos tras las horas mientras se escribe: «0130» → «01:30». */
+function formatearHHMM(valor: string) {
+  const d = valor.replace(/\D/g, '').slice(0, 4);
+  return d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d;
+}
+
+/** Datos de la ruta: distancia, tiempo de recorrido (HH:MM) y costo INE. */
 export function MecanismoFormRuta({ form, disabled }: MecanismoFormRutaProps) {
   return (
-    <div className="grid gap-4 sm:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-3">
       <FormField
         control={form.control}
         name="distancia_km"
@@ -50,8 +55,10 @@ export function MecanismoFormRuta({ form, disabled }: MecanismoFormRutaProps) {
             <FormControl>
               <Input
                 {...field}
+                onChange={(e) => field.onChange(formatearHHMM(e.target.value))}
                 placeholder="01:30"
                 inputMode="numeric"
+                maxLength={5}
                 disabled={disabled}
               />
             </FormControl>
@@ -72,23 +79,6 @@ export function MecanismoFormRuta({ form, disabled }: MecanismoFormRutaProps) {
                 inputMode="decimal"
                 step="0.01"
                 min={0}
-                disabled={disabled}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="eleccion_atendida"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Elección atendida</FormLabel>
-            <FormControl>
-              <Input
-                {...field}
-                maxLength={MECANISMOS_LIMITES.eleccionAtendida.max}
                 disabled={disabled}
               />
             </FormControl>

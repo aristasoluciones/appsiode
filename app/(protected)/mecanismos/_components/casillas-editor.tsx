@@ -21,6 +21,9 @@ import {
 import { MECANISMOS_LIMITES } from '../_lib/limites';
 import type { TMecanismoForm } from '../_lib/mecanismo-form';
 
+/** Clave del consejo a dos dígitos: CME.01, CDE.01. */
+const dos = (n: number) => String(n).padStart(2, '0');
+
 /** El territorio de la casilla viaja como «id_mun-id_dl» para un solo selector. */
 function territorioClave(r: Pick<IMarcoGeografico, 'id_mun' | 'id_dl'>) {
   return `${r.id_mun}-${r.id_dl}`;
@@ -124,7 +127,7 @@ export function CasillasEditor({
                     <SelectTrigger
                       aria-label={`Municipio de la casilla ${i + 1}`}
                     >
-                      <SelectValue placeholder="Municipio · distrito local" />
+                      <SelectValue placeholder="Consejo municipal · consejo distrital" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -133,7 +136,8 @@ export function CasillasEditor({
                         key={territorioClave(t)}
                         value={territorioClave(t)}
                       >
-                        {t.municipio} · {t.dl}
+                        CME.{dos(t.id_mun)} {t.municipio} · CDE.{dos(t.id_dl)}{' '}
+                        {t.dl}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -122,7 +122,6 @@ export function MecanismoFormDialog({
   function cambiarDistrito(valor: string) {
     form.setValue('id_df', valor);
     // Los consejos y las casillas pertenecen al distrito: al cambiarlo dejan de valer.
-    form.setValue('consejos', []);
     form.setValue('revisor', '');
     form.setValue('cotizacion', '');
     form.setValue('casillas', []);
@@ -158,7 +157,7 @@ export function MecanismoFormDialog({
           </DialogTitle>
           <DialogDescription>
             {editando
-              ? 'Modifica los consejos vinculados, la ruta o las casillas del mecanismo.'
+              ? 'Modifica los casillas, la ruta o quién informa y cotiza del mecanismo.'
               : 'Registra un mecanismo de recolección con su territorio, sus consejos y sus casillas.'}
           </DialogDescription>
         </DialogHeader>
@@ -280,20 +279,14 @@ export function MecanismoFormDialog({
                 />
               </div>
 
-              <MecanismoFormConsejos
-                form={form}
-                territorios={territorios}
-                disabled={bloqueado}
-              />
-
-              <MecanismoFormRuta form={form} disabled={bloqueado} />
-
               <FormField
                 control={form.control}
                 name="casillas"
                 render={() => (
                   <FormItem>
-                    <FormLabel>Casillas</FormLabel>
+                    <FormLabel>
+                      Casillas <span className="text-destructive">*</span>
+                    </FormLabel>
                     <CasillasEditor
                       form={form}
                       territorios={territorios}
@@ -303,6 +296,14 @@ export function MecanismoFormDialog({
                   </FormItem>
                 )}
               />
+
+              <MecanismoFormConsejos
+                form={form}
+                territorios={territorios}
+                disabled={bloqueado}
+              />
+
+              <MecanismoFormRuta form={form} disabled={bloqueado} />
             </form>
           </Form>
         </DialogBody>

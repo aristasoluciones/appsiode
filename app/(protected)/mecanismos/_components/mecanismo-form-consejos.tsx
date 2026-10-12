@@ -1,9 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
-import type { UseFormReturn } from 'react-hook-form';
+import { useEffect, useMemo } from 'react';
+import { useWatch, type UseFormReturn } from 'react-hook-form';
 import type { IMarcoGeografico } from '@/types/mecanismos';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   FormControl,
   FormField,
@@ -18,7 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { consejoClave, type TMecanismoForm } from '../_lib/mecanismo-form';
+import {
+  consejoClave,
+  consejosDeCasillas,
+  type TMecanismoForm,
+} from '../_lib/mecanismo-form';
 
 interface IOpcionConsejo {
   clave: string;
@@ -72,104 +75,96 @@ interface MecanismoFormConsejosProps {
   disabled?: boolean;
 }
 
+const dos = (n: number) => String(n).padStart(2, '0');
+
 /**
- * Consejos vinculados al mecanismo (los municipales y distritales del
- * distrito federal), más quién informa el mecanismo y quién cotiza.
+ * Consejos vinculados al mecanismo, calculados de sus casillas (el municipal
+ * y el distrital de cada una), y entre ellos quién informa y quién cotiza.
  */
 export function MecanismoFormConsejos({
   form,
   territorios,
   disabled,
 }: MecanismoFormConsejosProps) {
-  const consejosElegidos = form.watch('consejos');
+  // useWatch se suscribe también a cada campo de las casillas; la clave cambia al elegir un territorio.
+  const casillas = useWatch({ control: form.control, name: 'casillas' });
+  const territoriosElegidos = (casillas ?? [])
+    .map((c) => c.territorio)
+    .join('|');
+  const revisor = form.watch('revisor');
+  const cotizacion = form.watch('cotizacion');
 
-  const disponibles = useMemo(() => {
-    const m = new Map<string, string>();
-    const d = new Map<string, string>();
+  const vinculados = useMemo(() => {
+    const nombres = new Map<string, { corto: string; largo: string }>();
     for (const t of territorios) {
-      m.set(
-        consejoClave('M', t.id_mun),
-        `Municipal ${t.id_mun}. ${t.municipio}`,
-      );
-      d.set(consejoClave('D', t.id_dl), `Distrital ${t.id_dl}. ${t.dl}`);
+      nombres.set(consejoClave('M', t.id_mun), {
+        corto: `${dos(t.id_mun)}. ${t.municipio}`,
+        largo: `CME.${dos(t.id_mun)} ${t.municipio}`,
+      });
+      nombres.set(consejoClave('D', t.id_dl), {
+        corto: `${dos(t.id_dl)}. ${t.dl}`,
+        largo: `CDE.${dos(t.id_dl)} ${t.dl}`,
+      });
     }
-    const aLista = (x: Map<string, string>): IOpcionConsejo[] =>
-      Array.from(x, ([clave, nombre]) => ({ clave, nombre }));
-    return { municipales: aLista(m), distritales: aLista(d) };
-  }, [territorios]);
+    return consejosDeCasillas(
+      territoriosElegidos.split('|').map((territorio) => ({ territorio })),
+    ).map((clave) => ({
+      clave,
+      tipo: clave.startsWith('M') ? 'M' : 'D',
+      corto: nombres.get(clave)?.corto ?? clave,
+      nombre: nombres.get(clave)?.largo ?? clave,
+    }));
+  }, [territoriosElegidos, territorios]);
 
-  const vinculados = useMemo(
-    () =>
-      [...disponibles.municipales, ...disponibles.distritales].filter((c) =>
-        consejosElegidos.includes(c.clave),
-      ),
-    [disponibles, consejosElegidos],
-  );
-
-  function alternar(clave: string, marcado: boolean) {
-    const actuales = form.getValues('consejos');
-    form.setValue(
-      'consejos',
-      marcado ? [...actuales, clave] : actuales.filter((c) => c !== clave),
-      { shouldValidate: form.formState.isSubmitted },
-    );
-    if (!marcado) {
-      if (form.getValues('revisor') === clave) form.setValue('revisor', '');
-      if (form.getValues('cotizacion') === clave)
-        form.setValue('cotizacion', '');
-    }
-  }
+  // Si una casilla se quita, su consejo deja de estar vinculado y no puede informar ni cotizar.
+  useEffect(() => {
+    const claves = vinculados.map((c) => c.clave);
+    if (revisor && !claves.includes(revisor)) form.setValue('revisor', '');
+    if (cotizacion && !claves.includes(cotizacion))
+      form.setValue('cotizacion', '');
+  }, [vinculados, revisor, cotizacion, form]);
 
   return (
     <>
-      <FormField
-        control={form.control}
-        name="consejos"
-        render={() => (
-          <FormItem>
-            <FormLabel>
-              Consejos vinculados <span className="text-destructive">*</span>
-            </FormLabel>
-            {territorios.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Elige primero el distrito federal.
-              </p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(
-                  [
-                    ['Municipales', disponibles.municipales],
-                    ['Distritales', disponibles.distritales],
-                  ] as const
-                ).map(([titulo, lista]) => (
-                  <div
-                    key={titulo}
-                    className="rounded-md border border-border p-3 space-y-2"
-                  >
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {titulo}
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-foreground">
+          Consejos vinculados
+        </p>
+        {vinculados.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Se calculan de las casillas: agrega las casillas del mecanismo.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ['Municipales', 'M'],
+                ['Distritales', 'D'],
+              ] as const
+            ).map(([titulo, tipo]) => (
+              <div
+                key={tipo}
+                className="rounded-md border border-border bg-muted/30 p-3 space-y-1"
+              >
+                <p className="text-xs font-medium text-muted-foreground">
+                  {titulo}
+                </p>
+                {vinculados
+                  .filter((c) => c.tipo === tipo)
+                  .map((c) => (
+                    <p key={c.clave} className="text-sm">
+                      {c.corto}
                     </p>
-                    {lista.map((c) => (
-                      <label
-                        key={c.clave}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <Checkbox
-                          checked={consejosElegidos.includes(c.clave)}
-                          onCheckedChange={(v) => alternar(c.clave, v === true)}
-                          disabled={disabled}
-                        />
-                        {c.nombre}
-                      </label>
-                    ))}
-                  </div>
-                ))}
+                  ))}
               </div>
-            )}
-            <FormMessage />
-          </FormItem>
+            ))}
+          </div>
         )}
-      />
+        <p className="text-xs text-muted-foreground">
+          Son el consejo municipal y el distrital de cada casilla; cambian al
+          editar las casillas.
+        </p>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField

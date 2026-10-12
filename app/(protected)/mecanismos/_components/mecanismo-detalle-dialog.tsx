@@ -133,7 +133,6 @@ function Detalle({ m }: { m: IMecanismo }) {
             {m.distancia_km != null ? `${m.distancia_km} km` : null}
           </Dato>
           <Dato etiqueta="Tiempo de recorrido">{m.tiempo_recorrido}</Dato>
-          <Dato etiqueta="Elección atendida">{m.eleccion_atendida}</Dato>
           <Dato etiqueta="Responsable de la cotización">
             {nombreConsejo(
               m.cotizacion_tipo_consejo,
