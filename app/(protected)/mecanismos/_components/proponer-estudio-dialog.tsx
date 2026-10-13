@@ -24,11 +24,7 @@ import {
 } from '@/components/ui/select';
 import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import { SelectorArchivo } from '@/components/common/selector-archivo';
-import {
-  useAprobarEstudio,
-  useProponerEstudio,
-  useReemplazarPropuestaEstudio,
-} from '../_hooks/use-estudios';
+import { useAprobarEstudio, useProponerEstudio } from '../_hooks/use-estudios';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
 
 const PDF = {
@@ -39,9 +35,9 @@ const PDF = {
 interface ProponerEstudioDialogProps {
   /** Distritos del tablero; en «proponer» se eligen los que admiten estudio. */
   distritos: IEstudioAvanceDistrito[];
-  /** Distrito preseleccionado (proponer) o estudio a reemplazar / aprobar. */
+  /** Distrito preseleccionado (proponer) o estudio a aprobar. */
   distrito: IEstudioAvanceDistrito | null;
-  modo: 'proponer' | 'reemplazar' | 'aprobar';
+  modo: 'proponer' | 'aprobar';
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -50,24 +46,18 @@ const TEXTOS = {
   proponer: {
     titulo: 'Propuesta del estudio',
     descripcion:
-      'Sube el PDF del estudio del distrito federal. Se crea un acuse para cada consejo del distrito.',
+      'Sube el PDF del estudio del distrito federal. Los consejos del distrito podrán revisarlo y registrar sus observaciones.',
     accion: 'Proponer',
-  },
-  reemplazar: {
-    titulo: 'Reemplazo del estudio propuesto',
-    descripcion:
-      'Sustituye el PDF mientras el estudio siga propuesto. Los consejos deberán acusar de nuevo.',
-    accion: 'Reemplazar',
   },
   aprobar: {
     titulo: 'Aprobación del estudio',
     descripcion:
-      'Sube el PDF aprobado. Solo procede cuando todos los consejos del distrito acusaron la propuesta.',
+      'Sube el PDF aprobado. Solo procede cuando todos los consejos del distrito revisaron la propuesta; el estudio queda aprobado como versión final.',
     accion: 'Aprobar',
   },
 } as const;
 
-/** Oficina central sube el PDF del estudio: propuesta (con distrito), reemplazo o aprobación. */
+/** Oficina central sube el PDF del estudio: propuesta (con distrito) o aprobación; el reemplazo vive en la ventana de documentos. */
 export function ProponerEstudioDialog({
   distritos,
   distrito,
@@ -76,7 +66,6 @@ export function ProponerEstudioDialog({
   onOpenChange,
 }: ProponerEstudioDialogProps) {
   const proponer = useProponerEstudio();
-  const reemplazar = useReemplazarPropuestaEstudio();
   const aprobar = useAprobarEstudio();
 
   const [idDf, setIdDf] = useState('');
@@ -96,8 +85,7 @@ export function ProponerEstudioDialog({
     setIdDf(distrito ? String(distrito.id_df) : '');
   }, [open, distrito]);
 
-  const pendiente =
-    proponer.isPending || reemplazar.isPending || aprobar.isPending;
+  const pendiente = proponer.isPending || aprobar.isPending;
   const t = TEXTOS[modo];
   const listo = !!archivo && (modo !== 'proponer' || idDf !== '');
 
@@ -106,8 +94,6 @@ export function ProponerEstudioDialog({
     const opciones = { onSuccess: () => onOpenChange(false) };
     if (modo === 'proponer')
       proponer.mutate({ id_df: Number(idDf), archivo }, opciones);
-    else if (modo === 'reemplazar' && distrito?.id)
-      reemplazar.mutate({ id: distrito.id, archivo }, opciones);
     else if (modo === 'aprobar' && distrito?.id)
       aprobar.mutate({ id: distrito.id, archivo }, opciones);
   }

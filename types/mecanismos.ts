@@ -29,7 +29,7 @@ export type TObservacionTipo =
   | 'OTRO';
 
 /** Estatus del estudio de factibilidad de un distrito federal. */
-export type TEstudioEstatus = 'PROPUESTO' | 'APROBADO' | 'CERRADO' | 'ANULADO';
+export type TEstudioEstatus = 'PROPUESTO' | 'APROBADO' | 'ANULADO';
 
 /** Tipos de carga que guarda el historial de importaciones. */
 export type TImportacionTipo =
@@ -357,6 +357,8 @@ export interface IMecanismoImportacionAgrupado {
   numero: number;
   visualizacion: string | null;
   costo_ine: number | null;
+  distancia_km: number | null;
+  tiempo_recorrido_minutos: number | null;
   /** Id del mecanismo que ya existe; nulo si es nuevo. */
   id: number | null;
   /** «D-12» / «M-45»: consejo que informará el mecanismo. */
@@ -612,6 +614,24 @@ export interface IMecanismoHistorial {
 
 // ---------------------------------------------------------------- Estudios de factibilidad
 
+/** Revisión de un consejo sobre el estudio propuesto. */
+export type TEstudioRevision = 'SIN_REVISAR' | 'REVISADO';
+
+/** Observación de un consejo sobre el estudio; mismo catálogo de tipos que mecanismos. */
+export interface IEstudioObservacion {
+  id: number;
+  tipo: TObservacionTipo;
+  tipo_desc: string;
+  /** Tipo que escribió el usuario; solo con `OTRO`. */
+  tipo_otro: string | null;
+  /** Nulo solo con `SIN_OBSERVACIONES`. */
+  observaciones: string | null;
+  /** Ese guardado marcó el estudio como revisado. */
+  reviso: boolean;
+  usuario: string;
+  fecha: string;
+}
+
 /** Estudio de un distrito federal visto por el consejo, aunque aún no exista. */
 export interface IEstudioConsejo {
   id_df: number;
@@ -624,34 +644,36 @@ export interface IEstudioConsejo {
   fecha_propuesta: string | null;
   tiene_aprobada: boolean;
   fecha_aprobacion: string | null;
-  fecha_cierre: string | null;
   motivo_anulacion: string | null;
   fecha_anulacion: string | null;
-  id_acuse: number | null;
-  observaciones_etapa1: string | null;
-  fecha_etapa1: string | null;
-  observaciones_etapa2: string | null;
-  fecha_etapa2: string | null;
-  puede_acusar_propuesta: boolean;
-  puede_acusar_aprobacion: boolean;
-  consejos: number;
-  acuses_etapa1: number;
-  acuses_etapa2: number;
+  /** Revisión del propio consejo. */
+  estatus_revision: TEstudioRevision | null;
+  estatus_revision_desc: string | null;
+  fecha_revision: string | null;
+  /** Estudio propuesto y el consejo aún no lo marca como revisado. */
+  puede_revisar: boolean;
+  total_observaciones: number;
+  /** Consejos del distrito que ya revisaron, de `total_consejos`. */
+  revisiones: number;
+  total_consejos: number;
 }
 
-/** Acuse de un consejo dentro del detalle del estudio. */
-export interface IEstudioAcuse {
+/** Revisión de un consejo dentro del detalle del estudio, con sus observaciones. */
+export interface IEstudioRevisionConsejo {
   id: number;
   tipo_consejo: TTipoConsejoChar;
   id_consejo: number;
   consejo: string | null;
-  observaciones_etapa1: string | null;
-  fecha_etapa1: string | null;
-  observaciones_etapa2: string | null;
-  fecha_etapa2: string | null;
+  estatus_revision: TEstudioRevision;
+  estatus_revision_desc: string;
+  fecha_revision: string | null;
+  /** Quien marcó la revisión; nulo sin revisar o si se revocó. */
+  usuario_revision: string | null;
+  /** De la más antigua a la más reciente. */
+  observaciones: IEstudioObservacion[];
 }
 
-/** Detalle del estudio con acuses (todos o el propio) e historial. */
+/** Detalle del estudio con la revisión de cada consejo (todos o el propio) e historial. */
 export interface IEstudio {
   id: number;
   id_df: number;
@@ -662,14 +684,19 @@ export interface IEstudio {
   fecha_propuesta: string | null;
   tiene_aprobada: boolean;
   fecha_aprobacion: string | null;
-  fecha_cierre: string | null;
   motivo_anulacion: string | null;
   fecha_anulacion: string | null;
-  consejos: number;
-  acuses_etapa1: number;
-  acuses_etapa2: number;
-  acuses: IEstudioAcuse[];
+  total_consejos: number;
+  revisiones: number;
+  consejos: IEstudioRevisionConsejo[];
   historial: IMecanismoHistorial[];
+}
+
+/** Cuántas observaciones de un tipo hay en el distrito. */
+export interface IEstudioObservacionesTipo {
+  tipo: TObservacionTipo;
+  tipo_desc: string;
+  total: number;
 }
 
 /** Renglón del tablero de avance: un distrito federal, aunque no tenga estudio. */
@@ -681,18 +708,23 @@ export interface IEstudioAvanceDistrito {
   estatus_desc: string | null;
   /** Tiene estudio vigente (no anulado). */
   cargado: boolean;
-  /** Está aprobado o cerrado. */
+  /** Está aprobado. */
   validado: boolean;
+  /** Consejos esperados del distrito (marco geográfico). */
   consejos: number;
   consejos_d: number;
   consejos_m: number;
-  acuses_etapa1: number;
-  acuses_etapa2: number;
-  porcentaje_acuses: number;
-  completo: boolean;
+  revisiones: number;
+  /** Revisiones de distritales y municipales; suman `revisiones`. */
+  revisiones_d: number;
+  revisiones_m: number;
+  porcentaje_revisiones: number;
+  /** Observaciones registradas en el distrito. */
+  observaciones: number;
+  /** Solo los tipos usados, del más observado al menos; «Otro» va agrupado. */
+  observaciones_tipos: IEstudioObservacionesTipo[];
   fecha_propuesta: string | null;
   fecha_aprobacion: string | null;
-  fecha_cierre: string | null;
   fecha_anulacion: string | null;
 }
 
@@ -705,13 +737,13 @@ export interface IEstudiosAvanceResumen {
   sin_estudio: number;
   propuestos: number;
   aprobados: number;
-  cerrados: number;
   anulados: number;
   consejos_esperados: number;
-  acuses_etapa1: number;
-  porcentaje_acuses_etapa1: number;
-  acuses_etapa2: number;
-  porcentaje_acuses_etapa2: number;
+  revisiones: number;
+  revisiones_d: number;
+  revisiones_m: number;
+  porcentaje_revisiones: number;
+  observaciones: number;
   ultima_carga: string | null;
 }
 
@@ -726,8 +758,18 @@ export interface IEstudioProponerPayload {
   archivo: File;
 }
 
-/** Acuse del consejo: etapa 1 (propuesto) o 2 (aprobado) con observaciones. */
-export interface IEstudioAcusarPayload {
-  etapa: 1 | 2;
-  observaciones: string;
+/** Revisión del consejo: agrega una observación y, con `revisar`, lo marca como revisado. */
+export interface IEstudioRevisarPayload {
+  tipo_observacion: TObservacionTipo;
+  /** Obligatorio con `OTRO`. */
+  tipo_otro?: string | null;
+  observaciones?: string | null;
+  revisar: boolean;
+}
+
+/** Revocación de la revisión de un consejo (oficina central). */
+export interface IEstudioRevocarPayload {
+  tipo_consejo: TTipoConsejoChar;
+  id_consejo: number;
+  motivo: string;
 }

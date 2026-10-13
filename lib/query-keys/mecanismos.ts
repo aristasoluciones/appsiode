@@ -93,4 +93,7 @@ export const MECANISMOS_KEYS = {
     ['mecanismos', 'estudios', 'consejo', tipoConsejo, idConsejo] as const,
   estudiosAvance: () => ['mecanismos', 'estudios', 'avance'] as const,
   estudio: (id: KeyId) => ['mecanismos', 'estudios', 'detalle', id] as const,
+  /** URL firmada del PDF propuesto o aprobado; cuelga del prefijo para refrescarse con el estudio. */
+  estudioDocumento: (id: KeyId, cual: string) =>
+    ['mecanismos', 'estudios', 'documento', id, cual] as const,
 } as const;

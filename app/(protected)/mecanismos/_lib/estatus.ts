@@ -1,5 +1,6 @@
 import type {
   TEstudioEstatus,
+  TEstudioRevision,
   TMecanismoEstatus,
   TObservacionTipo,
   TTipoConsejoChar,
@@ -58,8 +59,7 @@ export const ESTATUS_ESTUDIO: Record<
 > = {
   SIN_ESTUDIO: { label: 'Sin estudio', variant: 'secondary' },
   PROPUESTO: { label: 'Propuesto', variant: 'primary' },
-  APROBADO: { label: 'Aprobado', variant: 'warning' },
-  CERRADO: { label: 'Cerrado', variant: 'success' },
+  APROBADO: { label: 'Aprobado', variant: 'success' },
   ANULADO: { label: 'Anulado', variant: 'destructive' },
 };
 
@@ -118,3 +118,12 @@ export function puedeInformar(m: {
 }): boolean {
   return m.tiene_cedula && m.estatus !== 'INFORMADO';
 }
+
+/** Revisión de un consejo sobre el estudio propuesto. */
+export const REVISION_ESTUDIO: Record<
+  TEstudioRevision,
+  { label: string; variant: TVariant }
+> = {
+  SIN_REVISAR: { label: 'Sin revisar', variant: 'secondary' },
+  REVISADO: { label: 'Revisado', variant: 'success' },
+};

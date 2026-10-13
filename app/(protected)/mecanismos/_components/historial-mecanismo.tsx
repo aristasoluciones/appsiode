@@ -72,6 +72,7 @@ const CAMPOS: Record<
   DOCUMENTO: { titulo: 'Documento', icono: <FileText />, tono: 'info' },
   CEDULA: { titulo: 'Cédula', icono: <FileText />, tono: 'info' },
   ACUSE: { titulo: 'Acuse', icono: <CheckCircle2 />, tono: 'exito' },
+  REVISION: { titulo: 'Revisión', icono: <CheckCircle2 />, tono: 'exito' },
 };
 
 function valor(h: IMecanismoHistorial, v: string | null): string {
@@ -86,6 +87,10 @@ interface HistorialMecanismoProps {
   historial: IMecanismoHistorial[] | undefined;
   titulo?: string;
   vacio?: string;
+  /** Desplegado de entrada: cuando el historial es lo único de su ventana. */
+  abiertoInicial?: boolean;
+  /** Dentro de un panel que ya hace scroll: la lista crece sin scroll propio. */
+  sinScroll?: boolean;
 }
 
 /** Cambios del mecanismo y de los informes, del más reciente al más antiguo. */
@@ -93,12 +98,14 @@ export function HistorialMecanismo({
   historial,
   titulo = 'Historial',
   vacio = 'Sin cambios registrados.',
+  abiertoInicial = false,
+  sinScroll = false,
 }: HistorialMecanismoProps) {
   // Solo oficina central distingue de qué consejo es cada cambio; el consejo ve únicamente los suyos.
   const { user } = useAuth();
   const mostrarConsejo = !(Number(user?.idConsejo) > 0);
   // Cerrado por omisión: el historial es consulta, no lo primero que se necesita.
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abiertoInicial);
 
   return (
     <Collapsible open={abierto} onOpenChange={setAbierto}>
@@ -136,7 +143,9 @@ export function HistorialMecanismo({
           ) : historial.length === 0 ? (
             <p className="text-sm text-muted-foreground">{vacio}</p>
           ) : (
-            <ScrollArea viewportClassName="max-h-80 pr-3">
+            <ScrollArea
+              viewportClassName={sinScroll ? undefined : 'max-h-80 pr-3'}
+            >
               <Timeline>
                 {[...historial].reverse().map((h) => {
                   const campo = CAMPOS[h.campo] ?? {

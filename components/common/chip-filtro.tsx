@@ -5,6 +5,8 @@ interface ChipFiltroProps {
   onClick: () => void;
   children: React.ReactNode;
   disabled?: boolean;
+  /** Ajustes de acomodo, p. ej. ancho completo en una columna de filtros. */
+  className?: string;
 }
 
 /** Chip conmutable para filtrar una lista en pantalla; suele llevar su conteo. */
@@ -13,6 +15,7 @@ export function ChipFiltro({
   onClick,
   children,
   disabled,
+  className,
 }: ChipFiltroProps) {
   return (
     <button
@@ -28,6 +31,7 @@ export function ChipFiltro({
         activo
           ? 'bg-primary/10 border-primary text-primary'
           : 'bg-background border-input text-muted-foreground hover:bg-accent',
+        className ?? '',
       ].join(' ')}
     >
       {children}

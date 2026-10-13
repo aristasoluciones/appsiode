@@ -61,6 +61,11 @@ export const MECANISMOS = {
   IMPORTAR: '/mecanismos/importaciones',
   /** Historial de cargas; `tipo`: MECANISMOS, CEDULAS, CAES o CAES_ASIGNACION. */
   IMPORTACIONES: (tipo?: string) => `/mecanismos/importaciones${qs({ tipo })}`,
+  /** Excel de ejemplo del formato de importación, con sus columnas e instrucciones. */
+  IMPORTACION_PLANTILLA: '/mecanismos/importaciones/plantilla',
+  /** Excel con el nombre del PDF de cada mecanismo para el zip de cédulas; opcionalmente solo los que no tienen. */
+  REPORTE_NOMBRES_CEDULAS: (soloSinCedula?: boolean) =>
+    `/mecanismos/reportes/nombres-cedulas${qs({ soloSinCedula: soloSinCedula ? 'true' : undefined })}`,
   /** Detalle paginado de una importación de mecanismos. */
   IMPORTACION: (id: Id, pagina?: number, porPagina?: number) =>
     `/mecanismos/importaciones/${id}${qs({ pagina, porPagina })}`,
@@ -133,8 +138,11 @@ export const MECANISMOS = {
   ESTUDIO_APROBADA: (id: Id) => `/mecanismos/estudios/${id}/aprobada`,
   /** Oficina central aprueba con el PDF aprobado (form `archivo`). */
   ESTUDIO_APROBAR: (id: Id) => `/mecanismos/estudios/${id}/aprobar`,
-  /** El consejo acusa la etapa vigente (POST `{ etapa, observaciones }`). */
-  ESTUDIO_ACUSE: (id: Id) => `/mecanismos/estudios/${id}/acuse`,
+  /** El consejo registra una observación y, con `revisar`, queda Revisado (PUT). */
+  ESTUDIO_REVISION: (id: Id) => `/mecanismos/estudios/${id}/revision`,
+  /** Oficina central revoca la revisión de un consejo, con motivo (POST). */
+  ESTUDIO_REVISION_REVOCAR: (id: Id) =>
+    `/mecanismos/estudios/${id}/revision/revocar`,
   /** Anula el estudio con motivo (POST `{ motivo }`). */
   ESTUDIO_ANULAR: (id: Id) => `/mecanismos/estudios/${id}/anular`,
 
@@ -144,5 +152,7 @@ export const MECANISMOS = {
   REPORTE_MECANISMOS: (tipoConsejo: TipoConsejo) =>
     `/mecanismos/reportes/mecanismos${qs({ tipoConsejo })}`,
   /** Estudios de factibilidad: avance por distrito y acuses; exclusivo de oficina central. */
-  REPORTE_ESTUDIOS: '/mecanismos/reportes/estudios',
+  /** Sin distritos, los 13; con ellos, el Excel acotado a esa selección. */
+  REPORTE_ESTUDIOS: (idsDf?: number[]) =>
+    `/mecanismos/reportes/estudios${qs({ idsDf: idsDf?.length ? idsDf.join(',') : undefined })}`,
 } as const;

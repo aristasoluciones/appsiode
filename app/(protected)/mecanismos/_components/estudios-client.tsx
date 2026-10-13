@@ -21,8 +21,8 @@ import { EstudiosAdminDashboard } from './estudios-admin-dashboard';
 import { EstudiosConsejoContainer } from './estudios-consejo-container';
 
 /**
- * Estudios de factibilidad. El consejo ve el de su distrito federal y acusa
- * cada etapa; oficina central sigue el avance de los 13 distritos y opera el
+ * Estudios de factibilidad. El consejo ve el de su distrito federal y lo
+ * revisa con observaciones; oficina central sigue el avance de los 13 distritos y opera el
  * ciclo desde el tablero.
  */
 export function EstudiosClient() {

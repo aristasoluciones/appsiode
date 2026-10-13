@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { CheckCircle2, ChevronDown, MessageSquareText } from 'lucide-react';
-import type { IMecanismoObservacion } from '@/types/mecanismos';
+import type {
+  IEstudioObservacion,
+  IMecanismoObservacion,
+} from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,11 +19,14 @@ import {
 
 interface ObservacionesListaProps {
   /** Indefinidas mientras carga el detalle; vacías cuando no hay ninguna. */
-  observaciones: IMecanismoObservacion[] | undefined;
+  /** De un mecanismo o de un estudio: cambian solo en la marca de revisado. */
+  observaciones: (IMecanismoObservacion | IEstudioObservacion)[] | undefined;
   titulo?: string;
   vacio?: string;
   /** Plegada por defecto: el título abre y cierra la lista (en el detalle). */
   colapsable?: boolean;
+  /** Dentro de un panel que ya hace scroll: la lista crece sin scroll propio. */
+  sinScroll?: boolean;
 }
 
 /**
@@ -32,6 +38,7 @@ export function ObservacionesLista({
   titulo = 'Observaciones registradas',
   vacio = 'Todavía no hay observaciones registradas.',
   colapsable = false,
+  sinScroll = false,
 }: ObservacionesListaProps) {
   const [abierta, setAbierta] = useState(!colapsable);
   const hay = !!observaciones && observaciones.length > 0;
@@ -83,7 +90,7 @@ export function ObservacionesLista({
       ) : observaciones.length === 0 ? (
         <p className="text-sm text-muted-foreground">{vacio}</p>
       ) : !abierta ? null : (
-        <ScrollArea viewportClassName="max-h-72 pr-3">
+        <ScrollArea viewportClassName={sinScroll ? undefined : 'max-h-72 pr-3'}>
           <ul className="space-y-2">
             {[...observaciones].reverse().map((o) => (
               <li
@@ -102,10 +109,10 @@ export function ObservacionesLista({
                       ? `Otro: ${o.tipo_otro}`
                       : o.tipo_desc || TIPO_OBSERVACION_CORTO[o.tipo] || o.tipo}
                   </Badge>
-                  {o.informo && (
+                  {('informo' in o ? o.informo : o.reviso) && (
                     <Badge variant="success" appearance="light" size="sm">
                       <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                      Informó el mecanismo
+                      Marcó como revisado
                     </Badge>
                   )}
                   <span className="ml-auto text-xs text-muted-foreground">
