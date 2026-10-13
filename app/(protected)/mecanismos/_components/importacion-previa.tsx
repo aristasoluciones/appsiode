@@ -140,6 +140,8 @@ export function ImportacionPrevia({
                   <TableHead>Mecanismo</TableHead>
                   <TableHead>Revisa</TableHead>
                   <TableHead className="text-center">Casillas</TableHead>
+                  <TableHead className="text-right">Distancia</TableHead>
+                  <TableHead className="text-right">Tiempo</TableHead>
                   <TableHead className="text-right">Costo INE</TableHead>
                   <TableHead>Efecto</TableHead>
                 </TableRow>
@@ -161,6 +163,12 @@ export function ImportacionPrevia({
                         </span>
                       )}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums whitespace-nowrap">
+                      {m.distancia_km != null ? `${m.distancia_km} km` : '—'}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {hhmm(m.tiempo_recorrido_minutos)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatMoneda(m.costo_ine)}
                     </TableCell>
@@ -176,4 +184,11 @@ export function ImportacionPrevia({
       )}
     </div>
   );
+}
+
+/** Minutos del API como HH:MM, igual que en el formulario: 135 → «02:15». */
+function hhmm(minutos: number | null): string {
+  if (minutos == null) return '—';
+  const h = Math.floor(minutos / 60);
+  return `${String(h).padStart(2, '0')}:${String(minutos % 60).padStart(2, '0')}`;
 }

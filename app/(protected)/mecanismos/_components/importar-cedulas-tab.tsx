@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   CheckCircle2,
   CircleAlert,
+  Download,
   FileArchive,
   LoaderCircleIcon,
   Paperclip,
@@ -29,6 +30,7 @@ import {
   useImportarCedulas,
   useValidarImportacionCedulas,
 } from '../_hooks/use-mecanismos-importaciones';
+import { useDescargarNombresCedulas } from '../_hooks/use-mecanismos-reportes';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
 import { CargaResumen, EfectoBadge } from './carga-resumen';
 
@@ -38,6 +40,86 @@ const ZIP = {
   extensiones: ['.zip'] as const,
   bytes: MECANISMOS_LIMITES.zip.bytes,
 };
+
+/** Un formato de nombre aceptado: su ejemplo y para qué sirve. */
+function Formato({
+  titulo,
+  ejemplo,
+  nota,
+}: {
+  titulo: string;
+  ejemplo: string;
+  nota: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-foreground">{titulo}</p>
+      <code className="block rounded bg-background border border-border px-2 py-1.5 text-xs break-all">
+        {ejemplo}
+      </code>
+      <p className="text-xs text-muted-foreground">{nota}</p>
+    </div>
+  );
+}
+
+/**
+ * Cómo nombrar cada PDF del zip. El API acepta dos formatos, mezclados, y en
+ * los dos solo empareja con mecanismos que ya existen: el corto (distrito
+ * federal, tipo y número) y el del INE, para no renombrar lo que ya llega así.
+ */
+function NombreEjemplo() {
+  const descargar = useDescargarNombresCedulas();
+  const pendiente = descargar.isPending ? descargar.variables : null;
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-3 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-foreground">
+          Cómo nombrar cada PDF
+        </p>
+        {/* La lista trae el nombre exacto de cada PDF: no hay que armarlo a mano. */}
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              [true, 'Lista sin cédula'],
+              [false, 'Lista de todos'],
+            ] as const
+          ).map(([soloSinCedula, etiqueta]) => (
+            <Button
+              key={etiqueta}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => descargar.mutate(soloSinCedula)}
+              disabled={descargar.isPending}
+              title="Excel con el nombre que debe llevar el PDF de cada mecanismo"
+            >
+              {pendiente === soloSinCedula ? (
+                <LoaderCircleIcon className="animate-spin" />
+              ) : (
+                <Download />
+              )}
+              {etiqueta}
+            </Button>
+          ))}
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Descarga la lista de mecanismos con el nombre exacto de cada PDF; «sin
+        cédula» trae solo los que faltan por cargar.
+      </p>
+      <Formato
+        titulo="Corto: distrito federal, tipo y número"
+        ejemplo="DF01-DAT-3.pdf"
+        nota="Tipo: DAT, FIJO o ITINERANTE. El «DF», los ceros a la izquierda y las mayúsculas no importan (DF1-DAT-3 y 1-dat-003 son lo mismo). El tipo es necesario porque el número se repite entre tipos."
+      />
+      <Formato
+        titulo="Del INE: tal como llegan los archivos"
+        ejemplo="D-TUXTLA_1-M-TUXTLA GUTIERREZ-101-DAT-3.pdf"
+        nota="Distrito local (nombre y número), municipio (nombre y clave), tipo y número. Sirve para cargar los PDF sin renombrarlos."
+      />
+    </div>
+  );
+}
 
 /** Cada PDF del zip con el mecanismo al que se emparejó por número y su efecto. */
 function DocumentosTabla({ documentos }: { documentos: ICedulaDocumento[] }) {
@@ -83,8 +165,8 @@ function DocumentosTabla({ documentos }: { documentos: ICedulaDocumento[] }) {
 
 /**
  * Carga masiva de los PDF de cédula en un zip: cada archivo se empareja con su
- * mecanismo por el nombre que entrega el INE (se crea el mecanismo cuando no
- * existe). Se revisa completo y se aplican los válidos.
+ * mecanismo existente por el nombre del archivo (corto o del INE); el de un
+ * mecanismo que no existe se rechaza. Se revisa completo y se aplican los válidos.
  */
 export function ImportarCedulasTab() {
   const [paso, setPaso] = useState<TPaso>('archivo');
@@ -143,7 +225,7 @@ export function ImportarCedulasTab() {
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
         {paso === 'archivo' &&
-          'Sube un zip con los PDF nombrados con el número de mecanismo; cada uno se empareja con su mecanismo por ese número.'}
+          'Sube un zip con un PDF por mecanismo; cada uno se empareja con su mecanismo por el nombre del archivo.'}
         {paso === 'previa' &&
           'Esto es lo que trae el zip. Los rechazados no se aplican; el resto se carga o reemplaza la cédula del mecanismo.'}
         {paso === 'resultado' &&
@@ -177,6 +259,7 @@ export function ImportarCedulasTab() {
               cédula la reemplaza; el nombre del archivo no se conserva.
             </AlertTitle>
           </Alert>
+          <NombreEjemplo />
           <SelectorArchivo
             archivo={archivo}
             onChange={(f) => {
@@ -206,10 +289,6 @@ export function ImportarCedulasTab() {
                 tono: 'advertencia',
               },
               {
-                etiqueta: 'Mecanismos nuevos',
-                valor: validacion.mecanismos_nuevos,
-              },
-              {
                 etiqueta: 'Rechazados',
                 valor: validacion.rechazados,
                 tono: 'peligro',
@@ -233,8 +312,8 @@ export function ImportarCedulasTab() {
             </AlertIcon>
             <AlertTitle>
               Carga #{resultado.id} aplicada: {resultado.aplicados} cédulas (
-              {resultado.reemplazados} reemplazos, {resultado.creados}{' '}
-              mecanismos nuevos) y {resultado.rechazados} rechazadas.
+              {resultado.reemplazados} reemplazos) y {resultado.rechazados}{' '}
+              rechazadas.
             </AlertTitle>
           </Alert>
           <DocumentosTabla documentos={resultado.items} />

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   CheckCircle2,
   CircleAlert,
+  Download,
   FileSpreadsheet,
   LoaderCircleIcon,
   Paperclip,
@@ -21,6 +22,7 @@ import {
   useImportarMecanismos,
   useValidarImportacionMecanismos,
 } from '../_hooks/use-mecanismos-importaciones';
+import { useDescargarPlantillaImportacion } from '../_hooks/use-mecanismos-reportes';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
 import { CargaResumen } from './carga-resumen';
 import { ImportacionPrevia } from './importacion-previa';
@@ -34,6 +36,7 @@ type TPaso = 'archivo' | 'previa' | 'resultado';
  */
 export function ImportarFormatoTab({ activo }: { activo: boolean }) {
   const [paso, setPaso] = useState<TPaso>('archivo');
+  const plantilla = useDescargarPlantillaImportacion();
   const [archivo, setArchivo] = useState<File | null>(null);
   const [validacion, setValidacion] =
     useState<IMecanismosImportacionValidacion | null>(null);
@@ -110,6 +113,26 @@ export function ImportarFormatoTab({ activo }: { activo: boolean }) {
 
       {paso === 'archivo' && (
         <>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              ¿No tienes el formato? Descarga la plantilla con sus columnas,
+              ejemplos e instrucciones.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => plantilla.mutate()}
+              disabled={plantilla.isPending}
+            >
+              {plantilla.isPending ? (
+                <LoaderCircleIcon className="animate-spin" />
+              ) : (
+                <Download />
+              )}
+              Descargar plantilla
+            </Button>
+          </div>
           {faltantes ? (
             <Alert variant="warning" appearance="light" close={false}>
               <AlertIcon>
