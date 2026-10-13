@@ -157,10 +157,10 @@ export function MecanismosConsejoContainer({
           <AlertTitle>
             Tienes {conteos.sinInformar}{' '}
             {conteos.sinInformar === 1
-              ? 'mecanismo sin informar'
-              : 'mecanismos sin informar'}
-            . Con el botón «Informar» registra las observaciones de cada uno y,
-            cuando lo consideres, márcalo como informado
+              ? 'mecanismo sin revisar'
+              : 'mecanismos sin revisar'}
+            . Con el botón «Revisar» registra las observaciones de cada uno y,
+            cuando lo consideres, márcalo como revisado
             {asignaCae ? ' con su CAE' : ''}
             {capturaCosto ? ' y su costo estimado' : ''}.
           </AlertTitle>
@@ -230,7 +230,7 @@ export function MecanismosConsejoContainer({
                 descripcion={
                   hayFiltros
                     ? 'Prueba con otro tipo, estatus, sección o CAE.'
-                    : 'Oficina central todavía no registra mecanismos que informe este consejo.'
+                    : 'Oficina central todavía no registra mecanismos que revise este consejo.'
                 }
                 busqueda={hayFiltros}
                 onLimpiar={() => setFiltros(FILTROS_VACIOS)}
@@ -282,9 +282,9 @@ export function MecanismosConsejoContainer({
         <MotivoDialog
           open={revocarId != null}
           onOpenChange={(v) => !v && !revocar.isPending && setRevocarId(null)}
-          titulo={`Revocación del informe · ${mecanismoRevocar ? claveMecanismo(mecanismoRevocar) : ''}`}
-          descripcion={`${nombreConsejo} vuelve a Sin informar y podrá capturar de nuevo; se conservan su costo, su CAE y sus observaciones. La revocación queda en el historial.`}
-          accion="Revocar informe"
+          titulo={`Revocación de la revisión · ${mecanismoRevocar ? claveMecanismo(mecanismoRevocar) : ''}`}
+          descripcion={`${nombreConsejo} vuelve a Sin revisar y podrá capturar de nuevo; se conservan su costo, su CAE y sus observaciones. La revocación queda en el historial.`}
+          accion="Revocar revisión"
           icono={<Undo2 className="h-4 w-4" aria-hidden="true" />}
           pendiente={revocar.isPending}
           error={

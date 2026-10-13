@@ -189,14 +189,14 @@ export function MecanismosAdminDashboard() {
         <div
           className="flex flex-wrap gap-1.5 ml-auto"
           role="group"
-          aria-label="Filtrar por informe"
+          aria-label="Filtrar por revisión"
         >
           <ChipFiltro
             activo={filtroInforme === 'informados'}
             disabled={seguimiento.isLoading}
             onClick={() => alternarFiltro('informados')}
           >
-            Informados
+            Revisados
             <ConteoChip>{conteos.informados}</ConteoChip>
           </ChipFiltro>
           <ChipFiltro
@@ -204,7 +204,7 @@ export function MecanismosAdminDashboard() {
             disabled={seguimiento.isLoading}
             onClick={() => alternarFiltro('sin_informar')}
           >
-            Sin informar
+            Sin revisar
             <ConteoChip>{conteos.sinInformar}</ConteoChip>
           </ChipFiltro>
           <ChipFiltro

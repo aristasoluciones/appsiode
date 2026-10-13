@@ -19,8 +19,8 @@ export const ESTATUS_MECANISMO: Record<
   TMecanismoEstatus,
   { label: string; variant: TVariant }
 > = {
-  SIN_INFORMAR: { label: 'Sin informar', variant: 'secondary' },
-  INFORMADO: { label: 'Informado', variant: 'success' },
+  SIN_INFORMAR: { label: 'Sin revisar', variant: 'secondary' },
+  INFORMADO: { label: 'Revisado', variant: 'success' },
 };
 
 /** Tipo de observación con el que se informa el mecanismo; es el único que habilita el check. */

@@ -166,15 +166,15 @@ export function SeguimientoTable({
                 <div className="text-center">No. de mecanismos</div>
                 <div
                   className="text-center"
-                  title="Informados de su total de mecanismos"
+                  title="Revisados de su total de mecanismos"
                 >
-                  Informados
+                  Revisados
                 </div>
                 <div className="text-center">Avance</div>
                 {/* Cada recuadro agrupa sus subcolumnas: la etiqueta arriba y el número alineado debajo. */}
                 <EncabezadoGrupo
                   titulo="Mecanismos por tipo"
-                  descripcion="Mecanismos que informa el consejo, por tipo"
+                  descripcion="Mecanismos que revisa el consejo, por tipo"
                   className={GRUPO_TIPOS}
                   columnas={[
                     TIPO_MECANISMO_CORTO.DAT,
@@ -193,10 +193,10 @@ export function SeguimientoTable({
                     'Con CAE asignado',
                   ]}
                 />
-                <div title="Total INE: suma del costo del INE de los mecanismos que informa el consejo. Total consejo: suma de lo que capturó al informarlos">
+                <div title="Total INE: suma del costo del INE de los mecanismos que revisa el consejo. Total consejo: suma de lo que capturó al revisarlos">
                   Costos
                 </div>
-                <div className="text-right">Último informe</div>
+                <div className="text-right">Última revisión</div>
               </div>
               {isLoading
                 ? Array.from({ length: 6 }, (_, i) => (

@@ -342,7 +342,7 @@ export function useInformarMecanismo() {
         queryClient.invalidateQueries({ queryKey: MECANISMOS_KEYS.caes() });
       }
       toastSuccess(
-        payload.informar ? 'Mecanismo informado.' : 'Observación registrada.',
+        payload.informar ? 'Mecanismo revisado.' : 'Observación registrada.',
       );
     },
   });
@@ -373,7 +373,7 @@ export function useRevocarInforme() {
       guardarMecanismoEnCache(queryClient, mecanismo);
       // El conteo de mecanismos por CAE se recalcula con el estatus del informe.
       queryClient.invalidateQueries({ queryKey: MECANISMOS_KEYS.caes() });
-      toastSuccess('Informe revocado; el consejo puede capturar de nuevo.');
+      toastSuccess('Revisión revocada; el consejo puede capturar de nuevo.');
     },
   });
 }

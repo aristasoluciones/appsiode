@@ -148,7 +148,7 @@ function RevertirDialog({
         onOpenChange(v);
       }}
       titulo={`Reversión de la importación #${importacion?.id ?? ''}`}
-      descripcion="Los mecanismos que creó se eliminan y los que actualizó vuelven a su estado anterior. No se puede revertir si alguno ya tiene observaciones, informe o cédula."
+      descripcion="Los mecanismos que creó se eliminan y los que actualizó vuelven a su estado anterior. No se puede revertir si alguno ya tiene observaciones, revisión o cédula."
       accion="Revertir"
       icono={<Undo2 className="h-4 w-4" aria-hidden="true" />}
       pendiente={revertir.isPending}

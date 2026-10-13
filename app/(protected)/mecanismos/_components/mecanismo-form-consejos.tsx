@@ -172,7 +172,7 @@ export function MecanismoFormConsejos({
           name="revisor"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Consejo que informa</FormLabel>
+              <FormLabel>Consejo que revisa</FormLabel>
               <SelectConsejo
                 value={field.value}
                 onChange={field.onChange}

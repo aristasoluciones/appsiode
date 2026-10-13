@@ -165,7 +165,7 @@ export function CaesCarga({
             <AlertTitle className="text-accent-foreground">
               {modo === 'listado'
                 ? 'Descarga el formato con los CAE que ya existen, completa folio, categoría, nombre y consejo, y súbelo. El folio manda: nuevo se da de alta, existente se actualiza; lo que no venga no se toca.'
-                : 'Descarga el formato con los mecanismos del tipo de consejo, captura el folio del CAE en cada renglón (vacío quita el CAE) y súbelo. Los mecanismos ya informados conservan su historial.'}
+                : 'Descarga el formato con los mecanismos del tipo de consejo, captura el folio del CAE en cada renglón (vacío quita el CAE) y súbelo. Los mecanismos ya revisados conservan su historial.'}
             </AlertTitle>
           </Alert>
 

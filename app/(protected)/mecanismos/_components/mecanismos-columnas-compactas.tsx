@@ -123,7 +123,7 @@ function AccionesFicha({
           onClick={() => onInformar(m)}
           icono={<FilePen className={icono} aria-hidden="true" />}
         >
-          Informar
+          Revisar
         </BotonFicha>
       )}
       {onRevocarInforme && m.estatus === 'INFORMADO' && (
@@ -131,7 +131,7 @@ function AccionesFicha({
           onClick={() => onRevocarInforme(m)}
           icono={<Undo2 className={icono} aria-hidden="true" />}
         >
-          Revocar informe
+          Revocar revisión
         </BotonFicha>
       )}
       {onEditar && m.activo && (

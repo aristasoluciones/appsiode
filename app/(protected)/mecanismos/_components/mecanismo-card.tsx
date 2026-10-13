@@ -109,7 +109,7 @@ export function MecanismoCard({
               onClick={() => onInformar(m)}
             >
               <FilePen className="h-4 w-4" aria-hidden="true" />
-              Informar
+              Revisar
             </Button>
           )}
           {onEditar && (
@@ -132,7 +132,7 @@ export function MecanismoCard({
               onClick={() => onRevocarInforme(m)}
             >
               <Undo2 className="h-4 w-4" aria-hidden="true" />
-              Revocar informe
+              Revocar revisión
             </Button>
           )}
           <BotonCedula

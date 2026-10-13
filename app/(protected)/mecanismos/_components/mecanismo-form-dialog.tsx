@@ -157,7 +157,7 @@ export function MecanismoFormDialog({
           </DialogTitle>
           <DialogDescription>
             {editando
-              ? 'Modifica los casillas, la ruta o quién informa y cotiza del mecanismo.'
+              ? 'Modifica los casillas, la ruta o quién revisa y cotiza el mecanismo.'
               : 'Registra un mecanismo de recolección con su territorio, sus consejos y sus casillas.'}
           </DialogDescription>
         </DialogHeader>
@@ -174,7 +174,7 @@ export function MecanismoFormDialog({
                 <AlertCircle />
               </AlertIcon>
               <AlertTitle>
-                El mecanismo ya tiene cédula o fue informado: el distrito
+                El mecanismo ya tiene cédula o fue revisado: el distrito
                 federal, el tipo y el número no se pueden cambiar.
               </AlertTitle>
             </Alert>

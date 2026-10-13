@@ -173,18 +173,18 @@ export function InformarCheckCampo({ form, disabled }: CampoProps) {
                 onCheckedChange={(v) => field.onChange(v === true)}
                 disabled={disabled}
                 className="border-primary"
-                aria-label="Informar el mecanismo"
+                aria-label="Marcar como revisado"
               />
             </FormControl>
             <div className="space-y-1">
               <FormLabel className="cursor-pointer">
-                Informar el mecanismo
+                Marcar como revisado
               </FormLabel>
               <FormDescription>
-                Habilítalo si deseas informar el mecanismo: se guarda esta
-                observación y el mecanismo pasa a Informado. Después queda
-                cerrado: para corregirlo, oficina central debe revocar el
-                informe.
+                Habilítalo si deseas dar por revisado el mecanismo: se guarda
+                esta observación y el mecanismo pasa a Revisado. Después queda
+                cerrado: para corregirlo, oficina central debe revocar la
+                revisión.
               </FormDescription>
             </div>
           </div>

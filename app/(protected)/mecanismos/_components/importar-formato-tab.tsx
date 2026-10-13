@@ -96,7 +96,7 @@ export function ImportarFormatoTab({ activo }: { activo: boolean }) {
         {paso === 'previa' &&
           'Esto es lo que trae el archivo. Revisa las observaciones y confirma para importar.'}
         {paso === 'resultado' &&
-          'Importación aplicada. Los consejos ya pueden informar sus mecanismos.'}
+          'Importación aplicada. Los consejos ya pueden revisar sus mecanismos.'}
       </p>
 
       {error && (

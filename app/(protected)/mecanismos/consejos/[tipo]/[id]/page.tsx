@@ -9,7 +9,7 @@ interface Props {
 export const metadata: Metadata = {
   title: 'Mecanismos del Consejo | SIODE',
   description:
-    'Mecanismos de recolección que informa un consejo, vistos desde oficina central.',
+    'Mecanismos de recolección que revisa un consejo, vistos desde oficina central.',
 };
 
 export default async function MecanismosConsejoPage({ params }: Props) {

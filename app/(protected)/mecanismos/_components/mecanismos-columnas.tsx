@@ -43,10 +43,7 @@ export function AccionesCelda({
   return (
     <div className="flex items-center justify-end gap-1">
       {onInformar && puedeInformar(m) && (
-        <BotonAccion
-          etiqueta="Informar mecanismo"
-          onClick={() => onInformar(m)}
-        >
+        <BotonAccion etiqueta="Revisar mecanismo" onClick={() => onInformar(m)}>
           <FilePen className="h-4 w-4" aria-hidden="true" />
         </BotonAccion>
       )}
@@ -61,7 +58,7 @@ export function AccionesCelda({
       )}
       {onRevocarInforme && m.estatus === 'INFORMADO' && (
         <BotonAccion
-          etiqueta="Revocar informe"
+          etiqueta="Revocar revisión"
           onClick={() => onRevocarInforme(m)}
         >
           <Undo2 className="h-4 w-4" aria-hidden="true" />

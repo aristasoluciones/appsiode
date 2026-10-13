@@ -137,11 +137,11 @@ export function InformarMecanismoDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Informe del mecanismo</DialogTitle>
+          <DialogTitle>Revisión del mecanismo</DialogTitle>
           <DialogDescription>
             {claveMecanismo(mecanismo)}. Registra tantas observaciones como
-            consideres, una por guardado. Si deseas informar el mecanismo,
-            habilita el check «Informar el mecanismo».
+            consideres, una por guardado. Si deseas dar por revisado el
+            mecanismo, habilita el check «Marcar como revisado».
           </DialogDescription>
         </DialogHeader>
 
@@ -272,7 +272,7 @@ export function InformarMecanismoDialog({
             {guardando && (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             )}
-            {marcaInformar ? 'Informar mecanismo' : 'Guardar observación'}
+            {marcaInformar ? 'Marcar como revisado' : 'Guardar observación'}
           </Button>
         </DialogFooter>
       </DialogContent>

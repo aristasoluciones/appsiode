@@ -138,7 +138,7 @@ export function ImportacionPrevia({
               <TableHeader>
                 <TableRow>
                   <TableHead>Mecanismo</TableHead>
-                  <TableHead>Informa</TableHead>
+                  <TableHead>Revisa</TableHead>
                   <TableHead className="text-center">Casillas</TableHead>
                   <TableHead className="text-right">Costo INE</TableHead>
                   <TableHead>Efecto</TableHead>

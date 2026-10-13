@@ -31,7 +31,7 @@ export function SeguimientoCard({
   // Informados se lee sobre su total: «2 de 2», nunca «2 de 0».
   const cifras: [string, string | number][] = [
     ['Mecanismos', c.mecanismos],
-    ['Informados', `${c.informados} de ${c.informados + c.sin_informar}`],
+    ['Revisados', `${c.informados} de ${c.informados + c.sin_informar}`],
     ['Con cédula', c.con_cedula],
     ['Con observ.', c.con_observaciones],
     ['Con CAE', c.con_cae],

@@ -188,7 +188,7 @@ function Detalle({ m }: { m: IMecanismo }) {
           ? !informaPropio &&
             revisor && (
               <p className="text-xs text-muted-foreground">
-                Este mecanismo lo informa{' '}
+                Este mecanismo lo revisa{' '}
                 {nombreConsejo(
                   revisor.tipo_consejo,
                   revisor.id_consejo,
@@ -201,7 +201,7 @@ function Detalle({ m }: { m: IMecanismo }) {
             revisor &&
             !coincideConIne(ine, revisor) && (
               <p className="text-xs text-warning">
-                El INE indica que lo revisa {ine.texto}; en SIODE lo informa{' '}
+                El INE indica que lo revisa {ine.texto}; en SIODE lo revisa{' '}
                 {nombreConsejo(
                   revisor.tipo_consejo,
                   revisor.id_consejo,
@@ -234,7 +234,7 @@ function Detalle({ m }: { m: IMecanismo }) {
         )}
       </Seccion>
 
-      <Seccion titulo={propio ? 'Informe del consejo' : 'Consejos vinculados'}>
+      <Seccion titulo={propio ? 'Revisión del consejo' : 'Consejos vinculados'}>
         <div className="space-y-2">
           {consejos.map((c) => (
             <div
@@ -248,7 +248,7 @@ function Detalle({ m }: { m: IMecanismo }) {
                 {c.revisa_mecanismo && (
                   <div className="ml-auto flex flex-wrap items-center gap-2">
                     <Badge variant="primary" appearance="light" size="sm">
-                      Informa el mecanismo
+                      Revisa el mecanismo
                     </Badge>
                     <InformeBadge m={c} />
                   </div>
@@ -265,7 +265,7 @@ function Detalle({ m }: { m: IMecanismo }) {
                         ? formatMoneda(c.costo_estimado)
                         : null}
                     </Dato>
-                    <Dato etiqueta="Informado">
+                    <Dato etiqueta="Revisado">
                       {c.fecha_informe
                         ? formatFechaHora(c.fecha_informe)
                         : null}
