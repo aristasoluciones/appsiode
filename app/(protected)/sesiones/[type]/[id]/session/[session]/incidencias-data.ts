@@ -47,7 +47,8 @@ export interface IGuardarSeguimientoInput {
   id_incidencia: number;
   id_sesion: string;
   seguimiento: string;
-  status?: 'CERRADA';
+  /** «Informar» deja la incidencia abierta; «Cerrar» la cierra. */
+  status?: 'ABIERTA' | 'CERRADA';
 }
 
 // ─── Catálogo ─────────────────────────────────────────────────────────────────

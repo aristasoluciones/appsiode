@@ -325,11 +325,11 @@ function verificacionToFormValues(v: IVerificacion | undefined, meta?: any): Wiz
     // los campos que dependen de la bodega (num_paquetes, superficie_m2).
     const base = { ...EMPTY_VALUES };
     if (meta?.bodega) {
-      if (base.numPaquetes === '' && meta.bodega.numPaquetesEstimado != null) {
-        base.numPaquetes = String(meta.bodega.numPaquetesEstimado);
+      if (base.numPaquetes === '' && meta.bodega.numPaquetesEstimados != null) {
+        base.numPaquetes = Number(meta.bodega.numPaquetesEstimados);
       }
       if (base.superficieM2 === '' && meta.bodega.superficieM2 != null) {
-        base.superficieM2 = String(meta.bodega.superficieM2);
+        base.superficieM2 = Number(meta.bodega.superficieM2);
       }
     }
     return base;
@@ -1485,7 +1485,7 @@ function CedulaPreviewPanel({ pdfUrl, fileName, onClose }: CedulaPreviewPanelPro
 
 // ─── Paso 8: Finalizar (Cédula, Observaciones y Fotografías restantes) ────────
 
-function PasoGenerales({ readOnly, values, setFieldValue, cedulaUrl, idBodega, bodegaStatus, canFotografias, canEliminarFotografia }: { readOnly: boolean; values: WizardFormValues; setFieldValue: (field: string, value: any) => void; cedulaUrl?: string | null; idBodega: number; bodegaStatus?: import('@/types/bodegas').TStatusBodega; canFotografias: boolean; canEliminarFotografia: boolean }) {
+function PasoGenerales({ readOnly, values, setFieldValue, cedulaUrl, idBodega, bodegaStatus, canFotografias, canEliminarFotografia }: { readOnly: boolean; values: WizardFormValues; setFieldValue: (field: string, value: any) => void; cedulaUrl?: string | null; idBodega: number; bodegaStatus?: import('./fotografias-card').TEstatusFotografias; canFotografias: boolean; canEliminarFotografia: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -1896,9 +1896,9 @@ export function VerificacionWizard({ idBodega, idVerificacion, modo }: Verificac
       case 2: return v.consejeroParticipa || v.secretarioParticipa || v.numConsejeros !== '' || v.nombresConsejeros !== '' || v.numOtrasPersonas !== '';
       case 3: return v.consejeroIneParticipa || v.secretarioIneParticipa || v.numConsejerosIne !== '' || v.nombresConsejerosIne !== '' || v.numOtrasPersonasIne !== '' || v.organoDesconcentrado !== '' || v.numJuntaDistrital !== '' || v.veParticipa || v.vsParticipa || v.voeParticipa || v.vrfeParticipa || v.vceyecParticipa;
       case 4: return v.numPaquetes !== '' || v.superficieM2 !== '' || v.ubicadaEnSede !== '' || v.motivoNoSede !== '' || v.espacioSuficiente !== '' || v.medidasEspacio !== '' || v.fechaMedidasEspacio !== '' || v.espacioMateriales !== '' || v.medidasMateriales !== '' || v.fechaEspacioMateriales !== '';
-      case 5: return v.alejadaIncendios || v.medidasIncendios !== '' || v.retiradaAgua || v.medidasAgua !== '' || v.drenaje || v.medidasDrenaje !== '' || v.pisosSuperiores || v.medidasSuperiores !== '' || v.observacionesUbicacion !== '';
-      case 6: return v.instalacionElectrica || v.medidasElectrica !== '' || v.techos || v.medidasTechos !== '' || v.drenajePluvial || v.medidasDrenajePluvial !== '' || v.instalacionesSanitarias || v.medidasSanitarias !== '' || v.ventanas || v.medidasVentanas !== '' || v.muros || v.medidasMuros !== '' || v.cerraduras || v.medidasCerraduras !== '' || v.pisos || v.medidasPisos !== '' || v.observacionesAcondicionamiento !== '';
-      case 7: return v.tarimas || v.lamparasEmergencia || v.senializacion || v.anaqueles || v.medidasTarimas !== '' || v.medidasLamparasEmergencia !== '' || v.medidasSenializacion !== '' || v.medidasAnaqueles !== '';
+      case 5: return v.alejadaIncendios !== '' || v.medidasIncendios !== '' || v.retiradaAgua !== '' || v.medidasAgua !== '' || v.drenaje !== '' || v.medidasDrenaje !== '' || v.pisosSuperiores !== '' || v.medidasSuperiores !== '' || v.observacionesUbicacion !== '';
+      case 6: return v.instalacionElectrica !== '' || v.medidasElectrica !== '' || v.techos !== '' || v.medidasTechos !== '' || v.drenajePluvial !== '' || v.medidasDrenajePluvial !== '' || v.instalacionesSanitarias !== '' || v.medidasSanitarias !== '' || v.ventanas !== '' || v.medidasVentanas !== '' || v.muros !== '' || v.medidasMuros !== '' || v.cerraduras !== '' || v.medidasCerraduras !== '' || v.pisos !== '' || v.medidasPisos !== '' || v.observacionesAcondicionamiento !== '';
+      case 7: return v.tarimas !== '' || v.lamparasEmergencia !== '' || v.senializacion !== '' || v.anaqueles !== '' || v.medidasTarimas !== '' || v.medidasLamparasEmergencia !== '' || v.medidasSenializacion !== '' || v.medidasAnaqueles !== '';
       case 8: return v.cedula_archivo !== null || !!verificacion?.urlCedula || !!verificacion?.cedulaRutaArchivo;
       default: return false;
     }

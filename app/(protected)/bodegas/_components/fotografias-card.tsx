@@ -52,6 +52,14 @@ import {
   useToggleStatusFotografia,
 } from '../_hooks/use-bodegas';
 import type { IFotografia, IFotografiaConfig, IObservacionBodega, TStatusBodega } from '@/types/bodegas';
+import type { TVerificacionStatus } from '@/types/verificaciones';
+
+/**
+ * Estatus que rige qué se puede hacer con las fotos: el de la bodega o, dentro
+ * del asistente de verificación, el de la verificación («En captura» y
+ * «Capturada» se comportan igual en ambos).
+ */
+export type TEstatusFotografias = TStatusBodega | TVerificacionStatus;
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -232,7 +240,7 @@ interface ObservarDialogProps {
   idBodega: number;
   observaciones?: IObservacionBodega[];
   soloLecturaObservaciones?: boolean;
-  bodegaStatus?: TStatusBodega;
+  bodegaStatus?: TEstatusFotografias;
   canValidarObservacion?: boolean;
   canEliminarObservacion?: boolean;
 }
@@ -405,7 +413,7 @@ interface FotoRowProps {
   onPreview:    (foto: IFotografia) => void;
   onEliminar:   (foto: IFotografia) => void;
   soloLecturaObservaciones?: boolean;
-  bodegaStatus?: TStatusBodega;
+  bodegaStatus?: TEstatusFotografias;
   canValidarFotografia?: boolean;
   canEliminarFotografia?: boolean;
 }
@@ -514,7 +522,7 @@ interface ConfigSectionProps {
   onVerObservaciones: (config: IFotografiaConfig, readOnly: boolean) => void;
   observaciones?: IObservacionBodega[];
   soloLecturaObservaciones?: boolean;
-  bodegaStatus?: TStatusBodega;
+  bodegaStatus?: TEstatusFotografias;
   canFotografias?: boolean;
   canValidarFotografia?: boolean;
   canObservaciones?: boolean;
@@ -985,7 +993,7 @@ interface FotografiasCardProps {
   /** Permite eliminar fotografías. Default: true */
   soloLecturaObservaciones?: boolean;
   /** Estatus actual de la bodega para determinar comportamiento de observaciones */
-  bodegaStatus?: TStatusBodega;
+  bodegaStatus?: TEstatusFotografias;
   /** Permiso para subir fotografías (drag & drop) */
   canFotografias?: boolean;
   /** Permiso para validar fotografías */
@@ -1357,7 +1365,7 @@ interface VerObservacionesFotoDialogProps {
   observaciones?: IObservacionBodega[];
   onClose: () => void;
   readOnly?: boolean;
-  bodegaStatus?: TStatusBodega;
+  bodegaStatus?: TEstatusFotografias;
   canValidarObservacion?: boolean;
   canEliminarObservacion?: boolean;
 }

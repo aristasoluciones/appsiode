@@ -605,7 +605,7 @@ export function BodegaDetalleClient({ id }: BodegaDetalleClientProps) {
           </Card>
 
           {/* ── Card de Verificaciones ─────────────────────────────────────────── */}
-          {(canVerificar && (bodega.status === 'Determinada' || bodega.status === 'Verificada' || bodega.status === 'Informada' || verificaciones.length > 0)) && (
+          {(canVerificar && (bodega.status === 'Determinada' || bodega.status === 'Verificada' || verificaciones.length > 0)) && (
             <Card>
               <CardHeader className="pb-2">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">

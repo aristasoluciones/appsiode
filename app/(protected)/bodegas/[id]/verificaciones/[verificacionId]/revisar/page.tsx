@@ -436,9 +436,9 @@ function FotografiasVerificacion({ idBodega }: { idBodega: number }) {
                   }
                   const momentos = buildMomentos(key, configsGrupo);
                   const fotosPorMomento = {
-                    Antes: momentos[0].total,
-                    Durante: momentos[1].total,
-                    Posterior: momentos[2].total,
+                    Antes: momentos[0].fotos.length,
+                    Durante: momentos[1].fotos.length,
+                    Posterior: momentos[2].fotos.length,
                   };
                   return (
                     <div key={key} className="px-4 py-3 space-y-2">
