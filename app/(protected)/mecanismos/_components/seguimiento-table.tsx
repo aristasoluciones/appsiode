@@ -14,7 +14,14 @@ import { MontoCosto } from './mecanismo-celdas';
 import { Porcentaje, rutaConsejo, SeguimientoCard } from './seguimiento-card';
 
 /** Filtro por estado del informe: todos los mecanismos informados, con pendientes, o sin mecanismos. */
-export type TFiltroInforme = 'informados' | 'sin_informar' | 'sin_mecanismos';
+export type TFiltroInforme =
+  | 'informados'
+  | 'sin_informar'
+  | 'sin_mecanismos'
+  // Consejos con al menos un mecanismo con cédula cargada.
+  | 'con_cedulas'
+  // Consejos con al menos un mecanismo al que le falta la cédula.
+  | 'sin_cedulas';
 
 /** Un consejo está «informado» cuando todos sus mecanismos tienen informe. */
 export function consejoInformado(c: IMecanismoSeguimiento) {
@@ -58,6 +65,8 @@ export function SeguimientoTable({
       if (filtroInforme === 'sin_informar' && c.sin_informar === 0)
         return false;
       if (filtroInforme === 'sin_mecanismos' && c.mecanismos > 0) return false;
+      if (filtroInforme === 'sin_cedulas' && c.sin_cedula === 0) return false;
+      if (filtroInforme === 'con_cedulas' && c.con_cedula === 0) return false;
       return (
         !q ||
         c.consejo.toLowerCase().includes(q) ||

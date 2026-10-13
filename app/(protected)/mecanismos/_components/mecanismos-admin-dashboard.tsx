@@ -74,6 +74,8 @@ export function MecanismosAdminDashboard() {
       informados: consejos.filter(consejoInformado).length,
       sinInformar: consejos.filter((c) => c.sin_informar > 0).length,
       sinMecanismos: consejos.filter((c) => c.mecanismos === 0).length,
+      conCedulas: consejos.filter((c) => c.con_cedula > 0).length,
+      sinCedulas: consejos.filter((c) => c.sin_cedula > 0).length,
     }),
     [consejos],
   );
@@ -214,6 +216,22 @@ export function MecanismosAdminDashboard() {
           >
             Sin mecanismos
             <ConteoChip>{conteos.sinMecanismos}</ConteoChip>
+          </ChipFiltro>
+          <ChipFiltro
+            activo={filtroInforme === 'con_cedulas'}
+            disabled={seguimiento.isLoading}
+            onClick={() => alternarFiltro('con_cedulas')}
+          >
+            Con cédulas
+            <ConteoChip>{conteos.conCedulas}</ConteoChip>
+          </ChipFiltro>
+          <ChipFiltro
+            activo={filtroInforme === 'sin_cedulas'}
+            disabled={seguimiento.isLoading}
+            onClick={() => alternarFiltro('sin_cedulas')}
+          >
+            Sin cédulas
+            <ConteoChip>{conteos.sinCedulas}</ConteoChip>
           </ChipFiltro>
         </div>
       </div>

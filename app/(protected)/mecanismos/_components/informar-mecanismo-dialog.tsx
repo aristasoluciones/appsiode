@@ -115,6 +115,7 @@ export function InformarMecanismoDialog({
     form.setValue('tipo_observacion', valor, { shouldDirty: true });
     // El texto de «Otro» solo vale con ese tipo.
     if (valor !== TIPO_OTRO) form.setValue('tipo_otro', '');
+    if (valor === TIPO_SIN_OBSERVACIONES) form.setValue('observaciones', '');
     form.clearErrors(['observaciones', 'tipo_otro']);
   }
 
@@ -234,38 +235,35 @@ export function InformarMecanismoDialog({
                 />
               )}
 
-              <FormField
-                control={form.control}
-                name="observaciones"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Observaciones{' '}
-                      {!sinObservaciones && (
+              {/* «Sin observaciones» no lleva texto: la caja se oculta. */}
+              {!sinObservaciones && (
+                <FormField
+                  control={form.control}
+                  name="observaciones"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Observaciones{' '}
                         <span className="text-destructive">*</span>
-                      )}
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        rows={4}
-                        maxLength={MECANISMOS_LIMITES.observaciones.max}
-                        placeholder={
-                          sinObservaciones
-                            ? 'Opcional: algún comentario para el registro.'
-                            : 'Describe la observación de este tipo.'
-                        }
-                        disabled={guardando}
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          rows={4}
+                          maxLength={MECANISMOS_LIMITES.observaciones.max}
+                          placeholder="Describe la observación de este tipo."
+                          disabled={guardando}
+                        />
+                      </FormControl>
+                      <ContadorCaracteres
+                        valor={field.value}
+                        max={MECANISMOS_LIMITES.observaciones.max}
                       />
-                    </FormControl>
-                    <ContadorCaracteres
-                      valor={field.value}
-                      max={MECANISMOS_LIMITES.observaciones.max}
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <InformarCheckCampo form={form} disabled={guardando} />
 
