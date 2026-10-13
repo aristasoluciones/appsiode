@@ -18,6 +18,10 @@ import { MecanismoCard, type MecanismoAcciones } from './mecanismo-card';
 import { crearColumnasMecanismos } from './mecanismos-columnas';
 import { crearColumnasMecanismosCompactas } from './mecanismos-columnas-compactas';
 
+/** Alto de la lista junto a la cédula, el mismo del panel (pantallas anchas). */
+const ALTO_COMPACTO =
+  'flex flex-col xl:h-[calc(100vh-var(--header-height,70px)-2rem)]';
+
 interface MecanismosTableProps extends MecanismoAcciones {
   /** Consejo: sus casillas y su informe. Oficina central: además los consejos que el mecanismo vincula. */
   modo: 'consejo' | 'admin';
@@ -50,6 +54,7 @@ export function MecanismosTable({
   onEditar,
   onVerCedula,
   onCargarCedula,
+  onRevocarInforme,
   compacto = false,
   seleccionadoId = null,
   onSeleccionar,
@@ -65,6 +70,7 @@ export function MecanismosTable({
         onEditar,
         onVerCedula,
         onCargarCedula,
+        onRevocarInforme,
       }),
     [
       compacto,
@@ -76,6 +82,7 @@ export function MecanismosTable({
       onEditar,
       onVerCedula,
       onCargarCedula,
+      onRevocarInforme,
     ],
   );
 
@@ -89,15 +96,10 @@ export function MecanismosTable({
     enableRowSelection: compacto,
     state: {
       rowSelection: seleccionadoId ? { [String(seleccionadoId)]: true } : {},
-      // En compacto el número va junto al tipo; la columna queda solo para ordenar.
-      columnVisibility: compacto ? { numero: false } : {},
     },
     initialState: {
       pagination: { pageSize: 20 },
-      sorting: [
-        { id: 'tipo', desc: false },
-        { id: 'numero', desc: false },
-      ],
+      sorting: [{ id: 'mecanismo', desc: false }],
     },
   });
 
@@ -129,6 +131,7 @@ export function MecanismosTable({
               onEditar={onEditar}
               onVerCedula={onVerCedula}
               onCargarCedula={onCargarCedula}
+              onRevocarInforme={onRevocarInforme}
             />
           ))
         )}
@@ -141,22 +144,27 @@ export function MecanismosTable({
           isLoading={isLoading}
           emptyMessage={emptyContent}
           onRowClick={compacto ? onSeleccionar : undefined}
+          tableLayout={{ headerSticky: compacto }}
           tableClassNames={{
             edgeCell: compacto ? 'px-3' : 'px-5',
             bodyRow: 'data-[state=selected]:bg-primary/10',
           }}
         >
-          <Card>
-            <CardHeader className="flex-wrap gap-3 py-5">
+          {/* Junto a la cédula la tarjeta mide lo mismo que el panel: encabezados fijos y solo el cuerpo se desplaza. */}
+          <Card className={compacto ? ALTO_COMPACTO : undefined}>
+            <CardHeader className="flex-wrap gap-3 py-5 shrink-0">
               {headerContent}
             </CardHeader>
-            <CardTable>
-              <ScrollArea>
+            <CardTable className={compacto ? 'flex-1 min-h-0' : undefined}>
+              <ScrollArea
+                className={compacto ? 'h-full' : undefined}
+                viewportClassName={compacto ? 'h-full' : undefined}
+              >
                 <DataGridTable />
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
             </CardTable>
-            <CardFooter>
+            <CardFooter className="shrink-0">
               <DataGridPagination
                 sizesLabel="Mostrar"
                 sizesDescription="por página"

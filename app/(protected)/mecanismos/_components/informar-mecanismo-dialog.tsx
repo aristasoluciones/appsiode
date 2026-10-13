@@ -72,8 +72,8 @@ interface InformarMecanismoDialogProps {
  * Informe del consejo sobre el mecanismo que revisa. Cada guardado agrega una
  * observación tipificada, tantas como el consejo considere; con cualquier tipo
  * puede marcar «Informar», que pide costo y CAE según la configuración del
- * consejo y deja el mecanismo en Informado. No se abre sin cédula ni con el
- * mecanismo ya informado: lo registrado se consulta en el detalle.
+ * consejo y deja el mecanismo en Informado. No se abre sin cédula ni ya informado
+ * (oficina central puede revocar el informe para capturar de nuevo).
  */
 export function InformarMecanismoDialog({
   mecanismo,
@@ -241,13 +241,17 @@ export function InformarMecanismoDialog({
                 <InformeCaeCampo form={form} disabled={guardando} />
               )}
               {marcaInformar && capturaCosto && (
-                <InformeCostoCampo form={form} disabled={guardando} />
+                <InformeCostoCampo
+                  form={form}
+                  disabled={guardando}
+                  costoIne={mecanismo.costo_ine}
+                />
               )}
               <LeyendaObligatorios />
             </form>
           </Form>
 
-          <ObservacionesLista observaciones={observaciones} />
+          <ObservacionesLista observaciones={observaciones} colapsable />
         </DialogBody>
 
         <DialogFooter>

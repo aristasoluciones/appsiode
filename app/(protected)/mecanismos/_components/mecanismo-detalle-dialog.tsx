@@ -35,16 +35,41 @@ interface MecanismoDetalleDialogProps {
 function Dato({
   etiqueta,
   children,
+  className,
 }: {
   etiqueta: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div>
+    <div className={className}>
       <p className="text-xs text-muted-foreground">{etiqueta}</p>
       <p className="text-sm text-foreground text-justify">{children ?? '—'}</p>
     </div>
   );
+}
+
+/**
+ * Consejo que revisa según la visualización del INE: «CME» es el municipal;
+ * «DISTRITO 13», el distrital de ese distrito local.
+ */
+function consejoSegunIne(visualizacion: string | null) {
+  const v = visualizacion?.trim().toUpperCase();
+  if (!v) return null;
+  if (v === 'CME') return { tipo: 'M' as const, texto: 'el consejo municipal' };
+  const id = Number(v.replace(/\D/g, ''));
+  return id
+    ? { tipo: 'D' as const, id, texto: `el consejo distrital ${id}` }
+    : null;
+}
+
+function coincideConIne(
+  ine: NonNullable<ReturnType<typeof consejoSegunIne>>,
+  revisor: { tipo_consejo: string; id_consejo: number },
+) {
+  return ine.tipo === 'M'
+    ? revisor.tipo_consejo === 'M'
+    : revisor.tipo_consejo === 'D' && revisor.id_consejo === ine.id;
 }
 
 function Seccion({
@@ -75,7 +100,7 @@ export function MecanismoDetalleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{data ? claveMecanismo(data) : 'Mecanismo'}</DialogTitle>
           <DialogDescription>
@@ -85,7 +110,7 @@ export function MecanismoDetalleDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <DialogBody className="space-y-6">
+        <DialogBody className="space-y-6 min-h-0 overflow-y-auto -mx-6 px-6">
           {isError ? (
             <ErrorState
               title="No se pudo cargar el mecanismo."
@@ -124,16 +149,34 @@ function Detalle({ m }: { m: IMecanismo }) {
           c.id_consejo === Number(user?.idConsejo),
       )
     : m.consejos;
+  const revisor = m.consejos.find((c) => c.revisa_mecanismo);
+  const informaPropio = consejos.some((c) => c.revisa_mecanismo);
+  const ine = consejoSegunIne(m.visualizacion);
 
   return (
     <>
-      <Seccion titulo="Ruta">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Resumen: lo que más se consulta, a la vista sin desplazarse. */}
+      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Cédula</p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+              <CedulaBadge m={m} />
+              {m.tiene_cedula && m.cedula_fecha && (
+                <span className="text-xs text-muted-foreground">
+                  {formatFechaHora(m.cedula_fecha)}
+                </span>
+              )}
+            </div>
+          </div>
+          <Dato etiqueta="Costo INE (referencia)">
+            {m.costo_ine != null ? formatMoneda(m.costo_ine) : null}
+          </Dato>
           <Dato etiqueta="Distancia">
             {m.distancia_km != null ? `${m.distancia_km} km` : null}
           </Dato>
           <Dato etiqueta="Tiempo de recorrido">{m.tiempo_recorrido}</Dato>
-          <Dato etiqueta="Responsable de la cotización">
+          <Dato etiqueta="Responsable de la cotización" className="col-span-2">
             {nombreConsejo(
               m.cotizacion_tipo_consejo,
               m.cotizacion_id_consejo,
@@ -141,12 +184,33 @@ function Detalle({ m }: { m: IMecanismo }) {
             )}
           </Dato>
         </div>
-        {m.visualizacion && (
-          <p className="text-xs text-muted-foreground">
-            Visualización del INE: {m.visualizacion}
-          </p>
-        )}
-      </Seccion>
+        {propio
+          ? !informaPropio &&
+            revisor && (
+              <p className="text-xs text-muted-foreground">
+                Este mecanismo lo informa{' '}
+                {nombreConsejo(
+                  revisor.tipo_consejo,
+                  revisor.id_consejo,
+                  revisor.consejo,
+                )}
+                ; tu consejo solo lo consulta.
+              </p>
+            )
+          : ine &&
+            revisor &&
+            !coincideConIne(ine, revisor) && (
+              <p className="text-xs text-warning">
+                El INE indica que lo revisa {ine.texto}; en SIODE lo informa{' '}
+                {nombreConsejo(
+                  revisor.tipo_consejo,
+                  revisor.id_consejo,
+                  revisor.consejo,
+                )}
+                .
+              </p>
+            )}
+      </div>
 
       <Seccion titulo={`Casillas (${m.total_casillas})`}>
         {m.casillas.length === 0 ? (
@@ -182,16 +246,18 @@ function Detalle({ m }: { m: IMecanismo }) {
                   {nombreConsejo(c.tipo_consejo, c.id_consejo, c.consejo)}
                 </span>
                 {c.revisa_mecanismo && (
-                  <Badge variant="primary" appearance="light" size="sm">
-                    Informa el mecanismo
-                  </Badge>
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <Badge variant="primary" appearance="light" size="sm">
+                      Informa el mecanismo
+                    </Badge>
+                    <InformeBadge m={c} />
+                  </div>
                 )}
-                {c.revisa_mecanismo && <InformeBadge m={c} />}
               </div>
               {c.revisa_mecanismo && (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <Dato etiqueta="CAE">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <Dato etiqueta="CAE" className="col-span-2">
                       {c.cae_folio ? `${c.cae_folio} · ${c.cae_nombre}` : null}
                     </Dato>
                     <Dato etiqueta="Costo estimado">
@@ -209,27 +275,12 @@ function Detalle({ m }: { m: IMecanismo }) {
                     observaciones={c.observaciones ?? []}
                     titulo="Observaciones"
                     vacio="Sin observaciones registradas."
+                    colapsable
                   />
                 </>
               )}
             </div>
           ))}
-        </div>
-      </Seccion>
-
-      <Seccion titulo="Cédula">
-        <div className="flex flex-wrap items-center gap-2">
-          <CedulaBadge m={m} />
-          {m.tiene_cedula && m.cedula_fecha && (
-            <span className="text-xs text-muted-foreground">
-              Cargada {formatFechaHora(m.cedula_fecha)}
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <Dato etiqueta="Costo INE (referencia)">
-            {m.costo_ine != null ? formatMoneda(m.costo_ine) : null}
-          </Dato>
         </div>
       </Seccion>
 

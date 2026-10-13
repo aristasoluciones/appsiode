@@ -14,7 +14,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccessDenied } from '@/components/common/access-denied';
-import { ChipFiltro } from '@/components/common/chip-filtro';
+import { ChipFiltro, ConteoChip } from '@/components/common/chip-filtro';
 import { ErrorState } from '@/components/common/error-state';
 import {
   opcionesTipoConsejo,
@@ -197,9 +197,7 @@ export function MecanismosAdminDashboard() {
             onClick={() => alternarFiltro('informados')}
           >
             Informados
-            <span className="tabular-nums font-semibold">
-              {conteos.informados}
-            </span>
+            <ConteoChip>{conteos.informados}</ConteoChip>
           </ChipFiltro>
           <ChipFiltro
             activo={filtroInforme === 'sin_informar'}
@@ -207,9 +205,7 @@ export function MecanismosAdminDashboard() {
             onClick={() => alternarFiltro('sin_informar')}
           >
             Sin informar
-            <span className="tabular-nums font-semibold">
-              {conteos.sinInformar}
-            </span>
+            <ConteoChip>{conteos.sinInformar}</ConteoChip>
           </ChipFiltro>
           <ChipFiltro
             activo={filtroInforme === 'sin_mecanismos'}
@@ -217,9 +213,7 @@ export function MecanismosAdminDashboard() {
             onClick={() => alternarFiltro('sin_mecanismos')}
           >
             Sin mecanismos
-            <span className="tabular-nums font-semibold">
-              {conteos.sinMecanismos}
-            </span>
+            <ConteoChip>{conteos.sinMecanismos}</ConteoChip>
           </ChipFiltro>
         </div>
       </div>

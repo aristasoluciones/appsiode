@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { Search, X } from 'lucide-react';
 import type { IMecanismoSeguimiento } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
-import { formatMoneda } from '@/lib/helpers';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EstadoVacio } from '@/components/common/estado-vacio';
 import { PaginacionSimple } from '@/components/common/paginacion-simple';
+import { TIPO_MECANISMO_CORTO } from '../_lib/estatus';
+import { MontoCosto } from './mecanismo-celdas';
 import { Porcentaje, rutaConsejo, SeguimientoCard } from './seguimiento-card';
 
 /** Filtro por estado del informe: todos los mecanismos informados, con pendientes, o sin mecanismos. */
@@ -30,7 +31,12 @@ interface SeguimientoTableProps {
   acciones?: React.ReactNode;
 }
 
-const COLUMNAS = 'grid grid-cols-[3fr_repeat(9,1fr)_2fr] gap-2 items-center';
+const COLUMNAS =
+  'grid grid-cols-[3fr_repeat(3,1fr)_3fr_3fr_2fr_1.6fr] gap-2 items-center';
+
+/** Recuadros de los grupos, como en comprobaciones físicas: Tipos con borde, Integración sombreada. */
+const GRUPO_TIPOS = 'border border-border bg-background';
+const GRUPO_INTEGRACION = 'bg-muted/50';
 
 /** Un consejo del tipo por renglón, aunque vaya en ceros; el nombre lleva a su vista. */
 export function SeguimientoTable({
@@ -152,41 +158,43 @@ export function SeguimientoTable({
           </div>
 
           <div className="hidden md:block overflow-x-auto">
-            <div className="min-w-[1180px]">
+            <div className="min-w-[1280px]">
               <div
                 className={`${COLUMNAS} py-2 px-3 text-xs font-medium text-muted-foreground border-b border-border bg-muted/40`}
               >
                 <div>Consejo</div>
-                <div className="text-center">Mecanismos</div>
-                <div className="text-center">DAT</div>
-                <div className="text-center">CRyT</div>
-                <div className="text-center" title="Informados / sin informar">
+                <div className="text-center">No. de mecanismos</div>
+                <div
+                  className="text-center"
+                  title="Informados de su total de mecanismos"
+                >
                   Informados
                 </div>
                 <div className="text-center">Avance</div>
-                <div
-                  className="text-center"
-                  title="Mecanismos con cédula / sin cédula"
-                >
-                  Cédula
-                </div>
-                <div
-                  className="text-center"
-                  title="Mecanismos con al menos una observación"
-                >
-                  Con observ.
-                </div>
-                <div
-                  className="text-center"
-                  title="Mecanismos que informa el consejo con CAE asignado"
-                >
-                  Con CAE
-                </div>
-                <div
-                  className="text-right"
-                  title="Suma del costo estimado de los mecanismos que informa el consejo"
-                >
-                  Costo estimado
+                {/* Cada recuadro agrupa sus subcolumnas: la etiqueta arriba y el número alineado debajo. */}
+                <EncabezadoGrupo
+                  titulo="Mecanismos por tipo"
+                  descripcion="Mecanismos que informa el consejo, por tipo"
+                  className={GRUPO_TIPOS}
+                  columnas={[
+                    TIPO_MECANISMO_CORTO.DAT,
+                    TIPO_MECANISMO_CORTO.CRYT_FIJO,
+                    TIPO_MECANISMO_CORTO.CRYT_ITINERANTE,
+                  ]}
+                />
+                <EncabezadoGrupo
+                  titulo="Mecanismos con"
+                  descripcion="Mecanismos con cédula, con al menos una observación y con CAE asignado"
+                  className={GRUPO_INTEGRACION}
+                  columnas={['Cédula', 'Observaciones', 'CAE']}
+                  ayudas={[
+                    'Con cédula cargada',
+                    'Con al menos una observación',
+                    'Con CAE asignado',
+                  ]}
+                />
+                <div title="Total INE: suma del costo del INE de los mecanismos que informa el consejo. Total consejo: suma de lo que capturó al informarlos">
+                  Costos
                 </div>
                 <div className="text-right">Último informe</div>
               </div>
@@ -197,7 +205,7 @@ export function SeguimientoTable({
                         <Skeleton className="h-4 w-40" />
                         <Skeleton className="h-3 w-28" />
                       </div>
-                      {Array.from({ length: 9 }, (_, j) => (
+                      {Array.from({ length: 6 }, (_, j) => (
                         <Skeleton key={j} className="h-4 w-10 mx-auto" />
                       ))}
                       <Skeleton className="h-3 w-28 ml-auto" />
@@ -222,36 +230,37 @@ export function SeguimientoTable({
                       <div className="text-center tabular-nums font-semibold">
                         {c.mecanismos}
                       </div>
-                      <div className="text-center tabular-nums">{c.dat}</div>
-                      <div className="text-center tabular-nums">
-                        {c.cryt_fijo + c.cryt_itinerante}
-                      </div>
                       <div className="text-center tabular-nums">
                         {c.informados}
                         <span className="text-xs text-muted-foreground">
                           {' '}
-                          / {c.sin_informar}
+                          de {c.informados + c.sin_informar}
                         </span>
                       </div>
                       <div className="text-center">
                         <Porcentaje valor={c.porcentaje_informados} />
                       </div>
-                      <div className="text-center tabular-nums">
-                        {c.con_cedula}
-                        <span className="text-xs text-muted-foreground">
-                          {' '}
-                          / {c.sin_cedula}
-                        </span>
-                      </div>
-                      <div className="text-center tabular-nums">
-                        {c.con_observaciones}
-                      </div>
-                      <div className="text-center tabular-nums">
-                        {c.con_cae}
-                      </div>
-                      <div className="text-right tabular-nums">
-                        {formatMoneda(c.costo_estimado)}
-                      </div>
+                      <Grupo className={GRUPO_TIPOS}>
+                        <Celda valor={c.dat} />
+                        <Celda valor={c.cryt_fijo} />
+                        <Celda valor={c.cryt_itinerante} />
+                      </Grupo>
+                      <Grupo className={GRUPO_INTEGRACION}>
+                        <Celda valor={c.con_cedula} />
+                        <Celda valor={c.con_observaciones} />
+                        <Celda valor={c.con_cae} />
+                      </Grupo>
+                      <dl className="text-xs space-y-1">
+                        <Indicador etiqueta="Total INE">
+                          <MontoCosto valor={c.costo_ine} origen="ine" />
+                        </Indicador>
+                        <Indicador etiqueta="Total consejo">
+                          <MontoCosto
+                            valor={c.costo_estimado}
+                            origen="consejo"
+                          />
+                        </Indicador>
+                      </dl>
                       <div className="text-right text-xs text-muted-foreground">
                         {c.ultimo_informe
                           ? formatFechaHora(c.ultimo_informe)
@@ -276,6 +285,87 @@ export function SeguimientoTable({
           />
         </>
       )}
+    </div>
+  );
+}
+
+/** Un renglón de la columna de costos: la etiqueta a la izquierda y el monto a la derecha. */
+function Indicador({
+  etiqueta,
+  children,
+}: {
+  etiqueta: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="text-muted-foreground">{etiqueta}</dt>
+      <dd className="tabular-nums">{children}</dd>
+    </div>
+  );
+}
+
+/** Encabezado de un grupo: su título y, dentro del recuadro, la etiqueta de cada subcolumna. */
+function EncabezadoGrupo({
+  titulo,
+  descripcion,
+  columnas,
+  ayudas,
+  className,
+}: {
+  titulo: string;
+  descripcion: string;
+  columnas: string[];
+  /** Texto completo de cada subcolumna, en su tooltip. */
+  ayudas?: string[];
+  className: string;
+}) {
+  return (
+    <div title={descripcion} className="space-y-1">
+      <p className="text-center">{titulo}</p>
+      <div
+        className={`grid grid-cols-3 gap-1 rounded-md py-1 px-1 ${className}`}
+      >
+        {columnas.map((c, i) => (
+          <span
+            key={c}
+            title={ayudas?.[i]}
+            className="text-center text-[0.6875rem] leading-tight"
+          >
+            {c}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Recuadro de un grupo en el renglón: sus números alineados bajo las etiquetas del encabezado. */
+function Grupo({
+  className,
+  children,
+}: {
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`grid grid-cols-3 gap-1 rounded-md py-1 px-1 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+/** Número de una subcolumna; el cero en gris tenue. */
+function Celda({ valor }: { valor: number }) {
+  return (
+    <div className="text-center tabular-nums leading-tight">
+      <span
+        className={
+          valor ? 'font-semibold text-foreground' : 'text-muted-foreground/60'
+        }
+      >
+        {valor}
+      </span>
     </div>
   );
 }

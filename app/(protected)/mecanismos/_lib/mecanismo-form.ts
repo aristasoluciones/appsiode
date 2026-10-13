@@ -142,7 +142,6 @@ export function formularioAPayload(v: TMecanismoForm): IMecanismoPayload {
     id_df: Number(v.id_df),
     tipo: v.tipo as IMecanismoPayload['tipo'],
     numero: Number(v.numero),
-    consejos: consejosDeCasillas(v.casillas).map(consejoIds),
     revisor_tipo_consejo: revisor?.tipo_consejo ?? null,
     revisor_id_consejo: revisor?.id_consejo ?? null,
     cotizacion_tipo_consejo: cotizacion?.tipo_consejo ?? null,

@@ -1,13 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Info } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Info, Undo2 } from 'lucide-react';
 import type { IMecanismoLista } from '@/types/mecanismos';
+import { getFirstBackendError } from '@/lib/helpers';
 import { useAuth } from '@/providers/auth-provider';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { ErrorState } from '@/components/common/error-state';
 import { EstadoVacio } from '@/components/common/estado-vacio';
-import { useMecanismos } from '../_hooks/use-mecanismos';
+import { useMecanismos, useRevocarInforme } from '../_hooks/use-mecanismos';
+import { claveMecanismo } from '../_lib/estatus';
 import { CaesDialog } from './caes-dialog';
 import { CargarCedulaDialog } from './cargar-cedula-dialog';
 import { CedulaPanel } from './cedula-panel';
@@ -23,6 +25,7 @@ import {
   type IMecanismosFiltrosEstado,
 } from './mecanismos-filtros';
 import { MecanismosTable } from './mecanismos-table';
+import { MotivoDialog } from './motivo-dialog';
 
 interface MecanismosConsejoContainerProps {
   tipoConsejo: 'D' | 'M';
@@ -87,6 +90,8 @@ export function MecanismosConsejoContainer({
   const puedeVerCedula = hasPermission('mecanismos.cedula.ver');
   const puedeCargarCedula =
     !esConsejo && hasPermission('mecanismos.cedula.cargar');
+  const puedeRevocar =
+    !esConsejo && hasPermission('mecanismos.informe.revocar');
 
   const { data, isLoading, isFetching, isError, refetch } = useMecanismos(
     esConsejo ? {} : { tipoConsejo, idConsejo },
@@ -98,7 +103,10 @@ export function MecanismosConsejoContainer({
   const [ventana, setVentana] = useState<TVentanaMecanismo>(null);
   // Mecanismo con la cédula a la vista en el panel derecho y el que se está cargando; son independientes.
   const [panelId, setPanelId] = useState<number | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [cargarId, setCargarId] = useState<number | null>(null);
+  const [revocarId, setRevocarId] = useState<number | null>(null);
+  const revocar = useRevocarInforme();
   const [caesAbierto, setCaesAbierto] = useState(false);
 
   const mecanismos = useMemo(() => data ?? [], [data]);
@@ -120,7 +128,15 @@ export function MecanismosConsejoContainer({
 
   const mecanismoInformar = mecanismos.find((m) => m.id === informarId) ?? null;
   const mecanismoPanel = mecanismos.find((m) => m.id === panelId) ?? null;
+
+  // Debajo de xl el panel queda encima de la lista: al abrir una cédula desde abajo, se lleva a la vista.
+  useEffect(() => {
+    if (panelId == null || window.matchMedia('(min-width: 1280px)').matches)
+      return;
+    panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [panelId]);
   const mecanismoCargar = mecanismos.find((m) => m.id === cargarId) ?? null;
+  const mecanismoRevocar = mecanismos.find((m) => m.id === revocarId) ?? null;
 
   if (isError) {
     return (
@@ -159,8 +175,12 @@ export function MecanismosConsejoContainer({
             : ''
         }
       >
+        {/* El sticky va en el renglón de la rejilla: así acompaña al desplazar mientras la lista sigue. */}
         {mecanismoPanel && (
-          <div className="xl:order-2">
+          <div
+            ref={panelRef}
+            className="xl:order-2 xl:sticky xl:top-[calc(var(--header-height,70px)+1rem)] xl:self-start"
+          >
             <CedulaPanel
               mecanismo={mecanismoPanel}
               onCerrar={() => setPanelId(null)}
@@ -174,6 +194,9 @@ export function MecanismosConsejoContainer({
           className={[
             'min-w-0 transition-opacity duration-150 motion-reduce:transition-none',
             isFetching && !isLoading ? 'opacity-60' : 'opacity-100',
+            mecanismoPanel
+              ? 'xl:sticky xl:top-[calc(var(--header-height,70px)+1rem)] xl:self-start'
+              : '',
           ].join(' ')}
         >
           <MecanismosTable
@@ -187,6 +210,7 @@ export function MecanismosConsejoContainer({
             isLoading={isLoading}
             headerContent={
               <MecanismosFiltros
+                compacto={!!mecanismoPanel}
                 filtros={filtros}
                 onChange={setFiltros}
                 conteos={conteos}
@@ -223,6 +247,9 @@ export function MecanismosConsejoContainer({
             onCargarCedula={
               puedeCargarCedula ? (m) => setCargarId(m.id) : undefined
             }
+            onRevocarInforme={
+              puedeRevocar ? (m) => setRevocarId(m.id) : undefined
+            }
           />
         </div>
       </div>
@@ -248,6 +275,37 @@ export function MecanismosConsejoContainer({
           mecanismo={mecanismoCargar}
           open={cargarId != null}
           onOpenChange={(v) => !v && setCargarId(null)}
+        />
+      )}
+
+      {puedeRevocar && (
+        <MotivoDialog
+          open={revocarId != null}
+          onOpenChange={(v) => !v && !revocar.isPending && setRevocarId(null)}
+          titulo={`Revocación del informe · ${mecanismoRevocar ? claveMecanismo(mecanismoRevocar) : ''}`}
+          descripcion={`${nombreConsejo} vuelve a Sin informar y podrá capturar de nuevo; se conservan su costo, su CAE y sus observaciones. La revocación queda en el historial.`}
+          accion="Revocar informe"
+          icono={<Undo2 className="h-4 w-4" aria-hidden="true" />}
+          pendiente={revocar.isPending}
+          error={
+            revocar.isError
+              ? (getFirstBackendError(revocar.error) ?? null)
+              : null
+          }
+          onConfirmar={(motivo) => {
+            if (!mecanismoRevocar) return;
+            revocar.mutate(
+              {
+                id: mecanismoRevocar.id,
+                payload: {
+                  tipo_consejo: tipoConsejo,
+                  id_consejo: idConsejo,
+                  motivo,
+                },
+              },
+              { onSuccess: () => setRevocarId(null) },
+            );
+          }}
         />
       )}
 

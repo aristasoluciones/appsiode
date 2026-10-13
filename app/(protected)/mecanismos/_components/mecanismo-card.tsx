@@ -1,17 +1,15 @@
 'use client';
 
-import { Eye, FilePen, FileText, Pencil, Upload } from 'lucide-react';
+import { Eye, FilePen, FileText, Pencil, Undo2, Upload } from 'lucide-react';
 import type { IMecanismoLista } from '@/types/mecanismos';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { claveMecanismo } from '../_lib/estatus';
+import { claveMecanismo, puedeInformar } from '../_lib/estatus';
 import {
   CaeTexto,
   CasillasPorSeccion,
-  CedulaBadge,
   CostoTexto,
   InformeBadge,
-  ObservacionesTexto,
 } from './mecanismo-celdas';
 
 export interface MecanismoAcciones {
@@ -24,6 +22,8 @@ export interface MecanismoAcciones {
   onVerCedula?: (m: IMecanismoLista) => void;
   /** Oficina central: carga o reemplaza el PDF; ausente = sin permiso. */
   onCargarCedula?: (m: IMecanismoLista) => void;
+  /** Oficina central: regresa el informe a Sin informar; ausente = sin permiso. */
+  onRevocarInforme?: (m: IMecanismoLista) => void;
 }
 
 /**
@@ -72,12 +72,12 @@ export function BotonCedula({
 export function MecanismoCard({
   m,
   consejo,
-  modo,
   onVerDetalle,
   onInformar,
   onEditar,
   onVerCedula,
   onCargarCedula,
+  onRevocarInforme,
 }: {
   m: IMecanismoLista;
   consejo: string;
@@ -101,18 +101,12 @@ export function MecanismoCard({
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
-          {onInformar && m.estatus !== 'INFORMADO' && (
+          {onInformar && puedeInformar(m) && (
             <Button
               variant="outline"
               size="sm"
               className={boton}
               onClick={() => onInformar(m)}
-              disabled={!m.tiene_cedula}
-              title={
-                m.tiene_cedula
-                  ? undefined
-                  : 'Sin cédula: se informa cuando oficina central la cargue'
-              }
             >
               <FilePen className="h-4 w-4" aria-hidden="true" />
               Informar
@@ -128,6 +122,17 @@ export function MecanismoCard({
             >
               <Pencil className="h-4 w-4" aria-hidden="true" />
               Editar
+            </Button>
+          )}
+          {onRevocarInforme && m.estatus === 'INFORMADO' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className={boton}
+              onClick={() => onRevocarInforme(m)}
+            >
+              <Undo2 className="h-4 w-4" aria-hidden="true" />
+              Revocar informe
             </Button>
           )}
           <BotonCedula
@@ -160,11 +165,7 @@ export function MecanismoCard({
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Costo</p>
-          <CostoTexto m={m} modo={modo} />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Observaciones</p>
-          <ObservacionesTexto m={m} />
+          <CostoTexto m={m} />
         </div>
         <div className="col-span-2">
           <p className="text-xs text-muted-foreground">CAE</p>
@@ -174,7 +175,6 @@ export function MecanismoCard({
 
       <footer className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
         <InformeBadge m={m} />
-        <CedulaBadge m={m} />
         {!m.activo && (
           <Badge variant="destructive" appearance="light" size="sm">
             Inactivo

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { UserRoundSearch, X } from 'lucide-react';
 import type { UseFormReturn } from 'react-hook-form';
 import type { ICae } from '@/types/mecanismos';
+import { formatMoneda } from '@/lib/helpers';
 import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -113,7 +114,14 @@ export function InformeCaeCampo({ form, disabled }: CampoProps) {
 }
 
 /** Costo estimado en pesos, obligatorio al informar cuando el consejo captura costo. */
-export function InformeCostoCampo({ form, disabled }: CampoProps) {
+export function InformeCostoCampo({
+  form,
+  disabled,
+  costoIne,
+}: CampoProps & {
+  /** Costo del INE (formato de importación), como referencia al capturar. */
+  costoIne: number | null;
+}) {
   return (
     <FormField
       control={form.control}
@@ -136,6 +144,13 @@ export function InformeCostoCampo({ form, disabled }: CampoProps) {
               className="max-w-56"
             />
           </FormControl>
+          <FormDescription>
+            Costo del INE para este mecanismo:{' '}
+            <span className="font-medium text-foreground tabular-nums">
+              {costoIne != null ? formatMoneda(costoIne) : 'Sin capturar'}
+            </span>
+            . Tómalo como referencia al capturar el tuyo.
+          </FormDescription>
           <FormMessage />
         </FormItem>
       )}
@@ -167,8 +182,9 @@ export function InformarCheckCampo({ form, disabled }: CampoProps) {
               </FormLabel>
               <FormDescription>
                 Habilítalo si deseas informar el mecanismo: se guarda esta
-                observación y el mecanismo pasa a Informado. Después ya no
-                admite cambios.
+                observación y el mecanismo pasa a Informado. Después queda
+                cerrado: para corregirlo, oficina central debe revocar el
+                informe.
               </FormDescription>
             </div>
           </div>

@@ -37,7 +37,7 @@ export function CedulaPanel({
 
   return (
     <aside
-      className="flex flex-col rounded-lg border border-border bg-card overflow-hidden h-[70vh] xl:h-[calc(100vh-8rem)] xl:sticky xl:top-4"
+      className="flex flex-col rounded-lg border border-border bg-card overflow-hidden h-[70vh] xl:h-[calc(100vh-var(--header-height,70px)-2rem)]"
       aria-label={`Cédula del mecanismo ${claveMecanismo(mecanismo)}`}
     >
       <header className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border bg-muted/30 shrink-0">

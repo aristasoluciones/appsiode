@@ -98,3 +98,14 @@ export function agruparCasillas(
   }
   return grupos;
 }
+
+/**
+ * El consejo informa solo un mecanismo con cédula y sin informar; ya informado
+ * queda cerrado hasta que oficina central revoque el informe.
+ */
+export function puedeInformar(m: {
+  tiene_cedula: boolean;
+  estatus: string;
+}): boolean {
+  return m.tiene_cedula && m.estatus !== 'INFORMADO';
+}

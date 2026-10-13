@@ -140,7 +140,6 @@ export interface IMecanismoLista extends IMecanismoEstadoBase {
   numero: number;
   /** Dato del INE: qué consejo revisa el mecanismo. */
   visualizacion: string | null;
-  eleccion_atendida: string | null;
   distancia_km: number | null;
   tiempo_recorrido_minutos: number | null;
   /** HH:MM ya formateado por el API. */
@@ -192,7 +191,6 @@ export interface IMecanismo extends IMecanismoEstadoBase {
   tipo_desc: string;
   numero: number;
   visualizacion: string | null;
-  eleccion_atendida: string | null;
   distancia_km: number | null;
   tiempo_recorrido_minutos: number | null;
   tiempo_recorrido: string | null;
@@ -229,7 +227,12 @@ export interface IMecanismoSeguimiento {
   sin_informar: number;
   porcentaje_informados: number;
   con_cae: number;
+  /** Suma del costo que capturó el consejo al informar (costo real). */
   costo_estimado: number;
+  /** Suma del costo del INE de todos los mecanismos que informa el consejo. */
+  costo_ine: number;
+  /** La misma suma, solo de los ya informados: es el proyectado comparable con el real. */
+  costo_ine_informados: number;
   con_cedula: number;
   sin_cedula: number;
   /** Mecanismos con al menos una observación registrada. */
@@ -239,11 +242,6 @@ export interface IMecanismoSeguimiento {
 }
 
 /** Consejo vinculado en el alta o la edición (los combos Municipio/s y ODE/s). */
-export interface IMecanismoConsejoPayload {
-  tipo_consejo: TTipoConsejoChar;
-  id_consejo: number;
-}
-
 export interface IMecanismoCasillaPayload {
   seccion: number;
   casilla_tipo: string;
@@ -256,7 +254,7 @@ export interface IMecanismoPayload {
   id_df: number;
   tipo: TTipoMecanismo;
   numero: number;
-  consejos: IMecanismoConsejoPayload[];
+  /** Los consejos vinculados no viajan: el API los calcula de las casillas. */
   /** Consejo que informa; si no viene, el primer municipal. */
   revisor_tipo_consejo?: TTipoConsejoChar | null;
   revisor_id_consejo?: number | null;
@@ -265,8 +263,14 @@ export interface IMecanismoPayload {
   distancia_km?: number | null;
   tiempo_recorrido_minutos?: number | null;
   costo_ine?: number | null;
-  eleccion_atendida?: string | null;
   casillas?: IMecanismoCasillaPayload[];
+}
+
+/** Revocación del informe de un consejo (oficina central); el consejo vuelve a Sin informar. */
+export interface IMecanismoRevocarInformePayload {
+  tipo_consejo: TTipoConsejoChar;
+  id_consejo: number;
+  motivo: string;
 }
 
 export interface IMecanismoCasillasPayload {
@@ -315,7 +319,6 @@ export interface IMecanismoImportacionFila {
   tipo_capturado: string;
   numero: number | null;
   visualizacion: string | null;
-  eleccion_atendida: string | null;
   costo_ine: number | null;
   errores: string[];
 }
@@ -341,7 +344,6 @@ export interface IMecanismoImportacionAgrupado {
   tipo: string;
   numero: number;
   visualizacion: string | null;
-  eleccion_atendida: string | null;
   costo_ine: number | null;
   /** Id del mecanismo que ya existe; nulo si es nuevo. */
   id: number | null;

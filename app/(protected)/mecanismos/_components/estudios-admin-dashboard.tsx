@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AccessDenied } from '@/components/common/access-denied';
-import { ChipFiltro } from '@/components/common/chip-filtro';
+import { ChipFiltro, ConteoChip } from '@/components/common/chip-filtro';
 import { ErrorState } from '@/components/common/error-state';
 import { useEstudiosAvance } from '../_hooks/use-estudios';
 import { useDescargarReporteEstudios } from '../_hooks/use-mecanismos-reportes';
@@ -210,7 +210,7 @@ export function EstudiosAdminDashboard() {
               }
             >
               {ESTATUS_ESTUDIO[k].label}
-              <span className="tabular-nums font-semibold">{conteos[k]}</span>
+              <ConteoChip>{conteos[k]}</ConteoChip>
             </ChipFiltro>
           ))}
         </div>

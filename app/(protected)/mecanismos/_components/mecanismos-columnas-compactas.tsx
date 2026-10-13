@@ -1,103 +1,187 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
+import { Eye, FilePen, Pencil, Undo2, Upload } from 'lucide-react';
 import type { IMecanismoLista } from '@/types/mecanismos';
-import { TIPO_MECANISMO_CORTO } from '../_lib/estatus';
+import { Button } from '@/components/ui/button';
+import { puedeInformar, TIPO_MECANISMO_CORTO } from '../_lib/estatus';
+import type { MecanismoAcciones } from './mecanismo-card';
 import {
   CaeTexto,
   CasillasPorSeccion,
-  CedulaBadge,
-  CostoTexto,
   InformeBadge,
+  MontoCosto,
 } from './mecanismo-celdas';
-import {
-  AccionesCelda,
-  skBadge,
-  skDos,
-  type ColumnasParams,
-} from './mecanismos-columnas';
+import { skDos, type ColumnasParams } from './mecanismos-columnas';
+
+/** Una pieza de la ficha con su etiqueta arriba: «Costo INE», «CAE». */
+function Dato({
+  etiqueta,
+  children,
+}: {
+  etiqueta: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[0.6875rem] text-muted-foreground leading-tight">
+        {etiqueta}
+      </p>
+      <div className="mt-0.5">{children}</div>
+    </div>
+  );
+}
 
 /**
- * Columnas para cuando la cédula está abierta a la derecha: menos ancho, sin
- * scroll horizontal y con lo esencial a la vista (mecanismo, secciones y
- * casillas, CAE, estatus con costo y acciones). El consejo ya está en el
- * encabezado de la página; el resto queda en el detalle.
+ * Ficha del mecanismo para la lista junto a la cédula: en lugar de columnas
+ * apretadas, todo en líneas dentro de un solo renglón. Arriba número, tipo y
+ * estatus; luego secciones y casillas; abajo costos y CAE.
  */
-export function crearColumnasMecanismosCompactas({
-  modo,
-  ...acciones
-}: ColumnasParams): ColumnDef<IMecanismoLista>[] {
+function FichaMecanismo({ m }: { m: IMecanismoLista }) {
+  return (
+    <div className={`space-y-2 py-1 ${m.activo ? '' : 'opacity-60'}`}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <p className="text-sm text-foreground whitespace-nowrap">
+          <span className="text-xs text-muted-foreground">No.</span>{' '}
+          <span className="font-semibold tabular-nums">{m.numero}</span>
+        </p>
+        <span className="text-xs text-muted-foreground">
+          {TIPO_MECANISMO_CORTO[m.tipo]}
+        </span>
+        <span className="ml-auto">
+          <InformeBadge m={m} />
+        </span>
+      </div>
+
+      <CasillasPorSeccion
+        texto={m.casillas_propias_texto}
+        conteo={`${m.casillas_propias} casillas`}
+      />
+
+      <div className="grid grid-cols-[auto_auto_minmax(0,1fr)] gap-x-4 gap-y-1 items-start">
+        <Dato etiqueta="Costo INE">
+          <MontoCosto valor={m.costo_ine} origen="ine" />
+        </Dato>
+        <Dato etiqueta="Costo consejo">
+          <MontoCosto valor={m.costo_estimado} origen="consejo" />
+        </Dato>
+        <Dato etiqueta="CAE">
+          <CaeTexto m={m} />
+        </Dato>
+      </div>
+    </div>
+  );
+}
+
+/** Botón pequeño de la barra de la ficha; no propaga el clic para no cambiar el PDF a la vista. */
+function BotonFicha({
+  onClick,
+  icono,
+  children,
+  principal,
+}: {
+  onClick: () => void;
+  icono: React.ReactNode;
+  children: React.ReactNode;
+  principal?: boolean;
+}) {
+  return (
+    <Button
+      type="button"
+      variant={principal ? 'primary' : 'outline'}
+      size="sm"
+      className="h-7 px-2 gap-1 text-xs"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      {icono}
+      {children}
+    </Button>
+  );
+}
+
+/**
+ * Acciones dentro de la ficha, con texto. Sin «Ver cédula»: aquí el clic en la
+ * ficha ya la muestra; solo queda «Cargar cédula» para oficina central cuando falta.
+ */
+function AccionesFicha({
+  m,
+  onVerDetalle,
+  onInformar,
+  onEditar,
+  onCargarCedula,
+  onRevocarInforme,
+}: { m: IMecanismoLista } & MecanismoAcciones) {
+  const icono = 'h-3.5 w-3.5';
+  return (
+    <div className="flex flex-wrap justify-end gap-1.5 pt-2 border-t border-border/60">
+      {onInformar && puedeInformar(m) && (
+        <BotonFicha
+          principal
+          onClick={() => onInformar(m)}
+          icono={<FilePen className={icono} aria-hidden="true" />}
+        >
+          Informar
+        </BotonFicha>
+      )}
+      {onRevocarInforme && m.estatus === 'INFORMADO' && (
+        <BotonFicha
+          onClick={() => onRevocarInforme(m)}
+          icono={<Undo2 className={icono} aria-hidden="true" />}
+        >
+          Revocar informe
+        </BotonFicha>
+      )}
+      {onEditar && m.activo && (
+        <BotonFicha
+          onClick={() => onEditar(m)}
+          icono={<Pencil className={icono} aria-hidden="true" />}
+        >
+          Editar
+        </BotonFicha>
+      )}
+      {onCargarCedula && !m.tiene_cedula && (
+        <BotonFicha
+          onClick={() => onCargarCedula(m)}
+          icono={<Upload className={icono} aria-hidden="true" />}
+        >
+          Cargar cédula
+        </BotonFicha>
+      )}
+      <BotonFicha
+        onClick={() => onVerDetalle(m)}
+        icono={<Eye className={icono} aria-hidden="true" />}
+      >
+        Detalle
+      </BotonFicha>
+    </div>
+  );
+}
+
+/**
+ * Columna única para cuando la cédula está abierta a la derecha: una ficha por
+ * mecanismo con su información y sus acciones, sin scroll horizontal. El
+ * consejo ya está en el encabezado de la página; el resto queda en el detalle.
+ */
+export function crearColumnasMecanismosCompactas(
+  params: ColumnasParams,
+): ColumnDef<IMecanismoLista>[] {
   return [
     {
-      id: 'tipo',
-      header: 'Mecanismo',
-      size: 110,
-      accessorFn: (m) => m.tipo,
+      // Mismo id que en la tabla completa: conserva el orden por tipo y número.
+      id: 'mecanismo',
+      header: 'Mecanismos',
+      accessorFn: (m) => `${m.tipo}-${String(m.numero).padStart(3, '0')}`,
       cell: ({ row }) => (
-        <div className={row.original.activo ? '' : 'opacity-60'}>
-          <p className="text-sm font-medium text-foreground leading-tight whitespace-nowrap">
-            {TIPO_MECANISMO_CORTO[row.original.tipo]}{' '}
-            <span className="font-semibold tabular-nums">
-              {row.original.numero}
-            </span>
-          </p>
-          <div className="mt-1">
-            <CedulaBadge m={row.original} />
-          </div>
+        <div className="space-y-2">
+          <FichaMecanismo m={row.original} />
+          <AccionesFicha m={row.original} {...params} />
         </div>
       ),
       meta: { skeleton: skDos },
       enableSorting: true,
-    },
-    {
-      id: 'numero',
-      accessorFn: (m) => m.numero,
-      enableHiding: true,
-    },
-    {
-      id: 'casillas',
-      header: 'Secciones / Casillas',
-      size: 200,
-      accessorFn: (m) => m.secciones_propias ?? '',
-      cell: ({ row }) => (
-        <CasillasPorSeccion
-          texto={row.original.casillas_propias_texto}
-          conteo={`${row.original.casillas_propias} casillas`}
-        />
-      ),
-      meta: { skeleton: skDos },
-      enableSorting: true,
-    },
-    {
-      id: 'cae',
-      header: 'CAE',
-      size: 150,
-      accessorFn: (m) => m.cae_nombre ?? '',
-      cell: ({ row }) => <CaeTexto m={row.original} />,
-      meta: { skeleton: skDos },
-      enableSorting: true,
-    },
-    {
-      id: 'estatus',
-      header: 'Estatus',
-      size: 130,
-      accessorFn: (m) => (m.estatus === 'INFORMADO' ? 1 : 0),
-      cell: ({ row }) => (
-        <div className="space-y-1">
-          <InformeBadge m={row.original} />
-          <CostoTexto m={row.original} modo={modo} />
-        </div>
-      ),
-      meta: { skeleton: skBadge },
-      enableSorting: true,
-    },
-    {
-      id: 'actions',
-      header: '',
-      size: 130,
-      cell: ({ row }) => <AccionesCelda m={row.original} {...acciones} />,
-      enableSorting: false,
-      enableHiding: false,
     },
   ];
 }

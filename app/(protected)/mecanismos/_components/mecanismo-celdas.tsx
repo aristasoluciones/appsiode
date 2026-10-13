@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   agruparCasillas,
   ESTATUS_MECANISMO,
-  TIPO_OBSERVACION_CORTO,
+  TIPO_MECANISMO_CORTO,
 } from '../_lib/estatus';
 
 /** Estatus del mecanismo según el consejo que lo informa. */
@@ -48,38 +48,6 @@ export function CedulaBadge({
   );
 }
 
-/** Total de observaciones y tipo de la última, con su fecha. */
-export function ObservacionesTexto({
-  m,
-}: {
-  m: Pick<
-    IMecanismoLista,
-    | 'total_observaciones'
-    | 'ultima_observacion_tipo'
-    | 'ultima_observacion_fecha'
-  >;
-}) {
-  if (m.total_observaciones === 0) {
-    return <span className="text-sm text-muted-foreground">Ninguna</span>;
-  }
-  return (
-    <div>
-      <p className="text-sm text-foreground leading-tight tabular-nums">
-        {m.total_observaciones}{' '}
-        {m.total_observaciones === 1 ? 'observación' : 'observaciones'}
-      </p>
-      <p className="text-xs text-muted-foreground mt-0.5">
-        Última:{' '}
-        {m.ultima_observacion_tipo
-          ? TIPO_OBSERVACION_CORTO[m.ultima_observacion_tipo]
-          : '—'}
-        {m.ultima_observacion_fecha &&
-          ` · ${formatFechaHora(m.ultima_observacion_fecha)}`}
-      </p>
-    </div>
-  );
-}
-
 /** Folio y nombre del CAE congelado en el mecanismo; avisa si ya no está activo. */
 export function CaeTexto({
   m,
@@ -87,7 +55,9 @@ export function CaeTexto({
   m: Pick<IMecanismoLista, 'cae_folio' | 'cae_nombre' | 'cae_activo'>;
 }) {
   if (!m.cae_folio) {
-    return <span className="text-sm text-muted-foreground">Sin CAE</span>;
+    return (
+      <span className="text-sm text-muted-foreground italic">Sin capturar</span>
+    );
   }
   return (
     <div>
@@ -112,33 +82,54 @@ function importe(valor: number | null) {
 }
 
 /**
- * Costo del mecanismo. El consejo ve el que captura; oficina central ve el
- * costo INE de referencia y el del consejo.
+ * Costo del mecanismo: el del INE como referencia y el que captura el consejo.
  */
 export function CostoTexto({
   m,
-  modo,
 }: {
   m: Pick<IMecanismoLista, 'costo_ine' | 'costo_estimado'>;
-  modo: 'consejo' | 'admin';
 }) {
-  if (modo === 'consejo') {
-    return (
-      <span className="text-sm text-foreground tabular-nums">
-        {importe(m.costo_estimado)}
-      </span>
-    );
-  }
   return (
-    <div className="tabular-nums text-xs leading-tight space-y-0.5">
-      <p className="text-muted-foreground">
-        INE <span className="text-foreground">{importe(m.costo_ine)}</span>
-      </p>
-      <p className="text-muted-foreground">
-        Consejo{' '}
-        <span className="text-foreground">{importe(m.costo_estimado)}</span>
-      </p>
-    </div>
+    <dl className="text-xs space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <dt className="text-muted-foreground">INE</dt>
+        <dd>
+          <MontoCosto valor={m.costo_ine} origen="ine" />
+        </dd>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <dt className="text-muted-foreground">Consejo</dt>
+        <dd>
+          <MontoCosto valor={m.costo_estimado} origen="consejo" />
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+/**
+ * Monto resaltado con los colores institucionales: gris el del INE, magenta el
+ * del consejo. Sin valor, «Sin capturar». Lo comparten la lista y el seguimiento.
+ */
+export function MontoCosto({
+  valor,
+  origen,
+}: {
+  valor: number | null;
+  origen: 'ine' | 'consejo';
+}) {
+  if (valor == null) return importe(null);
+  return (
+    <span
+      className={[
+        'inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums',
+        origen === 'ine'
+          ? 'bg-secondary text-secondary-foreground'
+          : 'bg-primary/10 text-primary',
+      ].join(' ')}
+    >
+      {formatMoneda(valor)}
+    </span>
   );
 }
 
@@ -180,6 +171,25 @@ export function CasillasPorSeccion({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Identidad del mecanismo en la lista: el número arriba («No. 3») y el tipo debajo. */
+export function MecanismoCelda({
+  m,
+}: {
+  m: Pick<IMecanismoLista, 'tipo' | 'numero' | 'activo'>;
+}) {
+  return (
+    <div className={`leading-tight ${m.activo ? '' : 'opacity-60'}`}>
+      <p className="text-sm text-foreground whitespace-nowrap">
+        <span className="text-xs text-muted-foreground">No.</span>{' '}
+        <span className="font-semibold tabular-nums">{m.numero}</span>
+      </p>
+      <p className="text-xs text-muted-foreground whitespace-nowrap mt-0.5">
+        {TIPO_MECANISMO_CORTO[m.tipo]}
+      </p>
     </div>
   );
 }

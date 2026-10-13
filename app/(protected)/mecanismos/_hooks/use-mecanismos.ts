@@ -12,6 +12,7 @@ import type {
   IMecanismoObservacionesPayload,
   IMecanismoObservacionTipo,
   IMecanismoPayload,
+  IMecanismoRevocarInformePayload,
   IMecanismoSeguimiento,
   IMecanismoTipo,
   TTipoConsejoChar,
@@ -343,6 +344,36 @@ export function useInformarMecanismo() {
       toastSuccess(
         payload.informar ? 'Mecanismo informado.' : 'Observación registrada.',
       );
+    },
+  });
+}
+
+/**
+ * Oficina central revoca el informe de un consejo: vuelve a Sin informar y
+ * conserva costo, CAE y observaciones para que el consejo corrija.
+ */
+export function useRevocarInforme() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: number;
+      payload: IMecanismoRevocarInformePayload;
+    }) => {
+      const { data } = await apiClient.post<IMecanismo>(
+        API_ENDPOINTS.MECANISMOS.INFORME_REVOCAR(id),
+        { ...payload, ...getDataAuditoria() },
+      );
+      return data;
+    },
+    onSuccess: (mecanismo) => {
+      guardarMecanismoEnCache(queryClient, mecanismo);
+      // El conteo de mecanismos por CAE se recalcula con el estatus del informe.
+      queryClient.invalidateQueries({ queryKey: MECANISMOS_KEYS.caes() });
+      toastSuccess('Informe revocado; el consejo puede capturar de nuevo.');
     },
   });
 }

@@ -28,13 +28,13 @@ export function SeguimientoCard({
   c: IMecanismoSeguimiento;
   tipoTexto: string;
 }) {
-  const cifras: [string, number][] = [
+  // Informados se lee sobre su total: «2 de 2», nunca «2 de 0».
+  const cifras: [string, string | number][] = [
     ['Mecanismos', c.mecanismos],
-    ['Informados', c.informados],
+    ['Informados', `${c.informados} de ${c.informados + c.sin_informar}`],
     ['Con cédula', c.con_cedula],
     ['Con observ.', c.con_observaciones],
     ['Con CAE', c.con_cae],
-    ['Sin cédula', c.sin_cedula],
   ];
   return (
     <Link href={rutaConsejo(c)} className="block">
@@ -61,7 +61,10 @@ export function SeguimientoCard({
           ))}
         </div>
         <footer className="flex items-center justify-between pt-2 border-t border-border text-xs text-muted-foreground">
-          <span>Costo estimado {formatMoneda(c.costo_estimado)}</span>
+          <span>
+            Total INE {formatMoneda(c.costo_ine)} · Total consejo{' '}
+            {formatMoneda(c.costo_estimado)}
+          </span>
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </footer>
       </article>

@@ -1,6 +1,7 @@
 'use client';
 
-import { CheckCircle2, MessageSquareText } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, ChevronDown, MessageSquareText } from 'lucide-react';
 import type { IMecanismoObservacion } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,8 @@ interface ObservacionesListaProps {
   observaciones: IMecanismoObservacion[] | undefined;
   titulo?: string;
   vacio?: string;
+  /** Plegada por defecto: el título abre y cierra la lista (en el detalle). */
+  colapsable?: boolean;
 }
 
 /**
@@ -27,21 +30,49 @@ export function ObservacionesLista({
   observaciones,
   titulo = 'Observaciones registradas',
   vacio = 'Todavía no hay observaciones registradas.',
+  colapsable = false,
 }: ObservacionesListaProps) {
+  const [abierta, setAbierta] = useState(!colapsable);
+  const hay = !!observaciones && observaciones.length > 0;
+
+  const encabezado = (
+    <>
+      <MessageSquareText
+        className="h-4 w-4 text-muted-foreground"
+        aria-hidden="true"
+      />
+      {titulo}
+      {observaciones && (
+        <span className="text-xs font-normal text-muted-foreground tabular-nums">
+          ({observaciones.length})
+        </span>
+      )}
+    </>
+  );
+
   return (
     <section className="space-y-2">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <MessageSquareText
-          className="h-4 w-4 text-muted-foreground"
-          aria-hidden="true"
-        />
-        {titulo}
-        {observaciones && (
-          <span className="text-xs font-normal text-muted-foreground tabular-nums">
-            ({observaciones.length})
+      {colapsable && hay ? (
+        <button
+          type="button"
+          onClick={() => setAbierta((v) => !v)}
+          aria-expanded={abierta}
+          className="flex w-full items-center gap-2 text-sm font-semibold text-foreground hover:text-primary"
+        >
+          {encabezado}
+          <span className="ml-auto flex items-center gap-1 text-xs font-normal text-primary">
+            {abierta ? 'Ocultar' : 'Ver'}
+            <ChevronDown
+              className={`h-4 w-4 transition-transform motion-reduce:transition-none ${abierta ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            />
           </span>
-        )}
-      </h3>
+        </button>
+      ) : (
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          {encabezado}
+        </h3>
+      )}
 
       {!observaciones ? (
         <div className="space-y-2" aria-busy="true">
@@ -50,7 +81,7 @@ export function ObservacionesLista({
         </div>
       ) : observaciones.length === 0 ? (
         <p className="text-sm text-muted-foreground">{vacio}</p>
-      ) : (
+      ) : !abierta ? null : (
         <ScrollArea viewportClassName="max-h-72 pr-3">
           <ul className="space-y-2">
             {[...observaciones].reverse().map((o) => (

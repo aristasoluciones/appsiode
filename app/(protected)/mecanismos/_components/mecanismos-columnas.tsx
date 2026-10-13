@@ -1,21 +1,20 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import { Eye, FilePen, FileText, Pencil, Upload } from 'lucide-react';
+import { Eye, FilePen, FileText, Pencil, Undo2, Upload } from 'lucide-react';
 import type { IMecanismoLista } from '@/types/mecanismos';
 import { formatFechaHora } from '@/lib/fechas';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BotonAccion } from '@/components/common/boton-accion';
-import { TIPO_MECANISMO_CORTO } from '../_lib/estatus';
+import { puedeInformar } from '../_lib/estatus';
 import type { MecanismoAcciones } from './mecanismo-card';
 import {
   CaeTexto,
   CasillasPorSeccion,
-  CedulaBadge,
   CostoTexto,
   InformeBadge,
-  ObservacionesTexto,
+  MecanismoCelda,
 } from './mecanismo-celdas';
 
 const sk = (w: string) => (
@@ -39,18 +38,14 @@ export function AccionesCelda({
   onEditar,
   onVerCedula,
   onCargarCedula,
+  onRevocarInforme,
 }: { m: IMecanismoLista } & MecanismoAcciones) {
   return (
     <div className="flex items-center justify-end gap-1">
-      {onInformar && m.estatus !== 'INFORMADO' && (
+      {onInformar && puedeInformar(m) && (
         <BotonAccion
-          etiqueta={
-            m.tiene_cedula
-              ? 'Informar mecanismo'
-              : 'Sin cédula: se informa cuando oficina central la cargue'
-          }
+          etiqueta="Informar mecanismo"
           onClick={() => onInformar(m)}
-          disabled={!m.tiene_cedula}
         >
           <FilePen className="h-4 w-4" aria-hidden="true" />
         </BotonAccion>
@@ -62,6 +57,14 @@ export function AccionesCelda({
           disabled={!m.activo}
         >
           <Pencil className="h-4 w-4" aria-hidden="true" />
+        </BotonAccion>
+      )}
+      {onRevocarInforme && m.estatus === 'INFORMADO' && (
+        <BotonAccion
+          etiqueta="Revocar informe"
+          onClick={() => onRevocarInforme(m)}
+        >
+          <Undo2 className="h-4 w-4" aria-hidden="true" />
         </BotonAccion>
       )}
       {!m.tiene_cedula && onCargarCedula ? (
@@ -102,20 +105,15 @@ export function crearColumnasMecanismos({
   tipoConsejo,
   ...acciones
 }: ColumnasParams): ColumnDef<IMecanismoLista>[] {
-  const inactivo = (m: IMecanismoLista) => (m.activo ? '' : 'opacity-60');
-
   const columnas: ColumnDef<IMecanismoLista>[] = [
     {
       id: 'consejo',
       header: 'Consejo',
-      size: 200,
+      size: 220,
       accessorFn: () => consejo,
       cell: () => (
         <div>
-          <p
-            className="text-sm text-foreground leading-tight truncate max-w-[190px]"
-            title={consejo}
-          >
+          <p className="text-sm text-foreground leading-tight whitespace-normal">
             {consejo}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -127,33 +125,13 @@ export function crearColumnasMecanismos({
       enableSorting: false,
     },
     {
-      id: 'tipo',
-      header: 'Tipo',
-      size: 150,
-      accessorFn: (m) => m.tipo,
-      cell: ({ row }) => (
-        <p
-          className={`text-sm font-medium text-foreground ${inactivo(row.original)}`}
-        >
-          {TIPO_MECANISMO_CORTO[row.original.tipo]}
-        </p>
-      ),
-      meta: { skeleton: sk('w-24') },
-      enableSorting: true,
-    },
-    {
-      id: 'numero',
-      header: 'Número',
-      size: 100,
-      accessorFn: (m) => m.numero,
-      cell: ({ row }) => (
-        <p
-          className={`text-sm font-semibold text-foreground tabular-nums ${inactivo(row.original)}`}
-        >
-          {row.original.numero}
-        </p>
-      ),
-      meta: { skeleton: sk('w-10') },
+      id: 'mecanismo',
+      header: 'Mecanismo',
+      size: 130,
+      // Ordena por tipo y, dentro de cada tipo, por número.
+      accessorFn: (m) => `${m.tipo}-${String(m.numero).padStart(3, '0')}`,
+      cell: ({ row }) => <MecanismoCelda m={row.original} />,
+      meta: { skeleton: skDos },
       enableSorting: true,
     },
     {
@@ -219,19 +197,10 @@ export function crearColumnasMecanismos({
     {
       id: 'costo',
       header: 'Costo',
-      size: modo === 'admin' ? 170 : 130,
+      size: 170,
       accessorFn: (m) => m.costo_estimado ?? -1,
-      cell: ({ row }) => <CostoTexto m={row.original} modo={modo} />,
+      cell: ({ row }) => <CostoTexto m={row.original} />,
       meta: { skeleton: sk('w-24') },
-      enableSorting: true,
-    },
-    {
-      id: 'observaciones',
-      header: 'Observaciones',
-      size: 190,
-      accessorFn: (m) => m.total_observaciones,
-      cell: ({ row }) => <ObservacionesTexto m={row.original} />,
-      meta: { skeleton: skDos },
       enableSorting: true,
     },
     {
@@ -247,21 +216,13 @@ export function crearColumnasMecanismos({
               {formatFechaHora(row.original.fecha_informe)}
             </p>
           )}
-        </div>
-      ),
-      meta: { skeleton: skBadge },
-      enableSorting: true,
-    },
-    {
-      id: 'cedula',
-      header: 'Cédula',
-      size: 130,
-      accessorFn: (m) => (m.tiene_cedula ? 1 : 0),
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1">
-          <CedulaBadge m={row.original} />
           {!row.original.activo && (
-            <Badge variant="destructive" appearance="light" size="sm">
+            <Badge
+              variant="destructive"
+              appearance="light"
+              size="sm"
+              className="mt-1.5"
+            >
               Inactivo
             </Badge>
           )}

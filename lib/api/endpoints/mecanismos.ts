@@ -40,6 +40,8 @@ export const MECANISMOS = {
   OBSERVACIONES: (id: Id) => `/mecanismos/${id}/observaciones`,
   /** Informe del consejo que revisa: CAE, costo estimado y observaciones (PUT). */
   INFORME: (id: Id) => `/mecanismos/${id}/informe`,
+  /** Oficina central regresa a Sin informar el informe de un consejo, con motivo. */
+  INFORME_REVOCAR: (id: Id) => `/mecanismos/${id}/informe/revocar`,
   /** Catálogo de tipos de mecanismo (DAT, CRYT fijo, CRYT itinerante). */
   TIPOS: (incluirInactivos?: boolean) =>
     `/mecanismos/tipos${qs({ incluirInactivos: incluirInactivos ? 'true' : undefined })}`,
