@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TextoExpandible } from '@/components/common/texto-expandible';
 import {
   TIPO_OBSERVACION_CORTO,
+  TIPO_OTRO,
   TIPO_SIN_OBSERVACIONES,
 } from '../_lib/estatus';
 
@@ -97,7 +98,9 @@ export function ObservacionesLista({
                     appearance="light"
                     size="sm"
                   >
-                    {o.tipo_desc || TIPO_OBSERVACION_CORTO[o.tipo] || o.tipo}
+                    {o.tipo === TIPO_OTRO && o.tipo_otro
+                      ? `Otro: ${o.tipo_otro}`
+                      : o.tipo_desc || TIPO_OBSERVACION_CORTO[o.tipo] || o.tipo}
                   </Badge>
                   {o.informo && (
                     <Badge variant="success" appearance="light" size="sm">

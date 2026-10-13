@@ -18,7 +18,15 @@ export type TObservacionTipo =
   | 'DOMICILIO'
   | 'DESTINO'
   | 'CASILLA_SECCION'
-  | 'RUTA';
+  /** Ya no se ofrece: se dividió en tiempo y distancia; se conserva para lo registrado. */
+  | 'RUTA'
+  | 'RUTA_TIEMPO'
+  | 'RUTA_DISTANCIA'
+  | 'VIA_TERRESTRE'
+  | 'VIA_AEREA'
+  | 'VIA_MARITIMA'
+  /** El usuario especifica el tipo en `tipo_otro`. */
+  | 'OTRO';
 
 /** Estatus del estudio de factibilidad de un distrito federal. */
 export type TEstudioEstatus = 'PROPUESTO' | 'APROBADO' | 'CERRADO' | 'ANULADO';
@@ -89,6 +97,8 @@ export interface IMecanismoObservacion {
   id: number;
   tipo: TObservacionTipo;
   tipo_desc: string;
+  /** Tipo que escribió el usuario; solo con `OTRO`. */
+  tipo_otro: string | null;
   /** Nulo solo con `SIN_OBSERVACIONES`. */
   observaciones: string | null;
   /** Ese guardado marcó «Informar». */
@@ -109,7 +119,7 @@ export interface IMecanismoConsejo {
   cae_nombre: string | null;
   costo_estimado: number | null;
   fecha_informe: string | null;
-  informe_estatus_desc: 'Sin informar' | 'Informado';
+  informe_estatus_desc: 'Sin revisar' | 'Revisado';
   estatus: TMecanismoEstatus;
   estatus_desc: string;
   /** Solo en el detalle del mecanismo, de la más antigua a la más reciente. */
@@ -163,7 +173,7 @@ export interface IMecanismoLista extends IMecanismoEstadoBase {
   /** «D-12» / «M-45»: el consejo que informa. */
   revisor: string | null;
   revisor_consejo: string | null;
-  informe_estatus_desc: 'Sin informar' | 'Informado';
+  informe_estatus_desc: 'Sin revisar' | 'Revisado';
   informado: boolean;
   /** Informe del consejo que consulta o, para oficina central, del que informa. */
   id_revision: number | null;
@@ -293,6 +303,8 @@ export interface IMecanismoObservacionesPayload {
  */
 export interface IMecanismoInformarPayload {
   tipo_observacion: TObservacionTipo;
+  /** Obligatorio con `OTRO`; nulo con cualquier otro tipo. */
+  tipo_otro?: string | null;
   observaciones?: string | null;
   informar: boolean;
   cae_folio?: string | null;

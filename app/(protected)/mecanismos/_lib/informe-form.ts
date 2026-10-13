@@ -4,7 +4,7 @@ import type {
   IMecanismoLista,
   TObservacionTipo,
 } from '@/types/mecanismos';
-import { TIPO_SIN_OBSERVACIONES } from './estatus';
+import { TIPO_OTRO, TIPO_SIN_OBSERVACIONES } from './estatus';
 import { MECANISMOS_LIMITES } from './limites';
 
 /**
@@ -19,6 +19,12 @@ export function crearInformeSchema(capturaCosto: boolean, asignaCae: boolean) {
       tipo_observacion: z
         .string()
         .min(1, { message: 'Elige el tipo de observación.' }),
+      tipo_otro: z
+        .string()
+        .trim()
+        .max(MECANISMOS_LIMITES.tipoOtro.max, {
+          message: `El tipo no debe exceder ${MECANISMOS_LIMITES.tipoOtro.max} caracteres.`,
+        }),
       observaciones: z
         .string()
         .trim()
@@ -31,6 +37,13 @@ export function crearInformeSchema(capturaCosto: boolean, asignaCae: boolean) {
       costo: z.string().trim(),
     })
     .superRefine((v, ctx) => {
+      if (v.tipo_observacion === TIPO_OTRO && v.tipo_otro === '') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['tipo_otro'],
+          message: 'Especifica el tipo de observación.',
+        });
+      }
       if (
         v.tipo_observacion !== TIPO_SIN_OBSERVACIONES &&
         v.observaciones === ''
@@ -78,6 +91,7 @@ export type TInformeForm = z.infer<ReturnType<typeof crearInformeSchema>>;
 export function informeInicial(m: IMecanismoLista | null): TInformeForm {
   return {
     tipo_observacion: '',
+    tipo_otro: '',
     observaciones: '',
     informar: false,
     cae_folio: m?.cae_folio ?? '',
@@ -94,6 +108,10 @@ export function informeAPayload(
 ): IMecanismoInformarPayload {
   return {
     tipo_observacion: v.tipo_observacion as TObservacionTipo,
+    tipo_otro:
+      v.tipo_observacion === TIPO_OTRO && v.tipo_otro !== ''
+        ? v.tipo_otro
+        : null,
     observaciones: v.observaciones === '' ? null : v.observaciones,
     informar: v.informar,
     cae_folio: v.informar && asignaCae && v.cae_folio ? v.cae_folio : null,

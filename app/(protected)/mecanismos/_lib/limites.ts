@@ -15,6 +15,7 @@ export const MECANISMOS_LIMITES = {
   zip: { bytes: 200 * 1024 * 1024, entradas: 2500 },
   costo: { min: 0, max: 9_999_999.99 },
   observaciones: { max: 2000 },
+  tipoOtro: { max: 50 },
   motivo: { min: 10, max: 1000 },
   caeFolio: { max: 30 },
   numero: { min: 1, max: 999 },

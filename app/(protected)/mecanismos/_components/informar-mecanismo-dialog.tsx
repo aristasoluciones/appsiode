@@ -25,6 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -43,6 +44,7 @@ import {
 import {
   AYUDA_TIPO_OBSERVACION,
   claveMecanismo,
+  TIPO_OTRO,
   TIPO_SIN_OBSERVACIONES,
 } from '../_lib/estatus';
 import {
@@ -111,7 +113,9 @@ export function InformarMecanismoDialog({
 
   function cambiarTipo(valor: string) {
     form.setValue('tipo_observacion', valor, { shouldDirty: true });
-    form.clearErrors('observaciones');
+    // El texto de «Otro» solo vale con ese tipo.
+    if (valor !== TIPO_OTRO) form.setValue('tipo_otro', '');
+    form.clearErrors(['observaciones', 'tipo_otro']);
   }
 
   function guardar(valores: TInformeForm) {
@@ -201,6 +205,34 @@ export function InformarMecanismoDialog({
                   </FormItem>
                 )}
               />
+
+              {tipo === TIPO_OTRO && (
+                <FormField
+                  control={form.control}
+                  name="tipo_otro"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Especifica el tipo{' '}
+                        <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          maxLength={MECANISMOS_LIMITES.tipoOtro.max}
+                          placeholder="Por ejemplo: Horario de traslado"
+                          disabled={guardando}
+                        />
+                      </FormControl>
+                      <ContadorCaracteres
+                        valor={field.value}
+                        max={MECANISMOS_LIMITES.tipoOtro.max}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

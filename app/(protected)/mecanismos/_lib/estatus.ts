@@ -26,11 +26,14 @@ export const ESTATUS_MECANISMO: Record<
 /** Tipo de observación con el que se informa el mecanismo; es el único que habilita el check. */
 export const TIPO_SIN_OBSERVACIONES: TObservacionTipo = 'SIN_OBSERVACIONES';
 
-/** Ayuda de los tipos que la necesitan, bajo el combo del informe. */
+/** Ayuda de los tipos que la necesitan, bajo el combo de la revisión. */
 export const AYUDA_TIPO_OBSERVACION: Partial<Record<TObservacionTipo, string>> =
   {
-    RUTA: 'Tiempo, distancia y vía del traslado: terrestre, aérea o marítima.',
+    OTRO: 'Escribe el tipo de observación en el campo de abajo.',
   };
+
+/** Tipo «Otro»: el usuario lo especifica en texto. */
+export const TIPO_OTRO: TObservacionTipo = 'OTRO';
 
 /** Etiqueta corta de cada tipo de observación, para la lista cuando el catálogo aún no carga. */
 export const TIPO_OBSERVACION_CORTO: Record<TObservacionTipo, string> = {
@@ -40,6 +43,12 @@ export const TIPO_OBSERVACION_CORTO: Record<TObservacionTipo, string> = {
   DESTINO: 'Destino',
   CASILLA_SECCION: 'Casilla / sección',
   RUTA: 'Ruta',
+  RUTA_TIEMPO: 'Ruta - Tiempo',
+  RUTA_DISTANCIA: 'Ruta - Distancia',
+  VIA_TERRESTRE: 'Vía - Terrestre',
+  VIA_AEREA: 'Vía - Aérea',
+  VIA_MARITIMA: 'Vía - Marítima',
+  OTRO: 'Otro',
 };
 
 /** Etiqueta y color de cada estatus del estudio de factibilidad; «Sin estudio» cubre el distrito sin propuesta. */
