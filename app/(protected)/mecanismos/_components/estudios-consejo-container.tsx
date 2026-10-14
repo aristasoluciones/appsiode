@@ -45,8 +45,15 @@ export function EstudiosConsejoContainer({
 
   const estudios = data ?? [];
   const pendientes = estudios.filter((e) => e.puede_revisar).length;
-  const abierto = estudios.find((e) => e.id === abiertoId) ?? null;
-  const revisando = estudios.find((e) => e.id === revisandoId) ?? null;
+  // Un distrito sin estudio tiene id nulo: sin el guardia, null === null lo daría por abierto.
+  const abierto =
+    abiertoId != null
+      ? (estudios.find((e) => e.id === abiertoId) ?? null)
+      : null;
+  const revisando =
+    revisandoId != null
+      ? (estudios.find((e) => e.id === revisandoId) ?? null)
+      : null;
 
   if (isError) {
     return (

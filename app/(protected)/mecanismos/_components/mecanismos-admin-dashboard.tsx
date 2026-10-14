@@ -29,11 +29,7 @@ import {
   MecanismoVentanas,
   type TVentanaMecanismo,
 } from './mecanismo-ventanas';
-import {
-  consejoInformado,
-  SeguimientoTable,
-  type TFiltroInforme,
-} from './seguimiento-table';
+import { SeguimientoTable, type TFiltroInforme } from './seguimiento-table';
 
 /** Ventanas del tablero que no son de un mecanismo en particular. */
 type TVentanaTablero = 'importar' | 'caes' | 'configuracion' | null;
@@ -71,11 +67,8 @@ export function MecanismosAdminDashboard() {
   const consejos = useMemo(() => seguimiento.data ?? [], [seguimiento.data]);
   const conteos = useMemo(
     () => ({
-      informados: consejos.filter(consejoInformado).length,
-      sinInformar: consejos.filter((c) => c.sin_informar > 0).length,
+      conMecanismos: consejos.filter((c) => c.mecanismos > 0).length,
       sinMecanismos: consejos.filter((c) => c.mecanismos === 0).length,
-      conCedulas: consejos.filter((c) => c.con_cedula > 0).length,
-      sinCedulas: consejos.filter((c) => c.sin_cedula > 0).length,
     }),
     [consejos],
   );
@@ -191,23 +184,15 @@ export function MecanismosAdminDashboard() {
         <div
           className="flex flex-wrap gap-1.5 ml-auto"
           role="group"
-          aria-label="Filtrar por revisión"
+          aria-label="Filtrar por mecanismos"
         >
           <ChipFiltro
-            activo={filtroInforme === 'informados'}
+            activo={filtroInforme === 'con_mecanismos'}
             disabled={seguimiento.isLoading}
-            onClick={() => alternarFiltro('informados')}
+            onClick={() => alternarFiltro('con_mecanismos')}
           >
-            Revisados
-            <ConteoChip>{conteos.informados}</ConteoChip>
-          </ChipFiltro>
-          <ChipFiltro
-            activo={filtroInforme === 'sin_informar'}
-            disabled={seguimiento.isLoading}
-            onClick={() => alternarFiltro('sin_informar')}
-          >
-            Sin revisar
-            <ConteoChip>{conteos.sinInformar}</ConteoChip>
+            Con mecanismos
+            <ConteoChip>{conteos.conMecanismos}</ConteoChip>
           </ChipFiltro>
           <ChipFiltro
             activo={filtroInforme === 'sin_mecanismos'}
@@ -216,22 +201,6 @@ export function MecanismosAdminDashboard() {
           >
             Sin mecanismos
             <ConteoChip>{conteos.sinMecanismos}</ConteoChip>
-          </ChipFiltro>
-          <ChipFiltro
-            activo={filtroInforme === 'con_cedulas'}
-            disabled={seguimiento.isLoading}
-            onClick={() => alternarFiltro('con_cedulas')}
-          >
-            Con cédulas
-            <ConteoChip>{conteos.conCedulas}</ConteoChip>
-          </ChipFiltro>
-          <ChipFiltro
-            activo={filtroInforme === 'sin_cedulas'}
-            disabled={seguimiento.isLoading}
-            onClick={() => alternarFiltro('sin_cedulas')}
-          >
-            Sin cédulas
-            <ConteoChip>{conteos.sinCedulas}</ConteoChip>
           </ChipFiltro>
         </div>
       </div>
