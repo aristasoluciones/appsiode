@@ -38,7 +38,7 @@ export function MecanismosConsejoClient({
   const { hasPermission } = useAuth();
   const { data: seguimiento } = useSeguimiento(
     tipoConsejo,
-    hasPermission('mecanismos.seguimiento'),
+    hasPermission('mecanismos.recoleccion.seguimiento'),
   );
 
   const tipoLabel = tipoConsejo === 'D' ? 'Distrital' : 'Municipal';

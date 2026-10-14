@@ -17,11 +17,18 @@ export type TVentanaMecanismo =
   | { tipo: 'estatus'; mecanismo: IMecanismo }
   | null;
 
+/** Alta, edición (datos, casillas y observaciones) y baja son permisos separados. */
+export interface IPermisosMecanismo {
+  agregar: boolean;
+  editar: boolean;
+  baja: boolean;
+}
+
 interface MecanismoVentanasProps {
   ventana: TVentanaMecanismo;
   onChange: (ventana: TVentanaMecanismo) => void;
-  /** Oficina central con permiso: el detalle ofrece editar, observaciones y estatus. */
-  puedeAdministrar: boolean;
+  /** Oficina central: el detalle ofrece cada acción según su permiso. */
+  permisos: IPermisosMecanismo;
 }
 
 /**
@@ -32,7 +39,7 @@ interface MecanismoVentanasProps {
 export function MecanismoVentanas({
   ventana,
   onChange,
-  puedeAdministrar,
+  permisos,
 }: MecanismoVentanasProps) {
   const cerrar = (v: boolean) => !v && onChange(null);
 
@@ -43,63 +50,71 @@ export function MecanismoVentanas({
         open={ventana?.tipo === 'detalle'}
         onOpenChange={cerrar}
         acciones={
-          puedeAdministrar
+          permisos.editar || permisos.baja
             ? (m) => (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onChange({ tipo: 'editar', id: m.id })}
-                    disabled={!m.activo}
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden="true" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      onChange({ tipo: 'observaciones', mecanismo: m })
-                    }
-                  >
-                    <MessageSquareText className="h-4 w-4" aria-hidden="true" />
-                    Observaciones
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={m.activo ? 'text-destructive' : ''}
-                    onClick={() => onChange({ tipo: 'estatus', mecanismo: m })}
-                  >
-                    <Power className="h-4 w-4" aria-hidden="true" />
-                    {m.activo ? 'Dar de baja' : 'Reactivar'}
-                  </Button>
+                  {permisos.editar && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onChange({ tipo: 'editar', id: m.id })}
+                        disabled={!m.activo}
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          onChange({ tipo: 'observaciones', mecanismo: m })
+                        }
+                      >
+                        <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+                        Observaciones
+                      </Button>
+                    </>
+                  )}
+                  {permisos.baja && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={m.activo ? 'text-destructive' : ''}
+                      onClick={() => onChange({ tipo: 'estatus', mecanismo: m })}
+                    >
+                      <Power className="h-4 w-4" aria-hidden="true" />
+                      {m.activo ? 'Dar de baja' : 'Reactivar'}
+                    </Button>
+                  )}
                 </>
               )
             : undefined
         }
       />
 
-      {puedeAdministrar && (
-        <>
-          <MecanismoFormDialog
-            idMecanismo={ventana?.tipo === 'editar' ? ventana.id : null}
-            open={ventana?.tipo === 'nuevo' || ventana?.tipo === 'editar'}
-            onOpenChange={cerrar}
-          />
-          <ObservacionesMecanismoDialog
-            mecanismo={
-              ventana?.tipo === 'observaciones' ? ventana.mecanismo : null
-            }
-            open={ventana?.tipo === 'observaciones'}
-            onOpenChange={cerrar}
-          />
-          <EstatusMecanismoDialog
-            mecanismo={ventana?.tipo === 'estatus' ? ventana.mecanismo : null}
-            open={ventana?.tipo === 'estatus'}
-            onOpenChange={cerrar}
-          />
-        </>
+      {(permisos.agregar || permisos.editar) && (
+        <MecanismoFormDialog
+          idMecanismo={ventana?.tipo === 'editar' ? ventana.id : null}
+          open={ventana?.tipo === 'nuevo' || ventana?.tipo === 'editar'}
+          onOpenChange={cerrar}
+        />
+      )}
+      {permisos.editar && (
+        <ObservacionesMecanismoDialog
+          mecanismo={
+            ventana?.tipo === 'observaciones' ? ventana.mecanismo : null
+          }
+          open={ventana?.tipo === 'observaciones'}
+          onOpenChange={cerrar}
+        />
+      )}
+      {permisos.baja && (
+        <EstatusMecanismoDialog
+          mecanismo={ventana?.tipo === 'estatus' ? ventana.mecanismo : null}
+          open={ventana?.tipo === 'estatus'}
+          onOpenChange={cerrar}
+        />
       )}
     </>
   );

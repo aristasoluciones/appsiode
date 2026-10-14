@@ -37,9 +37,9 @@ export function EstudiosAdminDashboard() {
   const permisos = {
     proponer: hasPermission('mecanismos.factibilidad.proponer'),
     aprobar: hasPermission('mecanismos.factibilidad.aprobar'),
-    anular: hasPermission('mecanismos.anular'),
+    anular: hasPermission('mecanismos.factibilidad.anular'),
   };
-  const puedeExportar = hasPermission('mecanismos.exportar');
+  const puedeExportar = hasPermission('mecanismos.factibilidad.exportar');
   const puedeRevocar = hasPermission('mecanismos.factibilidad.revocar');
 
   const { data, isLoading, isFetching, isError, refetch } =

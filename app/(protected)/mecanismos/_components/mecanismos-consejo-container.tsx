@@ -84,14 +84,17 @@ export function MecanismosConsejoContainer({
 
   // El API toma el consejo del token; los parámetros solo los usa oficina central.
   const esConsejo = Number(user?.idConsejo) > 0;
-  const puedeInformar = esConsejo && hasPermission('mecanismos.informar');
-  const puedeAdministrar =
-    !esConsejo && hasPermission('mecanismos.administrar');
-  const puedeVerCedula = hasPermission('mecanismos.cedula.ver');
+  const puedeInformar = esConsejo && hasPermission('mecanismos.recoleccion.revisar');
+  const permisosMecanismo = {
+    agregar: false, // el alta vive en el tablero de oficina central
+    editar: !esConsejo && hasPermission('mecanismos.recoleccion.editar'),
+    baja: !esConsejo && hasPermission('mecanismos.recoleccion.baja'),
+  };
+  const puedeVerCedula = hasPermission('mecanismos.recoleccion.cedula.ver');
   const puedeCargarCedula =
-    !esConsejo && hasPermission('mecanismos.cedula.cargar');
+    !esConsejo && hasPermission('mecanismos.recoleccion.cedula.cargar');
   const puedeRevocar =
-    !esConsejo && hasPermission('mecanismos.informe.revocar');
+    !esConsejo && hasPermission('mecanismos.recoleccion.revocar');
 
   const { data, isLoading, isFetching, isError, refetch } = useMecanismos(
     esConsejo ? {} : { tipoConsejo, idConsejo },
@@ -239,7 +242,7 @@ export function MecanismosConsejoContainer({
             onVerDetalle={(m) => setVentana({ tipo: 'detalle', id: m.id })}
             onInformar={puedeInformar ? (m) => setInformarId(m.id) : undefined}
             onEditar={
-              puedeAdministrar
+              permisosMecanismo.editar
                 ? (m) => setVentana({ tipo: 'editar', id: m.id })
                 : undefined
             }
@@ -267,7 +270,7 @@ export function MecanismosConsejoContainer({
       <MecanismoVentanas
         ventana={ventana}
         onChange={setVentana}
-        puedeAdministrar={puedeAdministrar}
+        permisos={permisosMecanismo}
       />
 
       {puedeCargarCedula && (

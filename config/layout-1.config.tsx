@@ -88,7 +88,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       disabled: false,
       permission: 'bodegas.aperturas.ver',
   },
-  { heading: 'Mecanismos de Recolección', permission: 'mecanismos.ver'},
+  { heading: 'Mecanismos de Recolección', permission: 'mecanismos.recoleccion.ver'},
   {
       title: 'Estudios de Factibilidad',
       icon: FilePenLine,
@@ -103,7 +103,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       path: '/mecanismos',
       badge: 'New',
       disabled: false,
-      permission: 'mecanismos.ver',
+      permission: 'mecanismos.recoleccion.ver',
   },
   { heading: 'Documentación y Material', permission: ['documentacionymaterial.articulos.ver', 'documentacionymaterial.comprobaciones.ver', 'documentacionymaterial.actacircunstanciada.ver'] },
   {

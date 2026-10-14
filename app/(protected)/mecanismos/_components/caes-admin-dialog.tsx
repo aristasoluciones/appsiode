@@ -50,15 +50,20 @@ export function CaesAdminDialog({
   consejos,
 }: CaesAdminDialogProps) {
   const { hasPermission } = useAuth();
-  const puedeImportar = hasPermission('mecanismos.importar');
+  // Padrón y asignación en lote tienen permiso propio; cada pestaña se muestra según el suyo.
+  const puedePadron = hasPermission('mecanismos.recoleccion.caes');
+  const puedeAsignar = hasPermission('mecanismos.recoleccion.caes.asignar');
+  const apartadoInicial: TApartado = puedePadron ? 'listado' : 'asignacion';
 
-  const [apartado, setApartado] = useState<TApartado>('listado');
-  const [tipoHistorial, setTipoHistorial] = useState<TImportacionTipo>('CAES');
+  const [apartado, setApartado] = useState<TApartado>(apartadoInicial);
+  const [tipoHistorial, setTipoHistorial] = useState<TImportacionTipo>(
+    puedePadron ? 'CAES' : 'CAES_ASIGNACION',
+  );
   const [ocupado, setOcupado] = useState(false);
 
   useEffect(() => {
-    if (open) setApartado('listado');
-  }, [open]);
+    if (open) setApartado(apartadoInicial);
+  }, [open, apartadoInicial]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !ocupado && onOpenChange(v)}>
@@ -82,7 +87,7 @@ export function CaesAdminDialog({
         </DialogHeader>
 
         <DialogBody className="flex flex-col gap-4 min-h-0">
-          {!puedeImportar ? (
+          {!puedePadron && !puedeAsignar ? (
             <Alert variant="destructive" appearance="light" close={false}>
               <AlertIcon>
                 <CircleAlert />
@@ -97,36 +102,44 @@ export function CaesAdminDialog({
               onValueChange={(v) => !ocupado && setApartado(v as TApartado)}
             >
               <TabsList>
-                <TabsTrigger value="listado" disabled={ocupado}>
-                  <Upload className="h-4 w-4" />
-                  Listado de CAE
-                </TabsTrigger>
-                <TabsTrigger value="asignacion" disabled={ocupado}>
-                  <ListChecks className="h-4 w-4" />
-                  Asignación masiva
-                </TabsTrigger>
+                {puedePadron && (
+                  <TabsTrigger value="listado" disabled={ocupado}>
+                    <Upload className="h-4 w-4" />
+                    Listado de CAE
+                  </TabsTrigger>
+                )}
+                {puedeAsignar && (
+                  <TabsTrigger value="asignacion" disabled={ocupado}>
+                    <ListChecks className="h-4 w-4" />
+                    Asignación masiva
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="historial" disabled={ocupado}>
                   <History className="h-4 w-4" />
                   Historial
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="listado" className="mt-4">
-                <CaesCarga
-                  modo="listado"
-                  tipoConsejo={tipoConsejo}
-                  consejos={consejos}
-                  onOcupado={setOcupado}
-                />
-              </TabsContent>
-              <TabsContent value="asignacion" className="mt-4">
-                <CaesCarga
-                  modo="asignacion"
-                  tipoConsejo={tipoConsejo}
-                  consejos={consejos}
-                  onOcupado={setOcupado}
-                />
-              </TabsContent>
+              {puedePadron && (
+                <TabsContent value="listado" className="mt-4">
+                  <CaesCarga
+                    modo="listado"
+                    tipoConsejo={tipoConsejo}
+                    consejos={consejos}
+                    onOcupado={setOcupado}
+                  />
+                </TabsContent>
+              )}
+              {puedeAsignar && (
+                <TabsContent value="asignacion" className="mt-4">
+                  <CaesCarga
+                    modo="asignacion"
+                    tipoConsejo={tipoConsejo}
+                    consejos={consejos}
+                    onOcupado={setOcupado}
+                  />
+                </TabsContent>
+              )}
               <TabsContent value="historial" className="mt-4 space-y-3">
                 <Select
                   indicatorVisibility={false}
@@ -140,10 +153,14 @@ export function CaesAdminDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CAES">Listado de CAE</SelectItem>
-                    <SelectItem value="CAES_ASIGNACION">
-                      Asignación de CAE
-                    </SelectItem>
+                    {puedePadron && (
+                      <SelectItem value="CAES">Listado de CAE</SelectItem>
+                    )}
+                    {puedeAsignar && (
+                      <SelectItem value="CAES_ASIGNACION">
+                        Asignación de CAE
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <ImportacionesHistorial

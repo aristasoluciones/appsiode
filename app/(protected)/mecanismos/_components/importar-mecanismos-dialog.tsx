@@ -49,11 +49,19 @@ export function ImportarMecanismosDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { hasPermission } = useAuth();
-  const puedeImportar = hasPermission('mecanismos.importar');
+  // Formato de mecanismos y zip de cédulas tienen permiso propio; cada pestaña se muestra según el suyo.
+  const puedeFormato = hasPermission('mecanismos.recoleccion.importar');
+  const puedeCedulas = hasPermission('mecanismos.recoleccion.cedula.importar');
+  const tiposHistorial = TIPOS_HISTORIAL.filter((t) =>
+    t.tipo === 'MECANISMOS' ? puedeFormato : puedeCedulas,
+  );
 
-  const [apartado, setApartado] = useState<TApartado>('formato');
-  const [tipoHistorial, setTipoHistorial] =
-    useState<TImportacionTipo>('MECANISMOS');
+  const [apartado, setApartado] = useState<TApartado>(
+    puedeFormato ? 'formato' : 'cedulas',
+  );
+  const [tipoHistorial, setTipoHistorial] = useState<TImportacionTipo>(
+    puedeFormato ? 'MECANISMOS' : 'CEDULAS',
+  );
   // Con una revisión o una carga en curso la ventana no se cierra ni cambia de pestaña.
   const ocupado =
     useIsMutating({ mutationKey: MECANISMOS_KEYS.importacionesEnCurso() }) > 0;
@@ -75,7 +83,7 @@ export function ImportarMecanismosDialog({
         </DialogHeader>
 
         <DialogBody className="flex flex-col gap-4 min-h-0">
-          {!puedeImportar ? (
+          {!puedeFormato && !puedeCedulas ? (
             <Alert variant="destructive" appearance="light" close={false}>
               <AlertIcon>
                 <CircleAlert />
@@ -90,27 +98,35 @@ export function ImportarMecanismosDialog({
               onValueChange={(v) => !ocupado && setApartado(v as TApartado)}
             >
               <TabsList>
-                <TabsTrigger value="formato" disabled={ocupado}>
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Formato de importación
-                </TabsTrigger>
-                <TabsTrigger value="cedulas" disabled={ocupado}>
-                  <FileArchive className="h-4 w-4" />
-                  Cédulas
-                </TabsTrigger>
+                {puedeFormato && (
+                  <TabsTrigger value="formato" disabled={ocupado}>
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Formato de importación
+                  </TabsTrigger>
+                )}
+                {puedeCedulas && (
+                  <TabsTrigger value="cedulas" disabled={ocupado}>
+                    <FileArchive className="h-4 w-4" />
+                    Cédulas
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="historial" disabled={ocupado}>
                   <History className="h-4 w-4" />
                   Historial de cargas
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="formato" className="mt-4">
-                <ImportarFormatoTab activo={open && apartado === 'formato'} />
-              </TabsContent>
+              {puedeFormato && (
+                <TabsContent value="formato" className="mt-4">
+                  <ImportarFormatoTab activo={open && apartado === 'formato'} />
+                </TabsContent>
+              )}
 
-              <TabsContent value="cedulas" className="mt-4">
-                <ImportarCedulasTab />
-              </TabsContent>
+              {puedeCedulas && (
+                <TabsContent value="cedulas" className="mt-4">
+                  <ImportarCedulasTab />
+                </TabsContent>
+              )}
 
               <TabsContent value="historial" className="mt-4 space-y-3">
                 <div
@@ -118,7 +134,7 @@ export function ImportarMecanismosDialog({
                   role="group"
                   aria-label="Tipo de carga"
                 >
-                  {TIPOS_HISTORIAL.map((t) => (
+                  {tiposHistorial.map((t) => (
                     <ChipFiltro
                       key={t.tipo}
                       activo={tipoHistorial === t.tipo}

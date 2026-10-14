@@ -42,11 +42,22 @@ export function MecanismosAdminDashboard() {
   const { hasPermission } = useAuth();
   const { data: proceso, isLoading: isLoadingProceso } = useProceso();
 
-  const puedeAdministrar = hasPermission('mecanismos.administrar');
-  const puedeImportar = hasPermission('mecanismos.importar');
-  const puedeConfigurar = hasPermission('mecanismos.configuracion');
-  const puedeExportar = hasPermission('mecanismos.exportar');
-  const puedeSeguimiento = hasPermission('mecanismos.seguimiento');
+  const permisosMecanismo = {
+    agregar: hasPermission('mecanismos.recoleccion.agregar'),
+    editar: hasPermission('mecanismos.recoleccion.editar'),
+    baja: hasPermission('mecanismos.recoleccion.baja'),
+  };
+  // Cargas masivas: formato de mecanismos y zip de cédulas tienen permiso propio.
+  const puedeCargasMasivas =
+    hasPermission('mecanismos.recoleccion.importar') ||
+    hasPermission('mecanismos.recoleccion.cedula.importar');
+  // CAE: padrón y asignación en lote tienen permiso propio.
+  const puedeCaes =
+    hasPermission('mecanismos.recoleccion.caes') ||
+    hasPermission('mecanismos.recoleccion.caes.asignar');
+  const puedeConfigurar = hasPermission('mecanismos.recoleccion.configuracion');
+  const puedeExportar = hasPermission('mecanismos.recoleccion.exportar');
+  const puedeSeguimiento = hasPermission('mecanismos.recoleccion.seguimiento');
 
   const opciones = useMemo(() => opcionesTipoConsejo(proceso), [proceso]);
   const [tipoElegido, setTipoElegido] = useState<'D' | 'M' | null>(null);
@@ -109,25 +120,25 @@ export function MecanismosAdminDashboard() {
 
   const acciones = (
     <>
-      {puedeImportar && (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setVentana('importar')}
-          >
-            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-            Cargas masivas
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setVentana('caes')}
-          >
-            <Users className="h-4 w-4" aria-hidden="true" />
-            CAE
-          </Button>
-        </>
+      {puedeCargasMasivas && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setVentana('importar')}
+        >
+          <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+          Cargas masivas
+        </Button>
+      )}
+      {puedeCaes && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setVentana('caes')}
+        >
+          <Users className="h-4 w-4" aria-hidden="true" />
+          CAE
+        </Button>
       )}
       {puedeConfigurar && (
         <Button
@@ -157,7 +168,7 @@ export function MecanismosAdminDashboard() {
           Exportar
         </Button>
       )}
-      {puedeAdministrar && (
+      {permisosMecanismo.agregar && (
         <Button
           size="sm"
           onClick={() => setVentanaMecanismo({ tipo: 'nuevo' })}
@@ -228,7 +239,7 @@ export function MecanismosAdminDashboard() {
       <MecanismoVentanas
         ventana={ventanaMecanismo}
         onChange={setVentanaMecanismo}
-        puedeAdministrar={puedeAdministrar}
+        permisos={permisosMecanismo}
       />
 
       <ImportarMecanismosDialog
