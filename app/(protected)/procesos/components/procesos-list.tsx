@@ -180,7 +180,7 @@ export default function ProcesosList() {
         id: 'enlaces',
         header: 'Enlaces externos',
         accessorFn: (row) =>
-          `${row.configuracion?.rpp_api_base ?? ''} ${row.configuracion?.sice_api_base ?? ''}`,
+          `${row.configuracion?.rpp_api_base ?? ''} ${row.configuracion?.sice_api_base ?? ''} ${row.configuracion?.caes_api_base ?? ''}`,
         cell: ({ row }) => {
           const cfg = row.original.configuracion;
           if (!cfg?.rpp_api_base && !cfg?.sice_api_base) {
@@ -198,6 +198,11 @@ export default function ProcesosList() {
               <span className="truncate" title={cfg?.sice_api_base ?? ''}>
                 SICE: {cfg?.sice_api_base || '—'}
               </span>
+              {cfg?.caes_api_base && (
+                <span className="truncate" title={cfg.caes_api_base}>
+                  CAE: {cfg.caes_api_base}
+                </span>
+              )}
             </div>
           );
         },
@@ -267,6 +272,7 @@ export default function ProcesosList() {
         etiquetaStatus(p.status),
         p.configuracion?.rpp_api_base ?? '',
         p.configuracion?.sice_api_base ?? '',
+        p.configuracion?.caes_api_base ?? '',
       ]
         .join(' ')
         .toLowerCase()

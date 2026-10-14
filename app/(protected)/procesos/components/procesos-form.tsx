@@ -84,6 +84,12 @@ const procesoSchema = z.object({
     .refine(esUrlValida, {
       message: 'Captura una dirección web válida que inicie con http o https.',
     }),
+  caes_api_base: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || esUrlValida(v), {
+      message: 'Captura una dirección web válida que inicie con http o https.',
+    }),
   consejo_distrital: z.boolean(),
   consejo_municipal: z.boolean(),
 });
@@ -102,6 +108,7 @@ function valoresIniciales(proceso?: IProcesoCatalogo): ProcesoFormValues {
     modo: proceso?.modo ?? '',
     rpp_api_base: proceso?.configuracion?.rpp_api_base ?? '',
     sice_api_base: proceso?.configuracion?.sice_api_base ?? '',
+    caes_api_base: proceso?.configuracion?.caes_api_base ?? '',
     consejo_distrital: proceso?.consejo_distrital ?? false,
     consejo_municipal: proceso?.consejo_municipal ?? false,
   };
@@ -151,6 +158,8 @@ export default function ProcesoForm({
       configuracion: {
         rpp_api_base: values.rpp_api_base.trim(),
         sice_api_base: values.sice_api_base.trim(),
+        // Vacío no se envía: el API quita la llave y el catálogo de CAE vuelve a la tabla.
+        caes_api_base: values.caes_api_base.trim() || undefined,
       },
     };
 
@@ -335,6 +344,28 @@ export default function ProcesoForm({
                       </FormControl>
                       <FormDescription>
                         De aquí se consulta la integración de las consejerías electorales.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="caes_api_base"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Enlace al sistema de CAE</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="https://caes.ejemplo.org.mx"
+                          disabled={isPending}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Opcional. Con enlace, el catálogo de CAE de mecanismos se consulta
+                        en ese sistema y deja de capturarse en SIODE.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

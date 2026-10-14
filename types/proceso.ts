@@ -19,6 +19,11 @@ export interface IProcesoConfiguracion {
   rpp_api_base: string;
   /** Base del sistema de consejerías electorales (SICE). */
   sice_api_base: string;
+  /**
+   * Opcional: servicio del sistema que administra a los CAE. Con valor, el
+   * catálogo de CAE de mecanismos se consulta allá y su captura se cierra.
+   */
+  caes_api_base?: string;
 }
 
 export interface IProceso {
