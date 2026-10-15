@@ -70,31 +70,3 @@ export function siguientePaso(d: IEstudioAvanceDistrito): string {
       return 'Volver a proponer';
   }
 }
-
-/** Prioridad para el orden por urgencia: primero lo que espera a oficina central. */
-const PRIORIDAD: Record<TEtapaEstudio, number> = {
-  LISTO: 0,
-  EN_REVISION: 1,
-  SIN_ESTUDIO: 2,
-  ANULADO: 3,
-  APROBADO: 4,
-};
-
-/**
- * Orden por urgencia: listos para aprobar, en revisión (el propuesto hace más
- * tiempo primero), sin estudio, anulados y aprobados; dentro, por distrito.
- */
-export function compararUrgencia(
-  a: IEstudioAvanceDistrito,
-  b: IEstudioAvanceDistrito,
-): number {
-  const pa = PRIORIDAD[etapaDe(a)];
-  const pb = PRIORIDAD[etapaDe(b)];
-  if (pa !== pb) return pa - pb;
-  if (pa === PRIORIDAD.EN_REVISION && a.fecha_propuesta && b.fecha_propuesta) {
-    const fa = Date.parse(a.fecha_propuesta);
-    const fb = Date.parse(b.fecha_propuesta);
-    if (fa !== fb) return fa - fb;
-  }
-  return a.id_df - b.id_df;
-}

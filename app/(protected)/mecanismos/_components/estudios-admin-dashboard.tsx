@@ -9,7 +9,6 @@ import { AccessDenied } from '@/components/common/access-denied';
 import { ErrorState } from '@/components/common/error-state';
 import { useEstudiosAvance } from '../_hooks/use-estudios';
 import {
-  compararUrgencia,
   etapaDe,
   ETAPAS_FLUJO,
   type TEtapaEstudio,
@@ -28,8 +27,8 @@ const ETAPAS: TEtapaEstudio[] = [...ETAPAS_FLUJO, 'ANULADO'];
 
 /**
  * Apartado de avance de los estudios de factibilidad para oficina central:
- * etapas del flujo (conteo y filtro a la vez), buscador y la tabla ordenada por
- * urgencia, con lo que espera a oficina central primero; todo en pantalla.
+ * etapas del flujo (conteo y filtro a la vez), buscador y la tabla en el orden
+ * de los distritos federales (01 a 13); todo en pantalla.
  */
 export function EstudiosAdminDashboard() {
   const { hasPermission } = useAuth();
@@ -65,18 +64,14 @@ export function EstudiosAdminDashboard() {
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    return (
-      distritos
-        .filter((d) => {
-          if (etapasActivas.length > 0 && !etapasActivas.includes(etapaDe(d)))
-            return false;
-          return (
-            !q || String(d.id_df).includes(q) || d.df.toLowerCase().includes(q)
-          );
-        })
-        // Por urgencia: primero lo que espera a oficina central.
-        .sort(compararUrgencia)
-    );
+    // El hook ya los entrega en el orden del distrito federal; el filtro lo conserva.
+    return distritos.filter((d) => {
+      if (etapasActivas.length > 0 && !etapasActivas.includes(etapaDe(d)))
+        return false;
+      return (
+        !q || String(d.id_df).includes(q) || d.df.toLowerCase().includes(q)
+      );
+    });
   }, [distritos, busqueda, etapasActivas]);
 
   const hayFiltros = busqueda.trim().length > 0 || etapasActivas.length > 0;

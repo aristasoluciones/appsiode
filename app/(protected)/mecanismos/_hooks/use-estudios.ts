@@ -59,12 +59,14 @@ export function useEstudiosConsejo(
       const { data } = await apiClient.get<IEstudioConsejo[]>(
         API_ENDPOINTS.MECANISMOS.ESTUDIOS(idConsejo!, tipoConsejo!),
       );
-      return (data ?? []).map((e) => ({
-        ...e,
-        revisiones: e.revisiones ?? 0,
-        total_consejos: e.total_consejos ?? 0,
-        total_observaciones: e.total_observaciones ?? 0,
-      }));
+      return (data ?? [])
+        .map((e) => ({
+          ...e,
+          revisiones: e.revisiones ?? 0,
+          total_consejos: e.total_consejos ?? 0,
+          total_observaciones: e.total_observaciones ?? 0,
+        }))
+        .sort((a, b) => a.id_df - b.id_df);
     },
     staleTime: 30_000,
   });
@@ -86,18 +88,21 @@ export function useEstudiosAvance(habilitado = true) {
       // Los conteos se suman en pantalla: uno nulo daría NaN en los indicadores.
       return {
         ...data,
-        distritos: (data.distritos ?? []).map((d) => ({
-          ...d,
-          consejos: d.consejos ?? 0,
-          revisiones: d.revisiones ?? 0,
-          revisiones_d: d.revisiones_d ?? 0,
-          revisiones_m: d.revisiones_m ?? 0,
-          consejos_d: d.consejos_d ?? 0,
-          consejos_m: d.consejos_m ?? 0,
-          porcentaje_revisiones: d.porcentaje_revisiones ?? 0,
-          observaciones: d.observaciones ?? 0,
-          observaciones_tipos: d.observaciones_tipos ?? [],
-        })),
+        distritos: (data.distritos ?? [])
+          .map((d) => ({
+            ...d,
+            consejos: d.consejos ?? 0,
+            revisiones: d.revisiones ?? 0,
+            revisiones_d: d.revisiones_d ?? 0,
+            revisiones_m: d.revisiones_m ?? 0,
+            consejos_d: d.consejos_d ?? 0,
+            consejos_m: d.consejos_m ?? 0,
+            porcentaje_revisiones: d.porcentaje_revisiones ?? 0,
+            observaciones: d.observaciones ?? 0,
+            observaciones_tipos: d.observaciones_tipos ?? [],
+          }))
+          // Siempre en el orden del distrito federal (01 a 13), en tabla, listas y exportación.
+          .sort((a, b) => a.id_df - b.id_df),
       };
     },
     staleTime: 30_000,
