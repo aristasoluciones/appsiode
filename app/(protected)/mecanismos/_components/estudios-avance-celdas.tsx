@@ -3,27 +3,17 @@
 import type { IEstudioAvanceDistrito } from '@/types/mecanismos';
 import { formatFecha } from '@/lib/fechas';
 import { Progress } from '@/components/ui/progress';
-import { ConteoChip } from '@/components/common/chip-filtro';
+import { ConsejosDistritoPopover } from './consejos-distrito';
 
-/** Consejos del distrito por tipo, en chips con su conteo. */
+/** Consejos del distrito por tipo, en chips con su conteo; al hacer clic, la lista con clave y nombre. */
 export function ConsejosPorTipo({ d }: { d: IEstudioAvanceDistrito }) {
   return (
-    <div className="flex flex-wrap gap-1">
-      {(
-        [
-          ['Distritales', d.consejos_d],
-          ['Municipales', d.consejos_m],
-        ] as const
-      ).map(([etiqueta, n]) => (
-        <span
-          key={etiqueta}
-          className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-border bg-background text-xs text-muted-foreground whitespace-nowrap"
-        >
-          {etiqueta}
-          <ConteoChip>{n}</ConteoChip>
-        </span>
-      ))}
-    </div>
+    <ConsejosDistritoPopover
+      idDf={d.id_df}
+      df={d.df}
+      distritales={d.consejos_d}
+      municipales={d.consejos_m}
+    />
   );
 }
 

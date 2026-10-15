@@ -26,6 +26,7 @@ import { LeyendaObligatorios } from '@/components/common/leyenda-obligatorios';
 import { SelectorArchivo } from '@/components/common/selector-archivo';
 import { useAprobarEstudio, useProponerEstudio } from '../_hooks/use-estudios';
 import { MECANISMOS_LIMITES } from '../_lib/limites';
+import { ConsejosQueRevisaran } from './consejos-distrito';
 
 const PDF = {
   extensiones: ['.pdf'] as const,
@@ -85,6 +86,18 @@ export function ProponerEstudioDialog({
     setIdDf(distrito ? String(distrito.id_df) : '');
   }, [open, distrito]);
 
+  // Vista previa local del PDF elegido, antes de subirlo; se libera al cambiarlo o cerrar.
+  const urlVista = useMemo(
+    () => (archivo ? URL.createObjectURL(archivo) : null),
+    [archivo],
+  );
+  useEffect(
+    () => () => {
+      if (urlVista) URL.revokeObjectURL(urlVista);
+    },
+    [urlVista],
+  );
+
   const pendiente = proponer.isPending || aprobar.isPending;
   const t = TEXTOS[modo];
   const listo = !!archivo && (modo !== 'proponer' || idDf !== '');
@@ -101,7 +114,7 @@ export function ProponerEstudioDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => !pendiente && onOpenChange(v)}>
       <DialogContent
-        className="sm:max-w-lg"
+        className="sm:max-w-6xl w-[95vw] h-[90vh]"
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
@@ -112,62 +125,87 @@ export function ProponerEstudioDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <DialogBody className="space-y-4">
-          {error && (
-            <Alert variant="destructive" appearance="light" close={false}>
-              <AlertIcon>
-                <CircleAlert />
-              </AlertIcon>
-              <AlertTitle>{error}</AlertTitle>
-            </Alert>
-          )}
+        {/* El formulario a la izquierda; a la derecha, la zona para soltar el PDF que, ya cargado, muestra su vista previa. */}
+        <DialogBody className="min-h-0 -mx-6 px-6 grid gap-4 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+          <div className="flex flex-col gap-4 min-h-0">
+            {error && (
+              <Alert variant="destructive" appearance="light" close={false}>
+                <AlertIcon>
+                  <CircleAlert />
+                </AlertIcon>
+                <AlertTitle>{error}</AlertTitle>
+              </Alert>
+            )}
 
-          {modo === 'proponer' && (
-            <div className="space-y-2">
-              <Label>
-                Distrito federal <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                indicatorVisibility={false}
-                value={idDf}
-                onValueChange={setIdDf}
-                disabled={pendiente}
-              >
-                <SelectTrigger aria-label="Distrito federal">
-                  <SelectValue placeholder="Elige el distrito" />
-                </SelectTrigger>
-                <SelectContent>
-                  {elegibles.map((d) => (
-                    <SelectItem key={d.id_df} value={String(d.id_df)}>
-                      {d.id_df}. {d.df}
-                      {d.estatus === 'ANULADO' ? ' (anulado)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {elegibles.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Todos los distritos ya tienen un estudio vigente.
-                </p>
-              )}
-            </div>
-          )}
+            {modo === 'proponer' && (
+              <div className="space-y-2">
+                <Label>
+                  Distrito federal <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  indicatorVisibility={false}
+                  value={idDf}
+                  onValueChange={setIdDf}
+                  disabled={pendiente}
+                >
+                  <SelectTrigger aria-label="Distrito federal">
+                    <SelectValue placeholder="Elige el distrito" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {elegibles.map((d) => (
+                      <SelectItem key={d.id_df} value={String(d.id_df)}>
+                        {d.id_df}. {d.df}
+                        {d.estatus === 'ANULADO' ? ' (anulado)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {elegibles.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Todos los distritos ya tienen un estudio vigente.
+                  </p>
+                )}
+              </div>
+            )}
 
-          <div className="space-y-2">
+            {/* Quiénes recibirán y revisarán la propuesta; ocupa el alto que queda en la columna. */}
+            {modo === 'proponer' && (
+              <div className="flex-1 min-h-[16rem]">
+                <ConsejosQueRevisaran
+                  idDf={idDf !== '' ? Number(idDf) : null}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 min-h-[50vh] lg:min-h-0">
             <Label>
               PDF del estudio {modo === 'aprobar' ? 'aprobado' : 'propuesto'}{' '}
               <span className="text-destructive">*</span>
             </Label>
-            <SelectorArchivo
-              archivo={archivo}
-              onChange={setArchivo}
-              onError={setError}
-              limites={PDF}
-              etiqueta="Selecciona el PDF del estudio"
-              descripcion="PDF de hasta 10 MB"
-              disabled={pendiente}
-              icono={<FileText />}
-            />
+            {/* Sin archivo, la zona de soltar ocupa toda la columna; con archivo, queda su ficha (para quitarlo) y debajo la vista previa. */}
+            <div className={urlVista ? '' : 'flex-1 [&_button]:h-full'}>
+              <SelectorArchivo
+                archivo={archivo}
+                onChange={setArchivo}
+                onError={setError}
+                limites={PDF}
+                etiqueta="Selecciona el PDF del estudio"
+                descripcion="PDF de hasta 10 MB"
+                disabled={pendiente}
+                icono={<FileText />}
+              />
+            </div>
+            {urlVista && (
+              <div className="flex-1 min-h-0 rounded-md border border-border overflow-hidden bg-muted/30">
+                <iframe
+                  key={urlVista}
+                  src={`${urlVista}#view=Fit&zoom=60`}
+                  title="Vista previa del PDF elegido"
+                  className="w-full h-full border-0"
+                />
+              </div>
+            )}
           </div>
         </DialogBody>
 
